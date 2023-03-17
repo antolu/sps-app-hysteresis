@@ -31,7 +31,7 @@ classifiers = [
 requires-python = '>=3.9'
 dependencies = [
     'accjapc ~= 0.2.3',
-    'accwidgets ~= 1.7.5'
+    'accwidgets ~= 1.7.5',
     'matplotlib ~= 3.6',
     'numpy ~= 1.24',
     'pjlsa ~= 0.2.16',
@@ -59,7 +59,6 @@ dev = [
 [tool.setuptools]
 packages = [
     'sps_apps.hysteresis_prediction',
-    'sps_apps.hysteresis_prediction.*',
 ]
 
 [tool.black]
@@ -83,12 +82,12 @@ exclude = '''
 
 [tool.isort]
 profile = 'black'
-" extend_skip = ['sps_app_hysteresis/timing_acquisition.py']
+# extend_skip = ['sps_app_hysteresis/timing_acquisition.py']
 line_length = 79
 
 [tool.pylint.MASTER]
 extension-pkg-whitelist = ['torch']
-" ignore = ['timing_acquisition.py']
+# ignore = ['timing_acquisition.py']
 
 [tool.pylint.REPORTS]
 reports = false
@@ -124,6 +123,6 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = [
-"    'sps_app_hysteresis.timing_acquisition',
+#    'sps_app_hysteresis.timing_acquisition',
 ]
 disallow_untyped_defs = false
