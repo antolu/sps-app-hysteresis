@@ -1,0 +1,129 @@
+[build-system]
+requires = [
+    'setuptools >= 61',
+    'setuptools-scm[toml] ~= 6.0',
+    'wheel',
+]
+build-backend = 'setuptools.build_meta'
+
+[project]
+name = 'sps-app-hysteresis'
+authors = [
+    { name = "Anton Lu", email = "anton.lu@cern.ch" }
+]
+dynamic = ['version']
+description = 'GUI for predicting the magnetic field based on measured and programmed current in the SPS'
+readme = 'README.md'
+license = {text = 'Other/Proprietary License'}
+classifiers = [
+    'Development Status :: 3 - Alpha',
+    'Environment :: X11 Applications :: Qt',
+    'Intended Audience :: Science/Research',
+    'License :: Other/Proprietary License',
+    'Natural Language :: English',
+    'Operating System :: POSIX :: Linux',
+    'Programming Language :: Python :: 3 :: Only',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Topic :: Scientific/Engineering :: Artificial Intelligence',
+    'Topic :: Scientific/Engineering :: Physics',
+]
+requires-python = '>=3.9'
+dependencies = [
+    'accjapc ~= 0.2.3',
+    'accwidgets ~= 1.7.5'
+    'matplotlib ~= 3.6',
+    'numpy ~= 1.24',
+    'pjlsa ~= 0.2.16',
+    'pyjapc ~= 2.6',
+    'PyQt5 ~= 5.12',
+    'scipy ~= 1.10.1',
+    'scikit-learn ~= 1.2',
+    'torch~=2.0',
+]
+
+[project.optional-dependencies]
+test = [
+    "flake8",
+    "pylint",
+    "pytest-cov"
+]
+dev = [
+    "sps-app-hysteresis[test]",
+    "black",
+    "pre-commit",
+    "isort",
+]
+
+
+[tool.setuptools]
+packages = [
+    'sps_apps.hysteresis_prediction',
+    'sps_apps.hysteresis_prediction.*',
+]
+
+[tool.black]
+target-version = ['py39', 'py310']
+line-length = 79
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+
+[tool.isort]
+profile = 'black'
+" extend_skip = ['sps_app_hysteresis/timing_acquisition.py']
+line_length = 79
+
+[tool.pylint.MASTER]
+extension-pkg-whitelist = ['torch']
+" ignore = ['timing_acquisition.py']
+
+[tool.pylint.REPORTS]
+reports = false
+score = false
+
+[tool.pylint.DESIGN]
+max-attributes = 14
+
+[tool.pylint.'MESSAGES CONTROL']
+disable = [
+    'fixme',
+    'duplicate-code',
+    'similarities',
+    'too-few-public-methods',
+]
+
+[tool.pylint.FORMAT]
+ignore-long-lines = '<?https?://\S+>?$'
+
+[tool.mypy]
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    'accjapc.*',
+    'jpype.*',
+    'matplotlib.*',
+    'pjlsa.*',
+    'pyjapc.*',
+    'scipy.*',
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+"    'sps_app_hysteresis.timing_acquisition',
+]
+disallow_untyped_defs = false
