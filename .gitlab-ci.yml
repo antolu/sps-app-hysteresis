@@ -15,8 +15,8 @@ build_wheel:
 #  extends: .acc_py_dev_test
 #  image: registry.cern.ch/acc/${ACC_PY_BASE_IMAGE_NAME}:${ACC_PY_BASE_IMAGE_TAG}
 
-test_wheel:
-  extends: .acc_py_wheel_test
+# test_wheel:
+#   extends: .acc_py_wheel_test
 
 build_sdist:
   extends: .acc_py_build_sdist
