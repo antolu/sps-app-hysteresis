@@ -30,7 +30,7 @@ classifiers = [
 requires-python = '>=3.9'
 dependencies = [
     'accjapc ~= 0.2.3',
-    'accwidgets ~= 1.7.5',
+    'accwidgets[graph] ~= 1.7.5',
     'matplotlib ~= 3.6',
     'numpy ~= 1.24',
     'pjlsa ~= 0.2.16',
