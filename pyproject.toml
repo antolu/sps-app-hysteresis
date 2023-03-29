@@ -64,6 +64,9 @@ packages = [
     'sps_apps.hysteresis_prediction',
 ]
 
+[project.scripts]
+app-hysteresis = "sps_apps.hysteresis_prediction.application:main"
+
 [tool.black]
 target-version = ['py39', 'py310']
 line-length = 79
@@ -79,6 +82,7 @@ exclude = '''
   | buck-out
   | build
   | dist
+  | .*/generated
 )/
 '''
 

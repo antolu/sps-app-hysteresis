@@ -6,7 +6,7 @@ from os import path
 import pyqt5ac
 
 HERE = path.split(path.abspath(__file__))[0]
-PACKAGE_DIR = "sps_apps/btrain_data"
+PACKAGE_DIR = "sps_apps/hysteresis_prediction"
 
 
 pyqt5ac.main(
