@@ -23,6 +23,6 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         timing_model = TimingBarModel(
             domain=TimingBarDomain.SPS, japc=context.japc
         )
-        timing_bar = TimingBar(self, timing_model)
+        timing_bar = TimingBar(self, model=timing_model)
         self.timing_bar = timing_bar
         # self.centralWidget().layout().addWidget(timing_bar)
