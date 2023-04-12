@@ -21,7 +21,7 @@ class AppSettings:
 
         self.is_init = False
 
-        self._deploy_path = dict()
+        self._deploy_path = {}
 
     def init(self) -> None:
         if not self.is_init:
