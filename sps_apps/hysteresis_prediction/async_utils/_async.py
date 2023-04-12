@@ -40,19 +40,20 @@ class Signal:
     def emit(self, *args: Any) -> None:
         """
         Send a signal to all connected slots.
-        This operation is thread safe, and the slots executed in a new thread by
-        the event loop.
+        This operation is thread safe, and the slots executed in a new thread
+        by the event loop.
 
-        :param args: The arguments to send to the slots. The arguments can be of
-            any type, but must be the same number as the signal. The slot may
-            fail (silently) if incorrect arguments are passed.
+        :param args: The arguments to send to the slots. The arguments can be
+            of any type, but must be the same number as the signal. The slot
+            may fail (silently) if incorrect arguments are passed.
         """
         asyncio.run_coroutine_threadsafe(self._put(*args), loop=self._loop)
 
     def connect(self, handle: Callable[..., None]) -> None:
         """
-        Connect a slot to the signal. The slot is executed when the signal is emitted.
-        The slot must have the same number of arguments as the signal.
+        Connect a slot to the signal. The slot is executed when the signal is
+        emitted. The slot must have the same number of arguments as the
+        signal.
 
         :param handle: The slot to connect to the signal.
 
@@ -65,7 +66,8 @@ class Signal:
         signature = inspect.signature(handle)
         if len(signature.parameters) != len(self._types):
             raise TypeError(
-                f"Expected {len(self._types)} arguments, got {len(signature.parameters)}"
+                f"Expected {len(self._types)} arguments, got "
+                f"{len(signature.parameters)}."
             )
 
         print(f"Connecting {handle.__name__}.")
@@ -73,8 +75,8 @@ class Signal:
 
     def disconnect(self, handle: Callable[..., None]) -> None:
         """
-        Remove a slot from the signal. The slot will no longer be executed when
-        the signal is emitted.
+        Remove a slot from the signal. The slot will no longer be executed
+        when the signal is emitted.
 
         :handle: The slot to disconnect from the signal.
 
@@ -104,8 +106,9 @@ class Signal:
 
     async def _put(self, *args) -> None:
         """
-        Coroutine that puts a signal on the queue. This method should be called
-        in the same event loop as the signal to avoid race conditions.
+        Coroutine that puts a signal on the queue. This method should be
+        called in the same event loop as the signal to avoid race
+        conditions.
         """
         value = tuple(args) if not isinstance(*args, tuple) else args
         await self._q.put(value)
