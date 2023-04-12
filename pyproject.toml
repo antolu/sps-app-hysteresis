@@ -53,10 +53,9 @@ test = [
     "pytest-cov"
 ]
 dev = [
-    "sps-app-hysteresis[test]",
     "black",
     "pre-commit",
-    "isort",
+    "ruff"
 ]
 
 [tool.setuptools.dynamic]
@@ -90,11 +89,41 @@ exclude = '''
 )/
 '''
 
+[tool.ruff]
 
-[tool.isort]
-profile = 'black'
-# extend_skip = ['sps_app_hysteresis/timing_acquisition.py']
-line_length = 79
+fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "EM", "ERA", "EXE", "FBT", "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"]
+exclude = [
+    "sps_apps/hysteresis_prediction/generated",
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+
+line-length = 79
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+
+target-version = "py39"
+
+[tool.ruff.mccabe]
+max-complexity = 10
 
 [tool.pylint.MASTER]
 extension-pkg-whitelist = ['torch']
