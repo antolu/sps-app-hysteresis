@@ -1,20 +1,32 @@
+exclude: ^(.idea/)
 repos:
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: "v0.0.256"
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
-      - id: trailing-whitespace
       - id: end-of-file-fixer
+      - id: check-added-large-files
+      - id: check-ast
+      - id: check-builtin-literals
+      - id: check-case-conflict
+      - id: check-docstring-first
+      - id: check-shebang-scripts-are-executable
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: debug-statements
+        exclude: ^LICENSE|\.(html|csv|txt|svg|py)$
+      - id: pretty-format-json
+        args: ["--autofix", "--no-ensure-ascii", "--no-sort-keys"]
+      - id: requirements-txt-fixer
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+        exclude: \.(html|svg)$
   -   repo: https://github.com/psf/black
       rev: 23.1.0
       hooks:
         - id: black
-          language_version: python3.9
-  -   repo: https://github.com/PyCQA/flake8
-      rev: 6.0.0
-      hooks:
-        - id: flake8
-  -   repo: https://github.com/pycqa/isort
-      rev: 5.12.0
-      hooks:
-        - id: isort
-          name: isort (python)
