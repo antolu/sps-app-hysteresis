@@ -7,14 +7,25 @@ from typing import Optional
 import numpy as np
 from dateteime import datetime
 
+from ..utils import from_utc_ns
+
 log = logging.getLogger(__name__)
 
 
 @dataclass
 class SingleCycleData:
-    """The cycle timestamp converted to datetime."""
+    """LSA cycle name"""
 
-    cycle_time: datetime
+    cycle: str
+
+    """The cycle timestamp converted to datetime in localtime. """
+    cycle_time: datetime = field(init=False)
+
+    """ The cycle timestamp in UTC, and ns. """
+    cycle_timestamp: int
+
+    """ Cycle length, in ms. This corresponds to number of samples. """
+    cycle_length: int = field(init=False)
 
     """ Programmed current and field """
     current_prog: np.ndarray
@@ -31,5 +42,6 @@ class SingleCycleData:
 
     num_samples: int = field(init=False)
 
-    def is_complete(self) -> bool:
-        return self.current_meas is not None and self.field_meas is not None
+    def __post_init__(self):
+        self.cycle_time = from_utc_ns(self.cycle_timestamp)
+        self.cycle_length = len(self.current_prog)
