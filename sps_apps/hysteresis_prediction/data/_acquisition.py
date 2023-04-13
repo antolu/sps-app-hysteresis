@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 from functools import partial
 
-from pyda import AsyncIOClient, CallbackClient, SimpleClient
+from pyda import AsyncIOClient, SimpleClient
 from pyda.clients.asyncio import AsyncIOSubscription
 from pyda.data import PropertyRetrievalResponse
 from pyda_japc import JapcProvider
@@ -19,6 +19,8 @@ from ..async_utils import Signal
 from ..utils import from_timestamp
 from ._acquisition_buffer import AcquisitionBuffer, BufferData
 from ._dataclass import SingleCycleData
+
+__all__ = ["Acquisition"]
 
 DEV_LSA_B = "SPSBEAM/B"
 DEV_LSA_BDOT = "SPSBEAM/BDOT"
@@ -88,7 +90,8 @@ class Acquisition:
             )
             japc_provider = JapcProvider(rbac_token=token)
 
-        self._japc_callback = CallbackClient(provider=japc_provider)
+        self._stop_execution = False
+
         self._japc_simple = SimpleClient(provider=japc_provider)
         self._japc_async = AsyncIOClient(provider=japc_provider)
 
@@ -103,9 +106,16 @@ class Acquisition:
         Starts the acquisition process in a separate thread.
         """
         # TODO: perform synchronous GETS to initialize the buffer
-        handles = self._setup_subscriptions()
+        try:
+            handles = self._setup_subscriptions()
+        except:  # noqa
+            log.exception("Error while setting up subscriptions.")
+            return
 
         async for response in AsyncIOClient.merge_subscriptions(*handles):
+            if self._stop_execution:
+                break
+
             try:
                 self._handle_acquisition(response)
             except Exception as e:
@@ -114,6 +124,9 @@ class Acquisition:
     @property
     def buffer(self) -> AcquisitionBuffer:
         return self._buffer
+
+    def join(self) -> None:
+        self._stop_execution = True
 
     def _handle_acquisition(self, response: PropertyRetrievalResponse) -> None:
         """
@@ -126,6 +139,13 @@ class Acquisition:
                 "An error occurred trying to access value of event: "
                 f"{response.query.endpoint}@{response.value.header.selector}:"
                 f"\n{str(response.exception)}"
+            )
+            return
+
+        if response.notification_type == "FIRST_UPDATE":
+            log.debug(
+                "Received first update for "
+                f"{response.query.endpoint}@{response.value.header.selector}."
             )
             return
 
@@ -170,14 +190,31 @@ class Acquisition:
         )
 
     def _setup_subscriptions(self) -> list[AsyncIOSubscription]:
-        name = ("StartSuperCycle",)
-        endpoints = (START_SUPERCYCLE,)
-        selectors = ("",)
-        callbacks = (self._on_start_supercycle,)
+        subscriptions = [
+            ("StartSuperCycle", START_SUPERCYCLE, ""),
+            ("ProgrammedCurrent", DEV_LSA_I, "SPS.USER.ALL"),
+            ("MeasuredCurrent", DEV_MEAS_I, "SPS.USER.ALL"),
+            ("MeasuredBField", DEV_MEAS_B, "SPS.USER.ALL"),
+            ("Forewarning", TRIGGER_EVENT, "SPS.USER.ALL"),
+            # ("ProgrammedBField", DEV_LSA_B, "SPS.USER.ALL"),
+        ]
 
-        for name, endpoint, selector, callback in zip(
-            name, endpoints, selectors, callbacks
-        ):
+        log.debug("Setting up subscriptions.")
+        log.debug("Performing GETs to initialize the buffer.")
+
+        self._handle_acquisition(
+            self._japc_simple.get(START_SUPERCYCLE, context="")
+        )
+
+        for _, endpoint, _ in subscriptions[1:]:
+            for selector in self._pls_to_lsa.keys():
+                log.debug(f"GET-ting values for {endpoint}@{selector}.")
+                self._handle_acquisition(
+                    self._japc_simple.get(endpoint, context=selector)
+                )
+
+        log.debug("Subscribing to events.")
+        for name, endpoint, selector in subscriptions:
             log.debug(f"Subscribing to {endpoint} with selector {selector}.")
             handle = self._japc_async.subscribe(endpoint, context=selector)
 
