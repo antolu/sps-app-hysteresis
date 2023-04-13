@@ -7,17 +7,18 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from functools import partial
-from typing import Callable, Optional
 
 from pyda import AsyncIOClient, CallbackClient, SimpleClient
 from pyda.clients.asyncio import AsyncIOSubscription
 from pyda.data import PropertyRetrievalResponse
 from pyda_japc import JapcProvider
 from pyrbac import AuthenticationClient
+from typi_available import Callable, Optional
 
 from ..async_utils import Signal
 from ..utils import from_timestamp
 from ._acquisition_buffer import AcquisitionBuffer, BufferData
+from ._dataclass import SingleCycleData
 
 DEV_LSA_B = "SPSBEAM/B"
 DEV_LSA_BDOT = "SPSBEAM/BDOT"
@@ -91,10 +92,11 @@ class Acquisition:
         self._japc_simple = SimpleClient(provider=japc_provider)
         self._japc_async = AsyncIOClient(provider=japc_provider)
 
-        self.data_acquired = Signal(
-            str, PropertyRetrievalResponse
-        )  # LSA cycle name, acquisition
+        self.new_buffer_data = Signal(list[SingleCycleData])
+        self.new_measured_data = Signal(SingleCycleData)
         self.cycle_mapping_changed = Signal(str)  # LSA cycle name
+
+        self.data_acquired.connect(self._buffer.dispatch_data)
 
     async def run(self) -> None:
         """
@@ -104,7 +106,14 @@ class Acquisition:
         handles = self._setup_subscriptions()
 
         async for response in AsyncIOClient.merge_subscriptions(*handles):
-            self.data_acquired.emit(response)
+            try:
+                self._handle_acquisition(response)
+            except Exception as e:
+                log.exception("Error handling acquisition event.", e)
+
+    @property
+    def buffer(self) -> AcquisitionBuffer:
+        return self._buffer
 
     def _handle_acquisition(self, response: PropertyRetrievalResponse) -> None:
         """
@@ -156,7 +165,7 @@ class Acquisition:
 
         cycle_timestamp = value.header.cycle_timestamp
 
-        self.data_acquired.emit(
+        self._buffer.dispatch_data(
             ENDPOINT2BF[endpoint], cycle, cycle_timestamp, data
         )
 
@@ -177,7 +186,33 @@ class Acquisition:
         return list(self._async_handles.values())
 
     def _on_forewarning(self, response: PropertyRetrievalResponse) -> None:
-        pass
+        """
+        Handler for the forewarning event. This is triggered 2500ms before
+        the cycle plays.
+
+        This function notify the buffer that a new cycle is about to start,
+        and then retrieve the latest buffered data if it is available.
+        """
+        cycle = self._pls_to_lsa.get(response.value.header.selector)
+        cycle_timestamp = response.value.header.cycle_timestamp
+        log.debug(
+            f"Cycle {cycle} at {cycle_timestamp} is about to start. "
+            "Notifying buffer."
+        )
+
+        self.buffer.new_cycle(cycle, cycle_timestamp)
+
+        log.debug("Query buffer for latest buffered data.")
+
+        try:
+            buffer = self._buffer.collate_samples()
+        except IndexError:
+            log.debug("No buffered data available.")
+            return
+
+        log.debug("Buffered data available. Sending it to listeners.")
+
+        self.new_buffer_data.emit(buffer)
 
     def _on_start_supercycle(
         self, response: PropertyRetrievalResponse
