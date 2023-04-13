@@ -7,13 +7,13 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from functools import partial
+from typing import Callable, Optional
 
 from pyda import AsyncIOClient, SimpleClient
 from pyda.clients.asyncio import AsyncIOSubscription
 from pyda.data import PropertyRetrievalResponse
 from pyda_japc import JapcProvider
 from pyrbac import AuthenticationClient
-from typi_available import Callable, Optional
 
 from ..async_utils import Signal
 from ..utils import from_timestamp
@@ -51,7 +51,7 @@ from_utc_ns: Callable[[int], datetime] = partial(
 class Acquisition:
     def __init__(
         self,
-        min_buffer_size: int,
+        min_buffer_size: int = 300000,
         japc_provider: Optional[JapcProvider] = None,
     ):
         """

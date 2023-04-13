@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Optional
 
 import numpy as np
-from dateteime import datetime
 
-from ..utils import from_utc_ns
+from ..utils import from_timestamp
 
 log = logging.getLogger(__name__)
 
@@ -43,5 +43,7 @@ class SingleCycleData:
     num_samples: int = field(init=False)
 
     def __post_init__(self):
-        self.cycle_time = from_utc_ns(self.cycle_timestamp)
+        self.cycle_time = from_timestamp(
+            self.cycle_timestamp, from_utc=True, unit="ms"
+        )
         self.cycle_length = len(self.current_prog)
