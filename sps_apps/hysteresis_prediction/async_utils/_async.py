@@ -70,7 +70,7 @@ class Signal:
                 f"{len(signature.parameters)}."
             )
 
-        print(f"Connecting {handle.__name__}.")
+        log.debug(f"Connecting {handle.__name__}.")
         self._handles.append(Handle(handle, current_thread()))
 
     def disconnect(self, handle: Callable[..., None]) -> None:
@@ -84,7 +84,7 @@ class Signal:
         """
         for handler in self._handles:
             if handler.slot == handle:
-                print(f"Disconnecting {handle.__name__}.")
+                log.debug(f"Disconnecting {handle.__name__}.")
                 self._handles.remove(handler)
                 return
         raise ValueError(f"Could not find handler {handle}.")
@@ -100,7 +100,14 @@ class Signal:
                 value = await self._q.get()
 
                 for handle in self._handles:
-                    asyncio.create_task(handle.slot, *value)
+                    try:
+                        handle.slot(*value)
+                    except:  # noqa
+                        log.exception(
+                            "An error occurred when executing slot "
+                            f"{handle.slot}."
+                        )
+                        continue
         except asyncio.CancelledError:
             pass
 

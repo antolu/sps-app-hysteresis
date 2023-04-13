@@ -17,7 +17,8 @@ from pyrbac import AuthenticationClient
 
 from ..async_utils import Signal
 from ..utils import from_timestamp
-from ._acquisition_buffer import AcquisitionBuffer, BufferData
+from ._acquisition_buffer import (AcquisitionBuffer, BufferData,
+                                  InsufficientDataError)
 from ._dataclass import SingleCycleData
 
 __all__ = ["Acquisition"]
@@ -99,8 +100,6 @@ class Acquisition:
         self.new_measured_data = Signal(SingleCycleData)
         self.cycle_mapping_changed = Signal(str)  # LSA cycle name
 
-        self.data_acquired.connect(self._buffer.dispatch_data)
-
     async def run(self) -> None:
         """
         Starts the acquisition process in a separate thread.
@@ -137,7 +136,7 @@ class Acquisition:
         if response.exception is not None:
             log.error(
                 "An error occurred trying to access value of event: "
-                f"{response.query.endpoint}@{response.value.header.selector}:"
+                f"{response.query.endpoint}:"
                 f"\n{str(response.exception)}"
             )
             return
@@ -150,11 +149,17 @@ class Acquisition:
             return
 
         value = response.value
+        cycle_timestamp = value.header.cycle_timestamp
+        cycle_time = (
+            from_utc_ns(cycle_timestamp)
+            if cycle_timestamp is not None
+            else "N/A"
+        )
         log.debug(
             "Event received at "
             f"{from_utc_ns(value.header.acquisition_timestamp)} "
             "with cycle stamp "
-            f"{from_utc_ns((value.header.cycle_timestamp))}."
+            f"{cycle_time}."
         )
 
         endpoint = response.query.endpoint
@@ -243,7 +248,7 @@ class Acquisition:
 
         try:
             buffer = self._buffer.collate_samples()
-        except IndexError:
+        except InsufficientDataError:
             log.debug("No buffered data available.")
             return
 
@@ -281,10 +286,9 @@ class Acquisition:
             new_lsa_to_pls[cycle] = user
             log.debug(f"Mapping {user} to {cycle}")
 
-        with self._lock:
-            log.debug("Updating internal mappings.")
-            self._pls_to_lsa = new_pls_to_lsa
-            self._lsa_to_pls = new_lsa_to_pls
+        log.debug("Updating internal mappings.")
+        self._pls_to_lsa = new_pls_to_lsa
+        self._lsa_to_pls = new_lsa_to_pls
 
         if len(mappings_changed) > 0:
             log.info(

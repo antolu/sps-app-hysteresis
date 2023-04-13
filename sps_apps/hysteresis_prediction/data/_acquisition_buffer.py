@@ -110,14 +110,14 @@ class AcquisitionBuffer:
 
         if cycle not in self._i_prog or self._i_prog[cycle] is None:
             log.debug(
-                "Programmed current has not yet been set."
+                "Programmed current has not yet been set. "
                 "Cannot create new cycle data."
             )
             return
 
         if cycle not in self._b_prog or self._b_prog[cycle] is None:
             log.debug(
-                "Programmed field has not yet been set."
+                "Programmed field has not yet been set. "
                 "Cannot create new cycle data."
             )
             return

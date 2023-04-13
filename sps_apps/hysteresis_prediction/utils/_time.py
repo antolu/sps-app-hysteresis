@@ -33,6 +33,6 @@ def from_timestamp(
     dt = datetime.fromtimestamp(timestamp)
 
     if from_utc:
-        dt = dt.astimezone().astimzone(timezone.utc).replace(tzinfo=None)
+        dt = dt.astimezone().astimezone(timezone.utc).replace(tzinfo=None)
 
     return dt

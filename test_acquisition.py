@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from signal import SIGINT, SIGTERM
 from threading import Thread, current_thread
 from typing import Optional
-
 
 from sps_apps.hysteresis_prediction.data import Acquisition
 
@@ -23,11 +23,14 @@ class Main:
         asyncio.set_event_loop(loop)
 
         self.acq = Acquisition()
-        self.acq.new_buffer_data.connect(self.buffer_handler)
+        # self.acq.new_buffer_data.connect(self.buffer_handler)
 
-        loop.run_until_complete(
-            asyncio.ensure_future(self.acq.run(), loop=loop)
-        )
+        task = asyncio.ensure_future(self.acq.run(), loop=loop)
+
+        try:
+            loop.run_until_complete(task)
+        finally:
+            loop.close()
 
     @staticmethod
     def buffer_handler(buffer: list) -> None:
@@ -58,6 +61,7 @@ def main() -> None:
     try:
         t.join()
     except KeyboardInterrupt:
+        log.info("Registered KeyboardInterrupt")
         m.acq.join()
         t.join()
 
