@@ -35,7 +35,7 @@ class Signal:
         self._q = asyncio.Queue()
         self._loop = asyncio.get_event_loop()
 
-        self._task = asyncio.get_event_loop().call_soon(self._wait())
+        self._task = self._loop.call_soon(self._wait)
 
     def emit(self, *args: Any) -> None:
         """
