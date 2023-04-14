@@ -169,11 +169,11 @@ class Acquisition:
         elif endpoint == TRIGGER_EVENT:
             self._on_forewarning(response)
             return
-        elif endpoint not in ENDPOINT2BF:
+        elif endpoint in ENDPOINT2BF:
+            pass
+        else:
             log.error(f"Received event from unknown endpoint " f"{endpoint}.")
             return
-        else:
-            log.error(f"Unknown endpoint {endpoint}.")
 
         cycle = self._pls_to_lsa.get(value.header.selector)
         if cycle is None:
