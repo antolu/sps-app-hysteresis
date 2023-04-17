@@ -109,7 +109,6 @@ class Signal:
         try:
             while True:
                 value = await self._q.get()
-                log.debug("Got item from queue")
 
                 for handle in self._handles:
                     try:
@@ -133,7 +132,6 @@ class Signal:
         conditions.
         """
         value = tuple(args) if not isinstance(*args, tuple) else args
-        log.debug("Putting item in queue.")
         await self._q.put(value)
 
     @staticmethod
