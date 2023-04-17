@@ -28,14 +28,25 @@ class Signal:
     the event loop, therefore the slots should be thread safe.
     """
 
+    tasks = set()
+
     def __init__(self, *types: Type):
         self._types = types
         self._handles: list[Handle] = []
 
         self._q = asyncio.Queue()
-        self._loop = asyncio.get_event_loop()
+        self._loop = self._get_loop()
 
-        self._task = self._loop.call_soon(self._wait)
+        self.tasks.add(self._loop.create_task(self._wait()))
+
+    @staticmethod
+    def _get_loop() -> asyncio.AbstractEventLoop:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            return loop
 
     def emit(self, *args: Any) -> None:
         """
@@ -98,10 +109,14 @@ class Signal:
         try:
             while True:
                 value = await self._q.get()
+                log.debug("Got item from queue")
 
                 for handle in self._handles:
                     try:
                         handle.slot(*value)
+                    except asyncio.CancelledError:
+                        log.debug("Signal event loop cancelled.")
+                        break
                     except:  # noqa
                         log.exception(
                             "An error occurred when executing slot "
@@ -118,4 +133,10 @@ class Signal:
         conditions.
         """
         value = tuple(args) if not isinstance(*args, tuple) else args
+        log.debug("Putting item in queue.")
         await self._q.put(value)
+
+    @staticmethod
+    def cancel_all():
+        for task in Signal.tasks:
+            task.cancel()

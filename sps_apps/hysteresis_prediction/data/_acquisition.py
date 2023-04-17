@@ -5,26 +5,31 @@ and reference, and publishes it for external use.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime
 from functools import partial
-from typing import Callable, Optional
+from typing import Callable, Iterable, Optional
 
 from pyda import AsyncIOClient, SimpleClient
 from pyda.clients.asyncio import AsyncIOSubscription
-from pyda.data import PropertyRetrievalResponse
+from pyda.data import PropertyRetrievalResponse, StandardEndpoint
 from pyda_japc import JapcProvider
 from pyrbac import AuthenticationClient
 
 from ..async_utils import Signal
 from ..utils import from_timestamp
-from ._acquisition_buffer import (AcquisitionBuffer, BufferData,
-                                  InsufficientDataError)
+from ._acquisition_buffer import (
+    AcquisitionBuffer,
+    BufferData,
+    InsufficientDataError,
+)
 from ._dataclass import SingleCycleData
 
 __all__ = ["Acquisition"]
 
-DEV_LSA_B = "SPSBEAM/B"
-DEV_LSA_BDOT = "SPSBEAM/BDOT"
+# DEV_LSA_B = "rmi://virtual_sps/SPSBEAM/B"
+DEV_LSA_B = "MBI/LOG.I.REF#values"  # placeholder until we can get B
+DEV_LSA_BDOT = "rm://virtual_sps/SPSBEAM/BDOT"
 DEV_LSA_I = "MBI/LOG.I.REF"
 
 DEV_MEAS_I = "MBI/LOG.I.MEAS"
@@ -40,6 +45,10 @@ ENDPOINT2BF = {
     DEV_LSA_I: BufferData.PROG_I,
     DEV_LSA_B: BufferData.PROG_B,
 }
+
+ENDPOINT_RE = re.compile(
+    r"^(?P<device>(?P<protocol>.+:\/\/)?[\w\/\.-]+)/(?P<property>[\w\#\.-]+)$"
+)  # noqa: E501
 
 
 log = logging.getLogger(__name__)
@@ -87,7 +96,7 @@ class Acquisition:
             token = rbac_client.login_location()
             log.info(
                 "RBAC login successful. "
-                "Identified as {token.get_user_name()}."
+                f"Identified as {token.get_user_name()}."
             )
             japc_provider = JapcProvider(rbac_token=token)
 
@@ -124,8 +133,53 @@ class Acquisition:
     def buffer(self) -> AcquisitionBuffer:
         return self._buffer
 
-    def join(self) -> None:
-        self._stop_execution = True
+    def _setup_subscriptions(self) -> list[AsyncIOSubscription]:
+        subscriptions = [
+            ("StartSuperCycle", START_SUPERCYCLE, ""),
+            ("ProgrammedCurrent", DEV_LSA_I, "SPS.USER.ALL"),
+            ("MeasuredCurrent", DEV_MEAS_I, "SPS.USER.ALL"),
+            ("MeasuredBField", DEV_MEAS_B, "SPS.USER.ALL"),
+            ("Forewarning", TRIGGER_EVENT, "SPS.USER.ALL"),
+            ("ProgrammedBField", DEV_LSA_B, "SPS.USER.ALL"),
+        ]
+
+        log.debug("Setting up subscriptions.")
+        log.debug("Performing GETs to initialize the buffer.")
+
+        self._handle_acquisition(
+            self._japc_simple.get(START_SUPERCYCLE, context="")
+        )
+
+        def make_endpoint(endpoint: str) -> StandardEndpoint:
+            m = ENDPOINT_RE.match(endpoint)
+
+            if not m:
+                raise ValueError(f"Not a valid endpoint: {endpoint}.")
+
+            return StandardEndpoint(
+                device_name=m.group("device"),
+                property_name=m.group("property"),
+            )
+
+        for _, endpoint, _ in subscriptions[1:]:
+            for selector in self._pls_to_lsa.keys():
+                log.debug(f"GET-ting values for {endpoint}@{selector}.")
+                self._handle_acquisition(
+                    self._japc_simple.get(
+                        make_endpoint(endpoint), context=selector
+                    )
+                )
+
+        log.debug("Subscribing to events.")
+        for name, endpoint, selector in subscriptions:
+            log.debug(f"Subscribing to {endpoint} with selector {selector}.")
+            handle = self._japc_async.subscribe(
+                make_endpoint(endpoint), context=selector
+            )
+
+            self._async_handles[name] = handle
+
+        return list(self._async_handles.values())
 
     def _handle_acquisition(self, response: PropertyRetrievalResponse) -> None:
         """
@@ -142,11 +196,16 @@ class Acquisition:
             return
 
         if response.notification_type == "FIRST_UPDATE":
-            log.debug(
+            msg = (
                 "Received first update for "
-                f"{response.query.endpoint}@{response.value.header.selector}."
+                f"{response.query.endpoint}@{response.value.header.selector}. "
             )
-            return
+            if str(response.query.endpoint) != DEV_LSA_I:
+                msg += "Discarding it."
+                log.debug(msg)
+                return
+            else:
+                log.debug(msg)
 
         value = response.value
         cycle_timestamp = value.header.cycle_timestamp
@@ -162,7 +221,7 @@ class Acquisition:
             f"{cycle_time}."
         )
 
-        endpoint = response.query.endpoint
+        endpoint = str(response.query.endpoint)
         if endpoint == START_SUPERCYCLE:
             self._on_start_supercycle(response)
             return
@@ -194,39 +253,6 @@ class Acquisition:
             ENDPOINT2BF[endpoint], cycle, cycle_timestamp, data
         )
 
-    def _setup_subscriptions(self) -> list[AsyncIOSubscription]:
-        subscriptions = [
-            ("StartSuperCycle", START_SUPERCYCLE, ""),
-            ("ProgrammedCurrent", DEV_LSA_I, "SPS.USER.ALL"),
-            ("MeasuredCurrent", DEV_MEAS_I, "SPS.USER.ALL"),
-            ("MeasuredBField", DEV_MEAS_B, "SPS.USER.ALL"),
-            ("Forewarning", TRIGGER_EVENT, "SPS.USER.ALL"),
-            # ("ProgrammedBField", DEV_LSA_B, "SPS.USER.ALL"),
-        ]
-
-        log.debug("Setting up subscriptions.")
-        log.debug("Performing GETs to initialize the buffer.")
-
-        self._handle_acquisition(
-            self._japc_simple.get(START_SUPERCYCLE, context="")
-        )
-
-        for _, endpoint, _ in subscriptions[1:]:
-            for selector in self._pls_to_lsa.keys():
-                log.debug(f"GET-ting values for {endpoint}@{selector}.")
-                self._handle_acquisition(
-                    self._japc_simple.get(endpoint, context=selector)
-                )
-
-        log.debug("Subscribing to events.")
-        for name, endpoint, selector in subscriptions:
-            log.debug(f"Subscribing to {endpoint} with selector {selector}.")
-            handle = self._japc_async.subscribe(endpoint, context=selector)
-
-            self._async_handles[name] = handle
-
-        return list(self._async_handles.values())
-
     def _on_forewarning(self, response: PropertyRetrievalResponse) -> None:
         """
         Handler for the forewarning event. This is triggered 2500ms before
@@ -235,11 +261,11 @@ class Acquisition:
         This function notify the buffer that a new cycle is about to start,
         and then retrieve the latest buffered data if it is available.
         """
-        cycle = self._pls_to_lsa.get(response.value.header.selector)
+        cycle = response.value.get("lsaCycleName")
         cycle_timestamp = response.value.header.cycle_timestamp
         log.debug(
-            f"Cycle {cycle} at {cycle_timestamp} is about to start. "
-            "Notifying buffer."
+            f"Cycle {cycle} at {from_utc_ns(cycle_timestamp)} is about to "
+            "start. Notifying buffer."
         )
 
         self.buffer.new_cycle(cycle, cycle_timestamp)
@@ -248,8 +274,8 @@ class Acquisition:
 
         try:
             buffer = self._buffer.collate_samples()
-        except InsufficientDataError:
-            log.debug("No buffered data available.")
+        except InsufficientDataError as e:
+            log.debug(str(e))
             return
 
         log.debug("Buffered data available. Sending it to listeners.")
@@ -274,21 +300,65 @@ class Acquisition:
         log.debug(f"Start supercycle triggered at {dt}.")
 
         mappings_changed = []
-        new_lsa_to_pls = {}
-        new_pls_to_lsa = {}
-        for user, cycle in zip(
-            value.get("normalUsers"), value.get("normalLsaCycleNames")
-        ):
-            user = "SPS.USER." + user
-            if self._pls_to_lsa.get(user) != cycle:
-                mappings_changed.append(user)
-            new_pls_to_lsa[user] = cycle
-            new_lsa_to_pls[cycle] = user
-            log.debug(f"Mapping {user} to {cycle}")
 
-        log.debug("Updating internal mappings.")
-        self._pls_to_lsa = new_pls_to_lsa
-        self._lsa_to_pls = new_lsa_to_pls
+        def parse_mappings(
+            users: Iterable[str], cycles: Iterable[str]
+        ) -> tuple[dict[str, str], dict[str, str]]:
+            lsa_to_pls = {}
+            pls_to_lsa = {}
+
+            for user, cycle in zip(users, cycles):
+                user = "SPS.USER." + user
+
+                if self._pls_to_lsa.get(user) != cycle:
+                    mappings_changed.append(user)
+
+                pls_to_lsa[user] = cycle
+                lsa_to_pls[cycle] = user
+
+                log.debug(f"Mapping {user} to {cycle}")
+
+            return lsa_to_pls, pls_to_lsa
+
+        normal_lsa_to_pls, normal_pls_to_lsa = parse_mappings(
+            value.get("normalUsers"), value.get("normalLsaCycleNames")
+        )
+
+        spare_lsa_to_pls, spare_pls_to_lsa = parse_mappings(
+            value.get("spareUsers"), value.get("spareLsaCycleNames")
+        )
+
+        def log_line(text: str):
+            return "# " + text + (" " * (79 - len(text) - 4)) + " #"
+
+        log_lines = [
+            log_line(msg)
+            for msg in (
+                "=" * 75,
+                "",
+                25 * " " + "START SUPERCYCLE",
+                "",
+                25 * "" + "Normal users",
+                *[
+                    "* " + user + " : " + cycle
+                    for user, cycle in normal_pls_to_lsa.items()
+                ],
+                "",
+                25 * "" + "Spare users",
+                *[
+                    "* " + user + " : " + cycle
+                    for user, cycle in spare_pls_to_lsa.items()
+                ],
+                "",
+                "=" * 75,
+            )
+        ]
+
+        log.debug("Updating internal mappings.\n" + "\n".join(log_lines))
+        new_lsa_to_pls = {**normal_lsa_to_pls, **spare_pls_to_lsa}
+        new_pls_to_lsa = {**normal_pls_to_lsa, **spare_pls_to_lsa}
+        self._pls_to_lsa.update(new_pls_to_lsa)
+        self._lsa_to_pls.update(new_lsa_to_pls)
 
         if len(mappings_changed) > 0:
             log.info(

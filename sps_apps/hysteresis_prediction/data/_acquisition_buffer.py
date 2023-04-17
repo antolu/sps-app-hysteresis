@@ -12,10 +12,21 @@ from threading import Lock
 import numpy as np
 
 from ..async_utils import Signal
+from ..utils import from_timestamp
 from ._dataclass import SingleCycleData
 
 __all__ = ["AcquisitionBuffer"]
 log = logging.getLogger(__name__)
+
+
+def log_cycle(msg: str, cycle: str, timestamp: int = None):
+    timestamp = (
+        f'@{from_timestamp(timestamp, from_utc=True, unit="ns")}'
+        if timestamp is not None
+        else ""
+    )
+
+    log.debug(f"[{cycle}{timestamp}] " + msg)
 
 
 class BufferData(Enum):
@@ -108,17 +119,21 @@ class AcquisitionBuffer:
         :param cycle_timestamp: The timestamp of the cycle (in UTC, and ns).
         """
 
+        log_cycle("Triggered by new cycle arrival.", cycle, cycle_timestamp)
         if cycle not in self._i_prog or self._i_prog[cycle] is None:
-            log.debug(
+            log_cycle(
                 "Programmed current has not yet been set. "
-                "Cannot create new cycle data."
+                "Cannot create new cycle data.",
+                cycle,
             )
             return
 
         if cycle not in self._b_prog or self._b_prog[cycle] is None:
-            log.debug(
+            log_cycle(
                 "Programmed field has not yet been set. "
-                "Cannot create new cycle data."
+                "Cannot create new cycle data.",
+                cycle,
+                cycle_timestamp,
             )
             return
 
@@ -126,6 +141,7 @@ class AcquisitionBuffer:
             cycle, cycle_timestamp, self._i_prog[cycle], self._b_prog[cycle]
         )
 
+        log_cycle("Creating new cycle data in NEXT buffer.", cycle)
         with self._lock:
             self._next_cycles[cycle_timestamp] = cycle_data
             self._buffer_next.append(cycle_data)
@@ -150,22 +166,31 @@ class AcquisitionBuffer:
         :raises InsufficientDataError: If the number of buffered samples is
             less than the minimum buffer size.
         """
+        log.debug("Buffer asked to collate samples.")
 
         def buffer_size(buffer: deque[SingleCycleData]) -> int:
             return sum([o.cycle_length for o in buffer])
 
         with self._lock:
-            if (
-                buffer_size(self._buffer) + buffer_size(self._buffer_next)
-                < self._buffer_size
-            ):
+            total_samples = buffer_size(self._buffer) + buffer_size(
+                self._buffer_next
+            )
+            if total_samples < self._buffer_size:
                 raise InsufficientDataError(
-                    f"Buffer size is less than {self._buffer_size}."
+                    f"Buffer size is less than {self._buffer_size} "
+                    f"({total_samples})."
                 )
+
+            log.debug(
+                "Sufficient number samples exist for a collating "
+                f"samples: {total_samples} (/{self._buffer_size}). "
+                "Building buffer."
+            )
 
             out_buffer = list(self._buffer)
             incomplete_samples = list(self._buffer_next)
 
+            # TODO: log cycle data parsing
             for cycle_data in out_buffer:
                 cycle_data.current_input = cycle_data.current_meas
 
@@ -180,7 +205,7 @@ class AcquisitionBuffer:
 
         out_buffer += incomplete_samples
 
-        log.debug(f"Collated {len(out_buffer)} samples.")
+        log.debug(f"Collated {len(out_buffer)} cycle samples.")
         return out_buffer
 
     def _new_measured_I(
@@ -197,21 +222,24 @@ class AcquisitionBuffer:
         :param cycle_timestamp: The timestamp of the cycle (in UTC, and ns).
         :param value: The new measured current value.
         """
+        log_cycle("Buffer received new measured I", cycle)
         if cycle not in self._i_ref or self._i_ref[cycle] is None:
-            log.debug("Measured current has not yet been set.")
-            log.debug(f"Setting new measured current for cycle {cycle}.")
+            log_cycle("Measured current has not yet been set.", cycle)
+            log_cycle("Setting new measured current for cycle.", cycle)
 
             with self._lock:
                 self._i_ref[cycle] = value
 
             return
 
-        if cycle_timestamp not in self._buffer_next:
-            log.debug(f"Next buffered cycle data for cycle {cycle} not found.")
+        if cycle_timestamp not in self._next_cycles:
+            log_cycle(
+                "NEXT buffered cycle data not found", cycle, cycle_timestamp
+            )
             return
 
         with self._lock:
-            cycle_data = self._buffer_next[cycle_timestamp]
+            cycle_data = self._next_cycles[cycle_timestamp]
             cycle_data.current_meas = value
 
         self._check_move_to_buffer(cycle_data)
@@ -229,23 +257,24 @@ class AcquisitionBuffer:
         :param cycle_timestamp: The timestamp of the cycle (in UTC, and ns).
         :param value: The new measured magnetic field value.
         """
+        log.debug(f"Buffer received new measured B for {cycle}.")
         if cycle not in self._b_ref or self._b_ref[cycle] is None:
-            log.debug("Measured magnetic field has not yet been set.")
-            log.debug(
-                f"Setting new measured magnetic field for cycle {cycle}."
-            )
+            log_cycle("Measured magnetic field has not yet been set.", cycle)
+            log_cycle("Setting new measured magnetic field.", cycle)
 
             with self._lock:
                 self._b_ref[cycle] = value
 
             return
 
-        if cycle_timestamp not in self._buffer_next:
-            log.debug(f"Next buffered cycle data for cycle {cycle} not found.")
+        if cycle_timestamp not in self._next_cycles:
+            log.debug(
+                "NEXT buffered cycle data not found.", cycle, cycle_timestamp
+            )
             return
 
         with self._lock:
-            cycle_data = self._buffer_next[cycle_timestamp]
+            cycle_data = self._next_cycles[cycle_timestamp]
             cycle_data.field_meas = value
 
         self._check_move_to_buffer(cycle_data)
@@ -261,16 +290,17 @@ class AcquisitionBuffer:
         :param cycle_timestamp: The timestamp of the cycle (in UTC, and ns).
         :param value: The new programmed current value.
         """
+        log_cycle("Buffer received new programmed I.", cycle)
 
         def set_new_programmed_current():
-            log.debug(f"Setting new programmed current for cycle {cycle}.")
+            log_cycle("Setting new programmed current.", cycle)
 
             with self._lock:
                 self._i_prog[cycle] = value
 
-            log.debug(f"Removing buffered reference data for cycle {cycle}.")
+            log_cycle("Removing buffered reference data.", cycle)
             if cycle not in self._i_ref:
-                log.debug(f"No buffered reference data for cycle {cycle}.")
+                log_cycle("No buffered reference data.", cycle)
                 return
 
             with self._lock:
@@ -279,28 +309,58 @@ class AcquisitionBuffer:
             return
 
         if cycle not in self._i_prog or self._i_prog[cycle] is None:
-            log.debug("Programmed current has not yet been set.")
+            log_cycle("Programmed current has not yet been set.", cycle)
             set_new_programmed_current()
         else:
             old_value = self._i_prog[cycle]
 
             if len(old_value) != len(value):
-                log.debug("Programmed current length has changed.")
+                log_cycle("Programmed current length has changed.", cycle)
                 set_new_programmed_current()
 
             elif not np.allclose(old_value, value):
-                log.debug("Programmed current values has changed.")
+                log_cycle("Programmed current values has changed.", cycle)
                 set_new_programmed_current()
 
             else:
-                log.debug(
-                    f"Programmed current has not changed for cycle {cycle}."
-                )
+                log_cycle("Programmed current has not changed.", cycle)
 
     def _new_programmed_B(
         self, cycle: str, cycle_timestamp: int, value: np.ndarray
     ) -> None:
-        log.warning("Programmed magnetic field not yet implemented.")
+        log_cycle("Buffer received new programmed B.", cycle)
+
+        def set_new_programmed_field():
+            log_cycle("Setting new programmed field.", cycle)
+            with self._lock:
+                self._b_prog[cycle] = value
+
+            log_cycle("Removing buffered reference data.", cycle)
+            if cycle not in self._i_ref:
+                log_cycle("No buffered reference data.", cycle)
+                return
+
+            with self._lock:
+                self._b_ref.pop(cycle)
+
+            return
+
+        if cycle not in self._b_prog or self._b_prog[cycle] is None:
+            log_cycle("Programmed field has not yet been set.", cycle)
+            set_new_programmed_field()
+        else:
+            old_value = self._b_prog[cycle]
+
+            if len(old_value) != len(value):
+                log_cycle("Programmed field length has changed.", cycle)
+                set_new_programmed_field()
+
+            elif not np.allclose(old_value, value):
+                log_cycle("Programmed field values has changed.", cycle)
+                set_new_programmed_field()
+
+            else:
+                log_cycle("Programmed field has not changed.", cycle)
 
     def _new_reference_B(
         self, cycle: str, cycle_timestamp: int, value: np.ndarray
@@ -309,13 +369,13 @@ class AcquisitionBuffer:
 
     def _check_buffer_integrity(self) -> None:
         """
-        Check the buffered cycle deques to ensure the consecutiveness
+        Check the buffered cycle eques to ensure the consecutiveness
         of the data. I.e. that newly buffered data is not older than
         existing data.
         """
         if len(self._buffer) < 2:
             log.debug(
-                "Buffer integrity check not required. Only"
+                "Buffer integrity check not required. Only "
                 f"{len(self._buffer)} buffered cycles."
             )
             return
@@ -324,6 +384,10 @@ class AcquisitionBuffer:
             to_remove = []
             with self._lock:
                 buffer = buffer.copy()
+
+            if len(buffer) < 2:
+                return to_remove
+
             for i in range(1, len(buffer)):
                 cycle_data = buffer[i]
                 prev_cycle_data = buffer[i - 1]
@@ -351,10 +415,10 @@ class AcquisitionBuffer:
             for i in reversed(to_remove):
                 log.info(f"Removing buffered cycle {self._buffer[i].cycle}.")
                 with self._lock:
-                    self._buffer.pop(i)
                     self._buffered_cycles.pop(self._buffer[i].cycle_timestamp)
+                    del self._buffer[i]
 
-            to_remove = check_integrity(self._buffered_cycles)
+            to_remove = check_integrity(self._buffer)
             if len(to_remove) > 0:
                 log.error(
                     "Buffer integrity compromised. Could not fix "
@@ -363,17 +427,19 @@ class AcquisitionBuffer:
                 with self._lock:
                     self._buffer.clear()
                     self._buffered_cycles.clear()
+        else:
+            log.debug("Buffer is OK!")
 
         log.debug("Checking NEXT buffer integrity.")
-        to_remove = check_integrity(self._next_cycles)
+        to_remove = check_integrity(self._buffer_next)
         if len(to_remove) > 0:
             for i in reversed(to_remove):
                 log.info(
-                    f"Removing buffered cycle {self._next_cycles[i].cycle}."
+                    f"Removing buffered cycle {self._buffer_next[i].cycle}."
                 )
                 with self._lock:
-                    self._next_cycles.pop(i)
                     self._buffer_next.pop(self._next_cycles[i].cycle_timestamp)
+                    del self._next_cycles[i]
 
             to_remove = check_integrity(self._buffer_next)
             if len(to_remove) > 0:
@@ -384,6 +450,8 @@ class AcquisitionBuffer:
                 with self._lock:
                     self._next_cycles.clear()
                     self._buffer_next.clear()
+        else:
+            log.debug("NEXT buffer is OK!")
 
     def _check_buffer_size(self) -> None:
         """
@@ -395,6 +463,7 @@ class AcquisitionBuffer:
         they will be combined into a single buffer when then the
         :meth:`collate_samples` method is called.`
         """
+        log.debug("Checking buffer size...")
         if len(self._buffer) == 0:
             log.debug("No buffered cycles.")
             return
@@ -408,32 +477,32 @@ class AcquisitionBuffer:
             return
 
         def buffer_size(buffer: deque) -> int:
-            return sum([o.sample_length for o in buffer])
+            return sum([o.num_samples for o in buffer])
 
         def buffer_too_large(buffer: deque, buffer_next: deque) -> bool:
-            num_samples_buffer = [o.sample_length for o in buffer]
-            num_samples_next = [o.sample_length for o in buffer_next]
+            num_samples_buffer = [o.num_samples for o in buffer]
+            num_samples_next = [o.num_samples for o in buffer_next]
 
             return (
                 sum(num_samples_buffer) + sum(num_samples_next)
                 > self._buffer_size
             )
 
-        if not buffer_too_large(self._buffer, self._next_cycles):
+        if not buffer_too_large(self._buffer, self._buffer_next):
             log.debug(
                 "Buffer size is within limits. "
-                f"({buffer_size(self._buffer) + buffer_size(self._buffer_next)}/"  # noqa E501
-                f"{self._buffer_size})"
+                f"( ({buffer_size(self._buffer)} + {buffer_size(self._buffer_next)})/"  # noqa E501
+                f"{self._buffer_size}) )"
             )
             return
         else:
             while buffer_too_large(
-                self._buffer, self._next_cycles
-            ) and not buffer_too_large(self._buffer[1:], self._next_cycles):
+                self._buffer, self._buffer_next
+            ) and buffer_too_large(list(self._buffer)[1:], self._buffer_next):
                 log.debug(
                     "Buffer size is too large. Removing oldest buffered cycle. "  # noqa E501
-                    f"({buffer_size(self._buffer) + buffer_size(self._buffer_next)}/"  # noqa E501
-                    f"{self._buffer_size})"
+                    f"( ({buffer_size(self._buffer)} + {buffer_size(self._buffer_next)})/"  # noqa E501
+                    f"{self._buffer_size} )."
                 )
                 with self._lock:
                     cycle_data = self._buffer.popleft()
@@ -448,32 +517,60 @@ class AcquisitionBuffer:
         :param cycle_data: The buffered cycle data to check.
         """
         cycle = cycle_data.cycle
+        cycle_time = cycle_data.cycle_time
         cycle_timestamp = cycle_data.cycle_timestamp
 
-        if cycle_timestamp not in self._buffer_next:
-            log.debug(f"Next buffered cycle data for cycle {cycle} not found.")
+        if cycle_timestamp not in self._next_cycles:
+            log_cycle("Next buffered cycle data not found.", cycle)
+            log_cycle(
+                f"NEXT buffered cycle data not found"
+                f"Only {', '.join(list(map(str, self._next_cycles.keys())))}",
+                cycle,
+                cycle_timestamp,
+            )
             return
         elif cycle_timestamp in self._buffered_cycles:
-            log.debug(f"Buffered cycle data for cycle {cycle} already exists.")
+            log_cycle(
+                "Buffered cycle data already exists.", cycle, cycle_timestamp
+            )
             return
 
         if (
             cycle_data.current_meas is not None
             and cycle_data.field_meas is not None
         ):
-            log.debug(
-                f"Moving buffered cycle data for cycle {cycle} to buffer "
-                "queue."
+            log_cycle(
+                "Moving buffered cycle data to buffer queue.",
+                cycle,
+                cycle_timestamp,
             )
-            if self._next_cycles[0] is not cycle_data:
-                log.error("Buffered cycle data is not the next cycle data.")
-                return
+            if self._buffer_next[0] is not cycle_data:
+                if cycle_timestamp not in self._next_cycles:
+                    log.error(
+                        f"[{cycle}@{cycle_time}] cycle data not in NEXT "
+                        "buffer."
+                    )
+                    return
+
+                # else
+                idx = list(self._buffer_next).index(cycle_data)
+
+                log.warning(
+                    f"[{cycle}@{cycle_time}] Cycle data is not the "
+                    f"next. It is at index {idx}. Preceding "
+                    "entries will be removed."
+                )
+
+                with self._lock:
+                    for i in range(idx):
+                        to_remove = self._buffer_next.popleft()
+                        self._next_cycles.pop(to_remove.cycle_timestamp)
 
             with self._lock:
-                self._next_cycles.popleft()
-                self._buffer_next.pop(cycle_timestamp)
+                self._buffer_next.popleft()
+                self._next_cycles.pop(cycle_timestamp)
 
-                self._buffer_queue.append(cycle_data)
+                self._buffer.append(cycle_data)
                 self._buffered_cycles[cycle_timestamp] = cycle_data
 
             self.new_buffered_data.emit(cycle_data)

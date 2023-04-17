@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -44,6 +44,18 @@ class SingleCycleData:
 
     def __post_init__(self):
         self.cycle_time = from_timestamp(
-            self.cycle_timestamp, from_utc=True, unit="ms"
+            self.cycle_timestamp, from_utc=True, unit="ns"
         )
         self.cycle_length = len(self.current_prog)
+        self.num_samples = self.cycle_length
+
+    def __eq__(self, other: Any):
+        if not isinstance(other, SingleCycleData):
+            return False
+
+        return (
+            self.cycle is other.cycle
+            and self.cycle_timestamp is other.cycle_timestamp
+            and self.current_prog is other.current_prog
+            and self.field_prog is other.field_prog
+        )
