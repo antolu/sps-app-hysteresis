@@ -81,6 +81,7 @@ exclude = '''
   | \.mypy_cache
   | \.tox
   | \.venv
+  | venv
   | _build
   | buck-out
   | build
@@ -149,6 +150,7 @@ ignore-long-lines = '<?https?://\S+>?$'
 
 [tool.mypy]
 disallow_untyped_defs = true
+plugins = "numpy.typing.mypy_plugin"
 
 [[tool.mypy.overrides]]
 module = [
@@ -158,7 +160,7 @@ module = [
     'pjlsa.*',
     'pyjapc.*',
     'scipy.*',
-    'pyda.*',
+    # 'pyda.*',
     'pyrbac.*'
 ]
 ignore_missing_imports = true
