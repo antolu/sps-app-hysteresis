@@ -4,6 +4,7 @@ and reference, and publishes it for external use.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from datetime import datetime
@@ -109,6 +110,8 @@ class Acquisition:
         self.new_measured_data = Signal(SingleCycleData)
         self.cycle_mapping_changed = Signal(str)  # LSA cycle name
 
+        self.buffer.new_measured_data.connect(self.new_measured_data.emit)
+
     async def run(self) -> None:
         """
         Starts the acquisition process in a separate thread.
@@ -120,14 +123,17 @@ class Acquisition:
             log.exception("Error while setting up subscriptions.")
             return
 
-        async for response in AsyncIOClient.merge_subscriptions(*handles):
-            if self._stop_execution:
-                break
+        try:
+            async for response in AsyncIOClient.merge_subscriptions(*handles):
+                if self._stop_execution:
+                    break
 
-            try:
-                self._handle_acquisition(response)
-            except Exception as e:
-                log.exception("Error handling acquisition event.", e)
+                try:
+                    self._handle_acquisition(response)
+                except Exception as e:
+                    log.exception("Error handling acquisition event.", e)
+        except asyncio.CancelledError:
+            log.debug("Acquisition loop received cancel event.")
 
     @property
     def buffer(self) -> AcquisitionBuffer:
@@ -328,7 +334,7 @@ class Acquisition:
             value.get("spareUsers"), value.get("spareLsaCycleNames")
         )
 
-        def log_line(text: str):
+        def log_line(text: str) -> str:
             return "# " + text + (" " * (79 - len(text) - 4)) + " #"
 
         log_lines = [

@@ -64,6 +64,7 @@ class AcquisitionBuffer:
         self._next_cycles: dict[int, SingleCycleData] = {}
 
         self.new_buffered_data = Signal(list[SingleCycleData])
+        self.new_measured_data = Signal(SingleCycleData)
 
         self._lock = Lock()
 
@@ -539,11 +540,6 @@ class AcquisitionBuffer:
             cycle_data.current_meas is not None
             and cycle_data.field_meas is not None
         ):
-            log_cycle(
-                "Moving buffered cycle data to buffer queue.",
-                cycle,
-                cycle_timestamp,
-            )
             if self._buffer_next[0] is not cycle_data:
                 if cycle_timestamp not in self._next_cycles:
                     log.error(
@@ -566,6 +562,11 @@ class AcquisitionBuffer:
                         to_remove = self._buffer_next.popleft()
                         self._next_cycles.pop(to_remove.cycle_timestamp)
 
+            log_cycle(
+                "Moving buffered cycle data to buffer queue.",
+                cycle,
+                cycle_timestamp,
+            )
             with self._lock:
                 self._buffer_next.popleft()
                 self._next_cycles.pop(cycle_timestamp)
@@ -573,4 +574,9 @@ class AcquisitionBuffer:
                 self._buffer.append(cycle_data)
                 self._buffered_cycles[cycle_timestamp] = cycle_data
 
-            self.new_buffered_data.emit(cycle_data)
+            log_cycle(
+                "Notifying new measured cycle available.",
+                cycle,
+                cycle_timestamp,
+            )
+            self.new_measured_data.emit(cycle_data)
