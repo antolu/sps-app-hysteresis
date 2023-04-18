@@ -9,6 +9,7 @@ import logging
 import re
 from datetime import datetime
 from functools import partial
+from threading import Thread
 from typing import Callable, Iterable, Optional
 
 from pyda import AsyncIOClient, SimpleClient
@@ -88,6 +89,7 @@ class Acquisition:
         self._lsa_to_pls: dict[str, str] = {}
 
         self._async_handles: dict[str, AsyncIOSubscription] = {}
+        self._main_task: Optional[asyncio.Task] = None
 
         if japc_provider is None:
             rbac_client = AuthenticationClient.create()
@@ -112,11 +114,43 @@ class Acquisition:
 
         self.buffer.new_measured_data.connect(self.new_measured_data.emit)
 
-    async def run(self) -> None:
+    def run(self) -> Thread:
+        async def wrapper() -> None:
+            task = asyncio.get_running_loop().create_task(self._run())
+
+            self._main_task = task
+
+            await task
+
+        th = Thread(target=asyncio.run, args=(wrapper(),))
+        log.debug("Starting acquisition in new thread: " + th.name)
+        th.start()
+
+        return th
+
+    def stop(self) -> None:
+        """
+        Stops the acquisition task and consequently the thread.
+        """
+        if self._main_task is None:
+            log.warning(
+                "Acquisition event loop has not yet been started. "
+                "Nothing to cancel."
+            )
+            return
+
+        log.debug("Acquisition received stop signal.")
+
+        self._main_task.cancel()
+        Signal.cancel_all()
+
+    async def _run(self) -> None:
         """
         Starts the acquisition process in a separate thread.
         """
         # TODO: perform synchronous GETS to initialize the buffer
+        Signal.start_all(asyncio.get_running_loop())
+        await asyncio.sleep(5)
         try:
             handles = self._setup_subscriptions()
         except:  # noqa

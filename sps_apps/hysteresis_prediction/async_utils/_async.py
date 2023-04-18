@@ -8,7 +8,7 @@ import inspect
 import logging
 from dataclasses import dataclass
 from threading import Thread, current_thread
-from typing import Any, Callable, Type
+from typing import Any, Callable, Optional, Type
 
 log = logging.getLogger(__name__)
 
@@ -28,16 +28,29 @@ class Signal:
     the event loop, therefore the slots should be thread safe.
     """
 
-    tasks = set()
+    _active_signals: set[Signal] = set()
 
-    def __init__(self, *types: Type):
+    def __init__(self, *types: Type) -> None:
         self._types = types
         self._handles: list[Handle] = []
 
-        self._q = asyncio.Queue()
-        self._loop = self._get_loop()
+        self._q: asyncio.Queue = asyncio.Queue()
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._wait_task: Optional[asyncio.Task] = None
 
-        self.tasks.add(self._loop.create_task(self._wait()))
+        self._active_signals.add(self)
+
+    def _schedule_signal(
+        self, loop: Optional[asyncio.AbstractEventLoop] = None
+    ) -> asyncio.Task:
+        loop = loop if loop is not None else self._get_loop()
+
+        self._loop = loop
+
+        self._wait_task = loop.create_task(self._wait())
+        log.debug("Scheduled signal to run in " + str(loop))
+
+        return self._wait_task
 
     @staticmethod
     def _get_loop() -> asyncio.AbstractEventLoop:
@@ -58,6 +71,10 @@ class Signal:
             of any type, but must be the same number as the signal. The slot
             may fail (silently) if incorrect arguments are passed.
         """
+        if self._loop is None:
+            raise RuntimeError(
+                "Event loop has not yet been started. " "Cannot emit signal."
+            )
         asyncio.run_coroutine_threadsafe(self._put(*args), loop=self._loop)
 
     def connect(self, handle: Callable[..., None]) -> None:
@@ -125,7 +142,7 @@ class Signal:
         except asyncio.CancelledError:
             pass
 
-    async def _put(self, *args) -> None:
+    async def _put(self, *args: Any) -> None:
         """
         Coroutine that puts a signal on the queue. This method should be
         called in the same event loop as the signal to avoid race
@@ -135,6 +152,14 @@ class Signal:
         await self._q.put(value)
 
     @staticmethod
-    def cancel_all():
-        for task in Signal.tasks:
-            task.cancel()
+    def start_all(loop: asyncio.AbstractEventLoop) -> None:
+        log.debug(f"Starting all signals in loop {loop}.")
+        for signal in Signal._active_signals:
+            if signal._loop is None:
+                signal._schedule_signal(loop)
+
+    @staticmethod
+    def cancel_all() -> None:
+        log.debug("Stopping all active signals...")
+        for signal in Signal._active_signals:
+            signal._wait_task.cancel()
