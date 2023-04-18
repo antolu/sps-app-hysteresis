@@ -115,14 +115,15 @@ class Acquisition:
         self.buffer.new_measured_data.connect(self.new_measured_data.emit)
 
     def run(self) -> Thread:
-        async def wrapper() -> None:
-            task = asyncio.get_running_loop().create_task(self._run())
+        def wrapper() -> None:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
 
-            self._main_task = task
+            self._main_task = loop.create_task(self._run())
 
-            await task
+            loop.run_until_complete(self._main_task)
 
-        th = Thread(target=asyncio.run, args=(wrapper(),))
+        th = Thread(target=wrapper)
         log.debug("Starting acquisition in new thread: " + th.name)
         th.start()
 
@@ -150,7 +151,6 @@ class Acquisition:
         """
         # TODO: perform synchronous GETS to initialize the buffer
         Signal.start_all(asyncio.get_running_loop())
-        await asyncio.sleep(5)
         try:
             handles = self._setup_subscriptions()
         except:  # noqa
@@ -176,10 +176,10 @@ class Acquisition:
     def _setup_subscriptions(self) -> list[AsyncIOSubscription]:
         subscriptions = [
             ("StartSuperCycle", START_SUPERCYCLE, ""),
+            ("Forewarning", TRIGGER_EVENT, "SPS.USER.ALL"),
             ("ProgrammedCurrent", DEV_LSA_I, "SPS.USER.ALL"),
             ("MeasuredCurrent", DEV_MEAS_I, "SPS.USER.ALL"),
             ("MeasuredBField", DEV_MEAS_B, "SPS.USER.ALL"),
-            ("Forewarning", TRIGGER_EVENT, "SPS.USER.ALL"),
             ("ProgrammedBField", DEV_LSA_B, "SPS.USER.ALL"),
         ]
 
@@ -201,7 +201,7 @@ class Acquisition:
                 property_name=m.group("property"),
             )
 
-        for _, endpoint, _ in subscriptions[1:]:
+        for _, endpoint, _ in subscriptions[2:]:
             for selector in self._pls_to_lsa.keys():
                 log.debug(f"GET-ting values for {endpoint}@{selector}.")
                 self._handle_acquisition(

@@ -4,14 +4,13 @@ Time utilities for handling acquired data
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from numbers import Number
 from typing import Literal
 
 UNIT_TO_SCALE = {"s": 1, "ms": 1e3, "us": 1e6, "ns": 1e9}
 
 
 def from_timestamp(
-    timestamp: Number,
+    timestamp: int,
     from_utc: bool = True,
     unit: Literal["s", "ms", "us", "ns"] = "ns",
 ) -> datetime:
@@ -28,7 +27,7 @@ def from_timestamp(
 
     scale = UNIT_TO_SCALE[unit]
 
-    timestamp = timestamp / scale
+    timestamp = int(timestamp / scale)
 
     dt = datetime.fromtimestamp(timestamp)
 

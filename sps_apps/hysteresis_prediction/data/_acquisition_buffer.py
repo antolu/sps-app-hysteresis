@@ -8,6 +8,7 @@ import logging
 from collections import deque
 from enum import Enum
 from threading import Lock
+from typing import Iterable
 
 import numpy as np
 
@@ -20,13 +21,18 @@ log = logging.getLogger(__name__)
 
 
 def log_cycle(msg: str, cycle: str, timestamp: int = None):
-    timestamp = (
-        f'@{from_timestamp(timestamp, from_utc=True, unit="ns")}'
-        if timestamp is not None
-        else ""
-    )
+    if timestamp is None:
+        timestamp_s = ""
+    else:
+        timestamp_s = "@" + str(from_timestamp(timestamp))
 
-    log.debug(f"[{cycle}{timestamp}] " + msg)
+    log.debug(f"[{cycle}{timestamp_s}] " + msg)
+
+
+def _cycle_buffer_str(buffer: Iterable[SingleCycleData]) -> str:
+    return ", ".join(
+        [cycle.cycle + "@" + str(cycle.cycle_time) for cycle in buffer]
+    )
 
 
 class BufferData(Enum):
@@ -126,6 +132,7 @@ class AcquisitionBuffer:
                 "Programmed current has not yet been set. "
                 "Cannot create new cycle data.",
                 cycle,
+                cycle_timestamp,
             )
             return
 
@@ -142,7 +149,16 @@ class AcquisitionBuffer:
             cycle, cycle_timestamp, self._i_prog[cycle], self._b_prog[cycle]
         )
 
-        log_cycle("Creating new cycle data in NEXT buffer.", cycle)
+        if cycle_timestamp in self._next_cycles:
+            log.error(
+                f"[{cycle}@{from_timestamp(cycle_timestamp)}] "
+                "Cycle data already exists in NEXT buffer."
+            )
+            return
+
+        log_cycle(
+            "Creating new cycle data in NEXT buffer.", cycle, cycle_timestamp
+        )
         with self._lock:
             self._next_cycles[cycle_timestamp] = cycle_data
             self._buffer_next.append(cycle_data)
@@ -197,11 +213,11 @@ class AcquisitionBuffer:
 
             for cycle_data in incomplete_samples:
                 if cycle_data.cycle not in self._i_ref:
-                    log.error(
+                    msg = (
                         f"Missing reference current for {cycle_data.cycle}. "
                         "Cannot build buffer."
                     )
-                    return
+                    raise InsufficientDataError(msg)
                 cycle_data.current_input = self._i_ref[cycle_data.cycle]
 
         out_buffer += incomplete_samples
@@ -231,11 +247,12 @@ class AcquisitionBuffer:
             with self._lock:
                 self._i_ref[cycle] = value
 
-            return
-
         if cycle_timestamp not in self._next_cycles:
             log_cycle(
-                "NEXT buffered cycle data not found", cycle, cycle_timestamp
+                "NEXT buffered cycle data not found. "
+                f"Only {_cycle_buffer_str(self._buffer_next)} available.",
+                cycle,
+                cycle_timestamp,
             )
             return
 
@@ -266,11 +283,12 @@ class AcquisitionBuffer:
             with self._lock:
                 self._b_ref[cycle] = value
 
-            return
-
         if cycle_timestamp not in self._next_cycles:
-            log.debug(
-                "NEXT buffered cycle data not found.", cycle, cycle_timestamp
+            log_cycle(
+                "NEXT buffered cycle data not found."
+                f"Only {_cycle_buffer_str(self._buffer_next)} available.",
+                cycle,
+                cycle_timestamp,
             )
             return
 
@@ -293,7 +311,7 @@ class AcquisitionBuffer:
         """
         log_cycle("Buffer received new programmed I.", cycle)
 
-        def set_new_programmed_current():
+        def set_new_programmed_current() -> None:
             log_cycle("Setting new programmed current.", cycle)
 
             with self._lock:
@@ -331,13 +349,13 @@ class AcquisitionBuffer:
     ) -> None:
         log_cycle("Buffer received new programmed B.", cycle)
 
-        def set_new_programmed_field():
+        def set_new_programmed_field() -> None:
             log_cycle("Setting new programmed field.", cycle)
             with self._lock:
                 self._b_prog[cycle] = value
 
             log_cycle("Removing buffered reference data.", cycle)
-            if cycle not in self._i_ref:
+            if cycle not in self._b_ref:
                 log_cycle("No buffered reference data.", cycle)
                 return
 
@@ -382,7 +400,7 @@ class AcquisitionBuffer:
             return
 
         def check_integrity(buffer: deque) -> list[int]:
-            to_remove = []
+            to_remove: list[int] = []
             with self._lock:
                 buffer = buffer.copy()
 
@@ -439,7 +457,7 @@ class AcquisitionBuffer:
                     f"Removing buffered cycle {self._buffer_next[i].cycle}."
                 )
                 with self._lock:
-                    self._buffer_next.pop(self._next_cycles[i].cycle_timestamp)
+                    self._next_cycles.pop(self._next_cycles[i].cycle_timestamp)
                     del self._next_cycles[i]
 
             to_remove = check_integrity(self._buffer_next)
@@ -480,7 +498,7 @@ class AcquisitionBuffer:
         def buffer_size(buffer: deque) -> int:
             return sum([o.num_samples for o in buffer])
 
-        def buffer_too_large(buffer: deque, buffer_next: deque) -> bool:
+        def buffer_too_large(buffer: Iterable, buffer_next: Iterable) -> bool:
             num_samples_buffer = [o.num_samples for o in buffer]
             num_samples_next = [o.num_samples for o in buffer_next]
 
@@ -522,10 +540,9 @@ class AcquisitionBuffer:
         cycle_timestamp = cycle_data.cycle_timestamp
 
         if cycle_timestamp not in self._next_cycles:
-            log_cycle("Next buffered cycle data not found.", cycle)
             log_cycle(
-                f"NEXT buffered cycle data not found"
-                f"Only {', '.join(list(map(str, self._next_cycles.keys())))}",
+                "NEXT buffered cycle data not found. "
+                f"Only {_cycle_buffer_str(self._buffer_next)}.",
                 cycle,
                 cycle_timestamp,
             )
@@ -544,7 +561,7 @@ class AcquisitionBuffer:
                 if cycle_timestamp not in self._next_cycles:
                     log.error(
                         f"[{cycle}@{cycle_time}] cycle data not in NEXT "
-                        "buffer."
+                        f"buffer: {_cycle_buffer_str(self._buffer_next)}."
                     )
                     return
 
@@ -554,11 +571,12 @@ class AcquisitionBuffer:
                 log.warning(
                     f"[{cycle}@{cycle_time}] Cycle data is not the "
                     f"next. It is at index {idx}. Preceding "
-                    "entries will be removed."
+                    "entries will be removed. Existing cycles are "
+                    + _cycle_buffer_str(self._buffer_next)
                 )
 
                 with self._lock:
-                    for i in range(idx):
+                    for i in range(idx - 1):
                         to_remove = self._buffer_next.popleft()
                         self._next_cycles.pop(to_remove.cycle_timestamp)
 

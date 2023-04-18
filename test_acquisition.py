@@ -16,7 +16,7 @@ def buffer_handler(buffer: list) -> None:
 def new_measured_handler(cycle_data: SingleCycleData) -> None:
     log.info(
         f"Received new measured data {cycle_data.cycle}"
-        "@{cycle_data.cycle_time}."
+        f"@{cycle_data.cycle_time}."
     )
 
 

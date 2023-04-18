@@ -34,7 +34,7 @@ class Signal:
         self._types = types
         self._handles: list[Handle] = []
 
-        self._q: asyncio.Queue = asyncio.Queue()
+        self._q: Optional[asyncio.Queue] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._wait_task: Optional[asyncio.Task] = None
 
@@ -44,11 +44,10 @@ class Signal:
         self, loop: Optional[asyncio.AbstractEventLoop] = None
     ) -> asyncio.Task:
         loop = loop if loop is not None else self._get_loop()
-
         self._loop = loop
 
+        self._q = asyncio.Queue()
         self._wait_task = loop.create_task(self._wait())
-        log.debug("Scheduled signal to run in " + str(loop))
 
         return self._wait_task
 
@@ -123,6 +122,11 @@ class Signal:
 
         The slots are executed in the same thread as the event loop.
         """
+        if self._q is None:
+            raise RuntimeError(
+                "Event loop is not running. Did you forget "
+                "to schedule Signal._schedule_signal?"
+            )
         try:
             while True:
                 value = await self._q.get()
@@ -140,6 +144,7 @@ class Signal:
                         )
                         continue
         except asyncio.CancelledError:
+            log.debug("Signal wait loop cancelled.")
             pass
 
     async def _put(self, *args: Any) -> None:
@@ -148,7 +153,13 @@ class Signal:
         called in the same event loop as the signal to avoid race
         conditions.
         """
+        if self._q is None:
+            raise RuntimeError(
+                "Event loop is not running. Did you forget "
+                "to schedule Signal._schedule_signal?"
+            )
         value = tuple(args) if not isinstance(*args, tuple) else args
+        log.debug("Put item in queue.")
         await self._q.put(value)
 
     @staticmethod
@@ -162,4 +173,5 @@ class Signal:
     def cancel_all() -> None:
         log.debug("Stopping all active signals...")
         for signal in Signal._active_signals:
-            signal._wait_task.cancel()
+            if signal._wait_task is not None:
+                signal._wait_task.cancel()
