@@ -159,7 +159,6 @@ class Signal:
                 "to schedule Signal._schedule_signal?"
             )
         value = tuple(args) if not isinstance(*args, tuple) else args
-        log.debug("Put item in queue.")
         await self._q.put(value)
 
     @staticmethod

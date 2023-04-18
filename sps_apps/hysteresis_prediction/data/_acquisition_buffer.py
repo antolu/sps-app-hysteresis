@@ -24,7 +24,9 @@ def log_cycle(msg: str, cycle: str, timestamp: int = None):
     if timestamp is None:
         timestamp_s = ""
     else:
-        timestamp_s = "@" + str(from_timestamp(timestamp))
+        timestamp_s = "@" + str(
+            from_timestamp(timestamp, from_utc=True, unit="ns")
+        )
 
     log.debug(f"[{cycle}{timestamp_s}] " + msg)
 
@@ -239,7 +241,7 @@ class AcquisitionBuffer:
         :param cycle_timestamp: The timestamp of the cycle (in UTC, and ns).
         :param value: The new measured current value.
         """
-        log_cycle("Buffer received new measured I", cycle)
+        log_cycle("Buffer received new measured I", cycle, cycle_timestamp)
         if cycle not in self._i_ref or self._i_ref[cycle] is None:
             log_cycle("Measured current has not yet been set.", cycle)
             log_cycle("Setting new measured current for cycle.", cycle)
@@ -256,6 +258,11 @@ class AcquisitionBuffer:
             )
             return
 
+        log_cycle(
+            "Setting measured I for cycle data in NEXT buffer.",
+            cycle,
+            cycle_timestamp,
+        )
         with self._lock:
             cycle_data = self._next_cycles[cycle_timestamp]
             cycle_data.current_meas = value
@@ -275,7 +282,7 @@ class AcquisitionBuffer:
         :param cycle_timestamp: The timestamp of the cycle (in UTC, and ns).
         :param value: The new measured magnetic field value.
         """
-        log.debug(f"Buffer received new measured B for {cycle}.")
+        log_cycle("Buffer received new measured B.", cycle, cycle_timestamp)
         if cycle not in self._b_ref or self._b_ref[cycle] is None:
             log_cycle("Measured magnetic field has not yet been set.", cycle)
             log_cycle("Setting new measured magnetic field.", cycle)
@@ -285,13 +292,18 @@ class AcquisitionBuffer:
 
         if cycle_timestamp not in self._next_cycles:
             log_cycle(
-                "NEXT buffered cycle data not found."
+                "NEXT buffered cycle data not found. "
                 f"Only {_cycle_buffer_str(self._buffer_next)} available.",
                 cycle,
                 cycle_timestamp,
             )
             return
 
+        log_cycle(
+            "Setting measured B for cycle data in NEXT buffer.",
+            cycle,
+            cycle_timestamp,
+        )
         with self._lock:
             cycle_data = self._next_cycles[cycle_timestamp]
             cycle_data.field_meas = value
@@ -399,7 +411,7 @@ class AcquisitionBuffer:
             )
             return
 
-        def check_integrity(buffer: deque) -> list[int]:
+        def check_integrity(buffer: deque[SingleCycleData]) -> list[int]:
             to_remove: list[int] = []
             with self._lock:
                 buffer = buffer.copy()
@@ -413,9 +425,17 @@ class AcquisitionBuffer:
 
                 cycle = cycle_data.cycle
                 cycle_time = cycle_data.cycle_time
+                cycle_timestamp = cycle_data.cycle_timestamp
 
                 prev_cycle = prev_cycle_data.cycle
                 prev_cycle_time = prev_cycle_data.cycle_time
+                prev_cycle_timestamp = prev_cycle_data.cycle_timestamp
+                prev_cycle_len = prev_cycle_data.num_samples
+
+                time_desc = abs(
+                    (prev_cycle_timestamp / 1e6 + prev_cycle_len)
+                    - cycle_timestamp / 1e6
+                )
 
                 if cycle_time < prev_cycle_time:
                     log.warning(
@@ -425,14 +445,27 @@ class AcquisitionBuffer:
                         "offending buffered cycle."
                     )
                     to_remove.append(i)
+                elif time_desc > 5:  # 5 ms
+                    msg = (
+                        f"Time discrepancy {time_desc} between cycles "
+                        f"{cycle_data} -> {prev_cycle_data} is greater than "
+                        f"cycle length {prev_cycle_len} ms. Removing preceding"
+                        " cycles."
+                    )
+                    log.warning(msg)
 
+                    last_index = to_remove[-1] if len(to_remove) > 0 else 0
+                    to_remove.extend(list(range(last_index, i + 1)))
+
+            if len(to_remove) > 0:
+                log.warning("Found offending cycles.")
             return to_remove
 
         log.debug("Checking buffer integrity.")
         to_remove = check_integrity(self._buffer)
         if len(to_remove) > 0:
             for i in reversed(to_remove):
-                log.info(f"Removing buffered cycle {self._buffer[i].cycle}.")
+                log.info(f"Removing buffered cycle {self._buffer[i]}.")
                 with self._lock:
                     self._buffered_cycles.pop(self._buffer[i].cycle_timestamp)
                     del self._buffer[i]

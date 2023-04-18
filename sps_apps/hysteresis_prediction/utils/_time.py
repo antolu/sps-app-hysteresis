@@ -27,9 +27,7 @@ def from_timestamp(
 
     scale = UNIT_TO_SCALE[unit]
 
-    timestamp = int(timestamp / scale)
-
-    dt = datetime.fromtimestamp(timestamp)
+    dt = datetime.fromtimestamp(timestamp / scale)
 
     if from_utc:
         dt = dt.astimezone().astimezone(timezone.utc).replace(tzinfo=None)

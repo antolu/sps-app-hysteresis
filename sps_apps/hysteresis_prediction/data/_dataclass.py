@@ -59,3 +59,6 @@ class SingleCycleData:
             and self.current_prog is other.current_prog
             and self.field_prog is other.field_prog
         )
+
+    def __str__(self) -> str:
+        return f"{self.cycle}@{self.cycle_time}"

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import threading
 from signal import SIGINT, SIGTERM, signal
 
 from sps_apps.hysteresis_prediction.data import Acquisition, SingleCycleData
@@ -9,8 +8,11 @@ from sps_apps.hysteresis_prediction.data import Acquisition, SingleCycleData
 log = logging.getLogger()
 
 
-def buffer_handler(buffer: list) -> None:
-    log.info(f"Buffer handler called with {len(buffer)} elements.")
+def buffer_handler(buffer: list[SingleCycleData]) -> None:
+    msg = "\n".join(
+        [f"{cycle} [-> {cycle.num_samples} ms]" for cycle in buffer]
+    )
+    log.info(f"Buffer handler called with {len(buffer)} elements.\n" + msg)
 
 
 def new_measured_handler(cycle_data: SingleCycleData) -> None:
@@ -44,8 +46,6 @@ def main() -> None:
     signal(SIGTERM, lambda x, y: acq.stop())  # noqa
 
     th.join()
-    print(f"Running threads: {threading.enumerate()}")
-    print("All tasks finished")
 
 
 if __name__ == "__main__":
