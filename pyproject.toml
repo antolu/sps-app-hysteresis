@@ -158,6 +158,8 @@ module = [
     'pjlsa.*',
     'pyjapc.*',
     'scipy.*',
+    'pyda*',
+    'pyrbac.*'
 ]
 ignore_missing_imports = true
 
