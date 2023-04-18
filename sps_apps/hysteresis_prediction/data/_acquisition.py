@@ -38,6 +38,7 @@ DEV_MEAS_I = "MBI/LOG.I.MEAS"
 DEV_MEAS_B = "SR.BMEAS-SP-B-SD/CycleSamples#samples"
 
 TRIGGER_EVENT = "XTIM.SX.FCY2500-CT/Acquisition"
+START_CYCLE = "XTIM.SX.SCY-CT/Acquisition"
 START_SUPERCYCLE = "SX.CZERO-CTML/SuperCycle"
 
 
@@ -165,7 +166,7 @@ class Acquisition:
                 try:
                     self._handle_acquisition(response)
                 except Exception as e:
-                    log.exception("Error handling acquisition event.", e)
+                    log.exception("Error handling acquisition event." + str(e))
         except asyncio.CancelledError:
             log.debug("Acquisition loop received cancel event.")
 
@@ -176,6 +177,7 @@ class Acquisition:
     def _setup_subscriptions(self) -> list[AsyncIOSubscription]:
         subscriptions = [
             ("StartSuperCycle", START_SUPERCYCLE, ""),
+            ("StartCycle", START_CYCLE, "SPS.USER.ALL"),
             ("Forewarning", TRIGGER_EVENT, "SPS.USER.ALL"),
             ("ProgrammedCurrent", DEV_LSA_I, "SPS.USER.ALL"),
             ("MeasuredCurrent", DEV_MEAS_I, "SPS.USER.ALL"),
@@ -201,7 +203,7 @@ class Acquisition:
                 property_name=m.group("property"),
             )
 
-        for _, endpoint, _ in subscriptions[2:]:
+        for _, endpoint, _ in subscriptions[3:]:
             for selector in self._pls_to_lsa.keys():
                 log.debug(f"GET-ting values for {endpoint}@{selector}.")
                 self._handle_acquisition(
@@ -268,6 +270,10 @@ class Acquisition:
         elif endpoint == TRIGGER_EVENT:
             self._on_forewarning(response)
             return
+        elif endpoint == START_CYCLE:
+            cycle = self._pls_to_lsa.get(value.header.selector)
+            self._buffer.on_start_cycle(cycle, cycle_timestamp)
+            return
         elif endpoint in ENDPOINT2BF:
             pass
         else:
@@ -277,7 +283,7 @@ class Acquisition:
         cycle = self._pls_to_lsa.get(value.header.selector)
         if cycle is None:
             log.error(
-                "Received event from unknown timing user "
+                "Received event from timing user not mapped in supercycle: "
                 f"{value.header.selector}."
             )
             return
@@ -286,8 +292,6 @@ class Acquisition:
         if data is None:
             log.error(f"Received event with no data from {endpoint}.")
             return
-
-        cycle_timestamp = value.header.cycle_timestamp
 
         self._buffer.dispatch_data(
             ENDPOINT2BF[endpoint], cycle, cycle_timestamp, data
@@ -360,10 +364,12 @@ class Acquisition:
 
             return lsa_to_pls, pls_to_lsa
 
+        log.debug("Mapping normal cycles.")
         normal_lsa_to_pls, normal_pls_to_lsa = parse_mappings(
             value.get("normalUsers"), value.get("normalLsaCycleNames")
         )
 
+        log.debug("Mapping spare cycles.")
         spare_lsa_to_pls, spare_pls_to_lsa = parse_mappings(
             value.get("spareUsers"), value.get("spareLsaCycleNames")
         )

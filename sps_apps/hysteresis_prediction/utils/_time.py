@@ -6,6 +6,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Literal
 
+__all__ = ["from_timestamp"]
+
 UNIT_TO_SCALE = {"s": 1, "ms": 1e3, "us": 1e6, "ns": 1e9}
 
 

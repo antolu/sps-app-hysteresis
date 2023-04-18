@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from threading import Thread, current_thread
 from typing import Any, Callable, Optional, Type
 
+__all__ = ["Handle", "Signal"]
+
 log = logging.getLogger(__name__)
 
 

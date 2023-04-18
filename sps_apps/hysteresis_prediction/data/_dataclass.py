@@ -9,6 +9,8 @@ import numpy as np
 
 from ..utils import from_timestamp
 
+__all__ = ["SingleCycleData"]
+
 log = logging.getLogger(__name__)
 
 
@@ -42,14 +44,14 @@ class SingleCycleData:
 
     num_samples: int = field(init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.cycle_time = from_timestamp(
             self.cycle_timestamp, from_utc=True, unit="ns"
         )
         self.cycle_length = len(self.current_prog)
         self.num_samples = self.cycle_length
 
-    def __eq__(self, other: Any):
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, SingleCycleData):
             return False
 

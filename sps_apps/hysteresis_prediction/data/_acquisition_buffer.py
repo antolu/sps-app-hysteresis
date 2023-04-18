@@ -8,7 +8,7 @@ import logging
 from collections import deque
 from enum import Enum
 from threading import Lock
-from typing import Iterable
+from typing import Iterable, Optional
 
 import numpy as np
 
@@ -16,11 +16,11 @@ from ..async_utils import Signal
 from ..utils import from_timestamp
 from ._dataclass import SingleCycleData
 
-__all__ = ["AcquisitionBuffer"]
+__all__ = ["AcquisitionBuffer", "BufferData", "InsufficientDataError"]
 log = logging.getLogger(__name__)
 
 
-def log_cycle(msg: str, cycle: str, timestamp: int = None):
+def log_cycle(msg: str, cycle: str, timestamp: Optional[int] = None) -> None:
     if timestamp is None:
         timestamp_s = ""
     else:
@@ -50,7 +50,7 @@ class InsufficientDataError(Exception):
 
 
 class AcquisitionBuffer:
-    def __init__(self, min_buffer_size: int):
+    def __init__(self, min_buffer_size: int) -> None:
         """
         :param min_buffer_size: The minimum number of samples required to
             collate samples from the buffer.
@@ -68,11 +68,13 @@ class AcquisitionBuffer:
         self._buffer_next: deque[SingleCycleData] = deque()
 
         # maps cycle time(stamp) to data
-        self._buffered_cycles: dict[int, SingleCycleData] = {}
-        self._next_cycles: dict[int, SingleCycleData] = {}
+        self._cycles_index: dict[int, SingleCycleData] = {}
+        self._cycles_next_index: dict[int, SingleCycleData] = {}
 
         self.new_buffered_data = Signal(list[SingleCycleData])
         self.new_measured_data = Signal(SingleCycleData)
+
+        self._unknown_cycles: dict[int, SingleCycleData] = {}
 
         self._lock = Lock()
 
@@ -151,22 +153,86 @@ class AcquisitionBuffer:
             cycle, cycle_timestamp, self._i_prog[cycle], self._b_prog[cycle]
         )
 
-        if cycle_timestamp in self._next_cycles:
+        if cycle_timestamp in self._cycles_next_index:
             log.error(
                 f"[{cycle}@{from_timestamp(cycle_timestamp)}] "
                 "Cycle data already exists in NEXT buffer."
             )
-            return
+
+            # return
+            # below is only a fix for FCY cycle timestamp being incorrect
+            if len(self._unknown_cycles) > 1:
+                log.warning(
+                    "There exists more than one unknown cycle. "
+                    "Don't know what to do."
+                )
+                return
+
+            prev_cycle = self._buffer_next[-1]
+            cycle_timestamp = (
+                prev_cycle.cycle_timestamp + prev_cycle.num_samples * int(1e6)
+            )
+            with self._lock:
+                self._unknown_cycles[cycle_timestamp] = cycle_data
 
         log_cycle(
             "Creating new cycle data in NEXT buffer.", cycle, cycle_timestamp
         )
         with self._lock:
-            self._next_cycles[cycle_timestamp] = cycle_data
+            self._cycles_next_index[cycle_timestamp] = cycle_data
             self._buffer_next.append(cycle_data)
 
         self._check_buffer_integrity()
         self._check_buffer_size()
+
+    def on_start_cycle(self, cycle: str, cycle_timestamp: int) -> None:
+        """
+        This method is implemented only to cope with the timing cycle
+        timestamp being incorrect for two following cycles.
+
+        This method checks if the latest added cycle in NEXT buffer is
+        correct, and corrects the cycle timestamp if required.
+
+        :param cycle The LSA cycle name.
+        :param cycle_timestamp The unique (and correct) timestamp of the
+        cycle.
+        """
+        log_cycle("Start cycle event received.", cycle, cycle_timestamp)
+
+        if len(self._buffer_next) == 0:
+            log.debug("No cycles in NEXT buffer. No need to change timestamp.")
+
+        last_cycle = self._buffer_next[-1]
+
+        if last_cycle.cycle_timestamp == cycle_timestamp:
+            log_cycle(
+                "Cycle timestamp is identical to last data in NEXT "
+                "buffer. No need to correct.",
+                cycle,
+                cycle_timestamp,
+            )
+            return
+
+        if (
+            abs(last_cycle.cycle_timestamp - cycle_timestamp) / 1e6 < 5
+        ):  # diff less than 5 ms
+            log_cycle(
+                "Diff in cycle timestamp between last cycle in NEXT buffer"
+                "and started cycle is not the same, but less than 5 ms. "
+                f"Setting the cycle timestamp to {cycle_timestamp}.",
+                cycle,
+                cycle_timestamp,
+            )
+
+            with self._lock:
+                self._cycles_next_index.pop(last_cycle.cycle_timestamp)
+                last_cycle.cycle_timestamp = cycle_timestamp
+                last_cycle.__post_init__()
+                self._cycles_next_index[cycle_timestamp] = last_cycle
+
+            return
+
+        log.warning("Don't know what to do here.")
 
     def collate_samples(self) -> list[SingleCycleData]:
         """
@@ -224,7 +290,7 @@ class AcquisitionBuffer:
 
         out_buffer += incomplete_samples
 
-        log.debug(f"Collated {len(out_buffer)} cycle samples.")
+        log.debug(f"Collected {len(out_buffer)} cycle samples.")
         return out_buffer
 
     def _new_measured_I(
@@ -249,7 +315,7 @@ class AcquisitionBuffer:
             with self._lock:
                 self._i_ref[cycle] = value
 
-        if cycle_timestamp not in self._next_cycles:
+        if cycle_timestamp not in self._cycles_next_index:
             log_cycle(
                 "NEXT buffered cycle data not found. "
                 f"Only {_cycle_buffer_str(self._buffer_next)} available.",
@@ -264,7 +330,7 @@ class AcquisitionBuffer:
             cycle_timestamp,
         )
         with self._lock:
-            cycle_data = self._next_cycles[cycle_timestamp]
+            cycle_data = self._cycles_next_index[cycle_timestamp]
             cycle_data.current_meas = value
 
         self._check_move_to_buffer(cycle_data)
@@ -290,7 +356,7 @@ class AcquisitionBuffer:
             with self._lock:
                 self._b_ref[cycle] = value
 
-        if cycle_timestamp not in self._next_cycles:
+        if cycle_timestamp not in self._cycles_next_index:
             log_cycle(
                 "NEXT buffered cycle data not found. "
                 f"Only {_cycle_buffer_str(self._buffer_next)} available.",
@@ -305,7 +371,7 @@ class AcquisitionBuffer:
             cycle_timestamp,
         )
         with self._lock:
-            cycle_data = self._next_cycles[cycle_timestamp]
+            cycle_data = self._cycles_next_index[cycle_timestamp]
             cycle_data.field_meas = value
 
         self._check_move_to_buffer(cycle_data)
@@ -448,7 +514,7 @@ class AcquisitionBuffer:
                 elif time_desc > 5:  # 5 ms
                     msg = (
                         f"Time discrepancy {time_desc} between cycles "
-                        f"{cycle_data} -> {prev_cycle_data} is greater than "
+                        f"{prev_cycle_data} -> {cycle_data} is greater than "
                         f"cycle length {prev_cycle_len} ms. Removing preceding"
                         " cycles."
                     )
@@ -458,16 +524,21 @@ class AcquisitionBuffer:
                     to_remove.extend(list(range(last_index, i + 1)))
 
             if len(to_remove) > 0:
-                log.warning("Found offending cycles.")
+                log.warning(
+                    "Found offending cycles at index "
+                    f"{', '.join(map(str, to_remove))}."
+                )
             return to_remove
 
         log.debug("Checking buffer integrity.")
         to_remove = check_integrity(self._buffer)
         if len(to_remove) > 0:
             for i in reversed(to_remove):
-                log.info(f"Removing buffered cycle {self._buffer[i]}.")
+                log.info(
+                    f"Removing buffered cycle {self._buffer[i]} at index {i}."
+                )
                 with self._lock:
-                    self._buffered_cycles.pop(self._buffer[i].cycle_timestamp)
+                    self._cycles_index.pop(self._buffer[i].cycle_timestamp)
                     del self._buffer[i]
 
             to_remove = check_integrity(self._buffer)
@@ -478,7 +549,7 @@ class AcquisitionBuffer:
                 )
                 with self._lock:
                     self._buffer.clear()
-                    self._buffered_cycles.clear()
+                    self._cycles_index.clear()
         else:
             log.debug("Buffer is OK!")
 
@@ -490,8 +561,10 @@ class AcquisitionBuffer:
                     f"Removing buffered cycle {self._buffer_next[i].cycle}."
                 )
                 with self._lock:
-                    self._next_cycles.pop(self._next_cycles[i].cycle_timestamp)
-                    del self._next_cycles[i]
+                    self._cycles_next_index.pop(
+                        self._buffer_next[i].cycle_timestamp
+                    )
+                    del self._buffer_next[i]
 
             to_remove = check_integrity(self._buffer_next)
             if len(to_remove) > 0:
@@ -500,7 +573,7 @@ class AcquisitionBuffer:
                     "automatically. Clearing buffer."
                 )
                 with self._lock:
-                    self._next_cycles.clear()
+                    self._cycles_next_index.clear()
                     self._buffer_next.clear()
         else:
             log.debug("NEXT buffer is OK!")
@@ -528,10 +601,13 @@ class AcquisitionBuffer:
             log.debug("No buffered NEXT cycles.")
             return
 
-        def buffer_size(buffer: deque) -> int:
+        def buffer_size(buffer: Iterable[SingleCycleData]) -> int:
             return sum([o.num_samples for o in buffer])
 
-        def buffer_too_large(buffer: Iterable, buffer_next: Iterable) -> bool:
+        def buffer_too_large(
+            buffer: Iterable[SingleCycleData],
+            buffer_next: Iterable[SingleCycleData],
+        ) -> bool:
             num_samples_buffer = [o.num_samples for o in buffer]
             num_samples_next = [o.num_samples for o in buffer_next]
 
@@ -540,26 +616,32 @@ class AcquisitionBuffer:
                 > self._buffer_size
             )
 
-        if not buffer_too_large(self._buffer, self._buffer_next):
-            log.debug(
-                "Buffer size is within limits. "
-                f"( ({buffer_size(self._buffer)} + {buffer_size(self._buffer_next)})/"  # noqa E501
-                f"{self._buffer_size}) )"
+        def logger_msg(
+            buffer: Iterable[SingleCycleData],
+            buffer_next: Iterable[SingleCycleData],
+        ) -> str:
+            buf_size = buffer_size(buffer)
+            buf_next_size = buffer_size(buffer_next)
+            msg = (
+                "Buffer size is too large. Removing oldest buffered cycle. "  # noqa E501
+                f"[{buf_size} + {buf_next_size} = {buf_size + buf_next_size}] "  # noqa E501
+                f"(/{self._buffer_size})."
             )
+
+            return msg
+
+        if not buffer_too_large(self._buffer, self._buffer_next):
+            log.debug(logger_msg(self._buffer, self._buffer_next))
             return
         else:
             while buffer_too_large(
                 self._buffer, self._buffer_next
             ) and buffer_too_large(list(self._buffer)[1:], self._buffer_next):
-                log.debug(
-                    "Buffer size is too large. Removing oldest buffered cycle. "  # noqa E501
-                    f"( ({buffer_size(self._buffer)} + {buffer_size(self._buffer_next)})/"  # noqa E501
-                    f"{self._buffer_size} )."
-                )
+                log.debug(logger_msg(self._buffer, self._buffer_next))
                 with self._lock:
                     cycle_data = self._buffer.popleft()
                     log.debug(f"Removing buffered cycle {cycle_data.cycle}.")
-                    self._buffered_cycles.pop(cycle_data.cycle_timestamp)
+                    self._cycles_index.pop(cycle_data.cycle_timestamp)
 
     def _check_move_to_buffer(self, cycle_data: SingleCycleData) -> None:
         """
@@ -572,7 +654,7 @@ class AcquisitionBuffer:
         cycle_time = cycle_data.cycle_time
         cycle_timestamp = cycle_data.cycle_timestamp
 
-        if cycle_timestamp not in self._next_cycles:
+        if cycle_timestamp not in self._cycles_next_index:
             log_cycle(
                 "NEXT buffered cycle data not found. "
                 f"Only {_cycle_buffer_str(self._buffer_next)}.",
@@ -580,7 +662,7 @@ class AcquisitionBuffer:
                 cycle_timestamp,
             )
             return
-        elif cycle_timestamp in self._buffered_cycles:
+        elif cycle_timestamp in self._cycles_index:
             log_cycle(
                 "Buffered cycle data already exists.", cycle, cycle_timestamp
             )
@@ -591,7 +673,7 @@ class AcquisitionBuffer:
             and cycle_data.field_meas is not None
         ):
             if self._buffer_next[0] is not cycle_data:
-                if cycle_timestamp not in self._next_cycles:
+                if cycle_timestamp not in self._cycles_next_index:
                     log.error(
                         f"[{cycle}@{cycle_time}] cycle data not in NEXT "
                         f"buffer: {_cycle_buffer_str(self._buffer_next)}."
@@ -611,7 +693,7 @@ class AcquisitionBuffer:
                 with self._lock:
                     for i in range(idx - 1):
                         to_remove = self._buffer_next.popleft()
-                        self._next_cycles.pop(to_remove.cycle_timestamp)
+                        self._cycles_next_index.pop(to_remove.cycle_timestamp)
 
             log_cycle(
                 "Moving buffered cycle data to buffer queue.",
@@ -620,10 +702,10 @@ class AcquisitionBuffer:
             )
             with self._lock:
                 self._buffer_next.popleft()
-                self._next_cycles.pop(cycle_timestamp)
+                self._cycles_next_index.pop(cycle_timestamp)
 
                 self._buffer.append(cycle_data)
-                self._buffered_cycles[cycle_timestamp] = cycle_data
+                self._cycles_index[cycle_timestamp] = cycle_data
 
             log_cycle(
                 "Notifying new measured cycle available.",
