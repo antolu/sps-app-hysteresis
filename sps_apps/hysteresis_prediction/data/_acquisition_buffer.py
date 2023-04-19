@@ -8,7 +8,7 @@ import logging
 from collections import deque
 from enum import Enum
 from threading import Lock
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Union
 
 import numpy as np
 
@@ -20,7 +20,9 @@ __all__ = ["AcquisitionBuffer", "BufferData", "InsufficientDataError"]
 log = logging.getLogger(__name__)
 
 
-def log_cycle(msg: str, cycle: str, timestamp: Optional[int] = None) -> None:
+def log_cycle(
+    msg: str, cycle: str, timestamp: Optional[Union[int, float]] = None
+) -> None:
     if timestamp is None:
         timestamp_s = ""
     else:
@@ -68,8 +70,8 @@ class AcquisitionBuffer:
         self._buffer_next: deque[SingleCycleData] = deque()
 
         # maps cycle time(stamp) to data
-        self._cycles_index: dict[int, SingleCycleData] = {}
-        self._cycles_next_index: dict[int, SingleCycleData] = {}
+        self._cycles_index: dict[Union[int, float], SingleCycleData] = {}
+        self._cycles_next_index: dict[Union[int, float], SingleCycleData] = {}
 
         self.new_buffered_data = Signal(list[SingleCycleData])
         self.new_measured_data = Signal(SingleCycleData)
@@ -91,7 +93,7 @@ class AcquisitionBuffer:
         self,
         dest: BufferData,
         cycle: str,
-        cycle_timestamp: int,
+        cycle_timestamp: Union[int, float],
         data: np.ndarray,
     ) -> None:
         """
@@ -118,7 +120,9 @@ class AcquisitionBuffer:
             log.exception(f"Error while dispatching data to {dest}.")
             return
 
-    def new_cycle(self, cycle: str, cycle_timestamp: int) -> None:
+    def new_cycle(
+        self, cycle: str, cycle_timestamp: Union[int, float]
+    ) -> None:
         """
         Called when a new cycle is started (or is going to start).
         This will create a new :class:`SingleCycleData` object and add
@@ -188,7 +192,9 @@ class AcquisitionBuffer:
 
         self.new_programmed_cycle.emit(cycle_data)
 
-    def on_start_cycle(self, cycle: str, cycle_timestamp: int) -> None:
+    def on_start_cycle(
+        self, cycle: str, cycle_timestamp: Union[int, float]
+    ) -> None:
         """
         This method is implemented only to cope with the timing cycle
         timestamp being incorrect for two following cycles.
@@ -204,6 +210,7 @@ class AcquisitionBuffer:
 
         if len(self._buffer_next) == 0:
             log.debug("No cycles in NEXT buffer. No need to change timestamp.")
+            return
 
         last_cycle = self._buffer_next[-1]
 
@@ -297,7 +304,7 @@ class AcquisitionBuffer:
         return out_buffer
 
     def _new_measured_I(
-        self, cycle: str, cycle_timestamp: int, value: np.ndarray
+        self, cycle: str, cycle_timestamp: Union[int, float], value: np.ndarray
     ) -> None:
         """
         Adds a new measured current to the buffer. If the current is not
@@ -327,6 +334,8 @@ class AcquisitionBuffer:
             )
             return
 
+        value = value.flatten()
+
         log_cycle(
             "Setting measured I for cycle data in NEXT buffer.",
             cycle,
@@ -339,7 +348,7 @@ class AcquisitionBuffer:
         self._check_move_to_buffer(cycle_data)
 
     def _new_measured_B(
-        self, cycle: str, cycle_timestamp: int, value: np.ndarray
+        self, cycle: str, cycle_timestamp: Union[int, float], value: np.ndarray
     ) -> None:
         """
         Adds a new measured magnetic field to the buffer. This will also
@@ -368,6 +377,8 @@ class AcquisitionBuffer:
             )
             return
 
+        value = value.flatten() / 1e4  # G to T
+
         log_cycle(
             "Setting measured B for cycle data in NEXT buffer.",
             cycle,
@@ -380,7 +391,7 @@ class AcquisitionBuffer:
         self._check_move_to_buffer(cycle_data)
 
     def _new_programmed_I(
-        self, cycle: str, cycle_timestamp: int, value: np.ndarray
+        self, cycle: str, cycle_timestamp: Union[int, float], value: np.ndarray
     ) -> None:
         """
         Adds a new programmed current to the buffer. Only the one value is
@@ -426,7 +437,7 @@ class AcquisitionBuffer:
                 log_cycle("Programmed current has not changed.", cycle)
 
     def _new_programmed_B(
-        self, cycle: str, cycle_timestamp: int, value: np.ndarray
+        self, cycle: str, cycle_timestamp: Union[int, float], value: np.ndarray
     ) -> None:
         log_cycle("Buffer received new programmed B.", cycle)
 
@@ -463,7 +474,7 @@ class AcquisitionBuffer:
                 log_cycle("Programmed field has not changed.", cycle)
 
     def _new_reference_B(
-        self, cycle: str, cycle_timestamp: int, value: np.ndarray
+        self, cycle: str, cycle_timestamp: Union[int, float], value: np.ndarray
     ) -> None:
         log.warning("Reference magnetic field not yet implemented.")
 

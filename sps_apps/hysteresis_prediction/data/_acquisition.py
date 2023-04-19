@@ -9,6 +9,7 @@ import logging
 import re
 from datetime import datetime
 from functools import partial
+from signal import SIGINT, SIGTERM, signal
 from threading import Thread
 from typing import Callable, Iterable, Optional
 
@@ -112,6 +113,9 @@ class Acquisition:
         self.new_buffer_data = Signal(list[SingleCycleData])
         self.new_measured_data = Signal(SingleCycleData)
         self.cycle_mapping_changed = Signal(str)  # LSA cycle name
+
+        signal(SIGINT, lambda *_: self.stop())
+        signal(SIGTERM, lambda *_: self.stop())  # noqa
 
         self.buffer.new_measured_data.connect(self.new_measured_data.emit)
 
