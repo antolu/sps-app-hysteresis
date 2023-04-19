@@ -73,6 +73,7 @@ class AcquisitionBuffer:
 
         self.new_buffered_data = Signal(list[SingleCycleData])
         self.new_measured_data = Signal(SingleCycleData)
+        self.new_programmed_cycle = Signal(SingleCycleData)
 
         self._unknown_cycles: dict[int, SingleCycleData] = {}
 
@@ -184,6 +185,8 @@ class AcquisitionBuffer:
 
         self._check_buffer_integrity()
         self._check_buffer_size()
+
+        self.new_programmed_cycle.emit(cycle_data)
 
     def on_start_cycle(self, cycle: str, cycle_timestamp: int) -> None:
         """
