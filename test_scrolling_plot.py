@@ -34,7 +34,7 @@ class LocalTimerTimingSource(UpdateSource):
         self.timer = QTimer(self)
         self.offset = offset
         self.timer.timeout.connect(self._create_new_value)
-        self.timer.start(1000 / 60)
+        self.timer.start(int(1000 / 30))
 
     def _create_new_value(self) -> None:
         self.sig_new_timestamp.emit(datetime.now().timestamp() + self.offset)
@@ -125,17 +125,13 @@ class MainWindow(ApplicationFrame):
         self._measured_current_source.send_data(current_data)
 
     def new_programmed_handler(self, cycle_data: SingleCycleData) -> None:
-        programmed_field = cycle_data.field_prog.flatten()
-        programmed_current = cycle_data.current_prog.flatten()
+        time_current, programmed_current = cycle_data.current_prog
+        # field_time, programmed_field = cycle_data.field_prog
 
-        time_range = (
-            np.arange(cycle_data.num_samples) / 1e3
-            + cycle_data.cycle_timestamp / 1e9
-        )
-        CurveData(x=time_range[::10], y=programmed_field[::10])
-        current_data = CurveData(
-            x=time_range[::10], y=programmed_current[::10]
-        )
+        time_current = time_current / 1e3 + cycle_data.cycle_timestamp
+        # time_field = field_time / 1e3 + cycle_data.cycle_timestamp
+        # field_data = CurveData(x=time_field, y=programmed_field[::10])
+        current_data = CurveData(x=time_current, y=programmed_current)
         # self._programmed_field_source.send_data(field_data)
         self._programmed_current_source.send_data(current_data)
 

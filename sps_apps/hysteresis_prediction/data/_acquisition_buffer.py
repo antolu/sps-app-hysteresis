@@ -391,7 +391,10 @@ class AcquisitionBuffer:
         self._check_move_to_buffer(cycle_data)
 
     def _new_programmed_I(
-        self, cycle: str, cycle_timestamp: Union[int, float], value: np.ndarray
+        self,
+        cycle: str,
+        cycle_timestamp: Union[int, float, None],
+        value: np.ndarray,
     ) -> None:
         """
         Adds a new programmed current to the buffer. Only the one value is
@@ -402,6 +405,14 @@ class AcquisitionBuffer:
         :param value: The new programmed current value.
         """
         log_cycle("Buffer received new programmed I.", cycle)
+        if len(value) != 2:
+            log.error(
+                "Received programmed I that is not composed of "
+                "time and I subarrays."
+            )
+            return
+
+        value[0] /= 1e3  # s to ms
 
         def set_new_programmed_current() -> None:
             log_cycle("Setting new programmed current.", cycle)
@@ -437,9 +448,21 @@ class AcquisitionBuffer:
                 log_cycle("Programmed current has not changed.", cycle)
 
     def _new_programmed_B(
-        self, cycle: str, cycle_timestamp: Union[int, float], value: np.ndarray
+        self,
+        cycle: str,
+        cycle_timestamp: Union[int, float, None],
+        value: np.ndarray,
     ) -> None:
         log_cycle("Buffer received new programmed B.", cycle)
+        log_cycle("Buffer received new programmed B.", cycle)
+        if len(value) != 2:
+            log.error(
+                "Received programmed B that is not composed of "
+                "time and B subarrays."
+            )
+            return
+
+        value[0] /= 1e3  # s to ms
 
         def set_new_programmed_field() -> None:
             log_cycle("Setting new programmed field.", cycle)

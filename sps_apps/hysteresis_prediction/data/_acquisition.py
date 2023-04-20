@@ -15,9 +15,10 @@ from typing import Callable, Iterable, Optional, Union
 
 from pyda import AsyncIOClient, SimpleClient
 from pyda.clients.asyncio import AsyncIOSubscription
-from pyda.data import PropertyRetrievalResponse, StandardEndpoint
+from pyda.data import PropertyRetrievalResponse
 from pyda_japc import JapcProvider
-from pyrbac import AuthenticationClient
+from pyjapc import PyJapc
+from pyrbac import AuthenticationClient  # noqa: import-error
 
 from ..async_utils import Signal
 from ..utils import from_timestamp
@@ -27,13 +28,14 @@ from ._acquisition_buffer import (
     InsufficientDataError,
 )
 from ._dataclass import SingleCycleData
+from ._pyjapc import PyJapc2Pyda, PyJapcEndpoint, SubscriptionCallback
 
 __all__ = ["Acquisition"]
 
 # DEV_LSA_B = "rmi://virtual_sps/SPSBEAM/B"
-DEV_LSA_B = "MBI/LOG.I.REF#values"  # placeholder until we can get B
-DEV_LSA_BDOT = "rm://virtual_sps/SPSBEAM/BDOT"
-DEV_LSA_I = "MBI/LOG.I.REF"
+DEV_LSA_B = "MBI/REF.TABLE.FUNC.VALUE#value"  # placeholder until we can get B
+DEV_LSA_BDOT = "rmi://virtual_sps/SPSBEAM/BDOT"
+DEV_LSA_I = "MBI/REF.TABLE.FUNC.VALUE"
 
 DEV_MEAS_I = "MBI/LOG.I.MEAS"
 DEV_MEAS_B = "SR.BMEAS-SP-B-SD/CycleSamples#samples"
@@ -91,6 +93,7 @@ class Acquisition:
         self._lsa_to_pls: dict[str, str] = {}
 
         self._async_handles: dict[str, AsyncIOSubscription] = {}
+        self._subscribe_handles: dict[str, SubscriptionCallback] = {}
         self._main_task: Optional[asyncio.Task] = None
 
         if japc_provider is None:
@@ -109,7 +112,11 @@ class Acquisition:
 
         self._japc_simple = SimpleClient(provider=japc_provider)
         self._japc_async = AsyncIOClient(provider=japc_provider)
+        japc = PyJapc(incaAcceleratorName="SPS", selector="SPS.USER.ALL")
+        japc.rbacLogin()
+        self._japc = PyJapc2Pyda(japc)
 
+        self.data_acquired = Signal(PropertyRetrievalResponse)
         self.new_buffer_data = Signal(list[SingleCycleData])
         self.new_measured_data = Signal(SingleCycleData)
         self.cycle_mapping_changed = Signal(str)  # LSA cycle name
@@ -119,6 +126,7 @@ class Acquisition:
         signal(SIGTERM, lambda *_: self.stop())  # noqa
 
         self.buffer.new_measured_data.connect(self.new_measured_data.emit)
+        self.data_acquired.connect(self._handle_acquisition)
 
     def run(self) -> Thread:
         def wrapper() -> None:
@@ -180,13 +188,16 @@ class Acquisition:
         return self._buffer
 
     def _setup_subscriptions(self) -> list[AsyncIOSubscription]:
-        subscriptions = [
+        pyda_subscriptions = [
             ("StartSuperCycle", START_SUPERCYCLE, ""),
             ("StartCycle", START_CYCLE, "SPS.USER.ALL"),
             ("Forewarning", TRIGGER_EVENT, "SPS.USER.ALL"),
-            ("ProgrammedCurrent", DEV_LSA_I, "SPS.USER.ALL"),
             ("MeasuredCurrent", DEV_MEAS_I, "SPS.USER.ALL"),
             ("MeasuredBField", DEV_MEAS_B, "SPS.USER.ALL"),
+        ]
+
+        pyjapc_subscriptions = [
+            ("ProgrammedCurrent", DEV_LSA_I, "SPS.USER.ALL"),
             ("ProgrammedBField", DEV_LSA_B, "SPS.USER.ALL"),
         ]
 
@@ -197,34 +208,38 @@ class Acquisition:
             self._japc_simple.get(START_SUPERCYCLE, context="")
         )
 
-        def make_endpoint(endpoint: str) -> StandardEndpoint:
-            m = ENDPOINT_RE.match(endpoint)
-
-            if not m:
-                raise ValueError(f"Not a valid endpoint: {endpoint}.")
-
-            return StandardEndpoint(
-                device_name=m.group("device"),
-                property_name=m.group("property"),
-            )
-
-        for _, endpoint, _ in subscriptions[3:]:
+        for _, endpoint, _ in pyda_subscriptions[3:]:
             for selector in self._pls_to_lsa.keys():
                 log.debug(f"GET-ting values for {endpoint}@{selector}.")
                 self._handle_acquisition(
                     self._japc_simple.get(
-                        make_endpoint(endpoint), context=selector
+                        PyJapcEndpoint.from_str(endpoint), context=selector
                     )
                 )
 
+        for _, endpoint, _ in pyjapc_subscriptions:
+            for selector in self._pls_to_lsa.keys():
+                log.debug(f"GET-ting values for {endpoint}@{selector}.")
+                self._handle_acquisition(
+                    self._japc.get(endpoint, context=selector)
+                )
+
         log.debug("Subscribing to events.")
-        for name, endpoint, selector in subscriptions:
+        for name, endpoint, selector in pyda_subscriptions:
             log.debug(f"Subscribing to {endpoint} with selector {selector}.")
             handle = self._japc_async.subscribe(
-                make_endpoint(endpoint), context=selector
+                PyJapcEndpoint.from_str(endpoint), context=selector
             )
 
             self._async_handles[name] = handle
+
+        for name, endpoint, selector in pyjapc_subscriptions:
+            log.debug(f"Subscribing to {endpoint} with selector {selector}.")
+            handle = self._japc.subscribe(
+                endpoint, context=selector, callback=self.data_acquired.emit
+            )
+
+            self._subscribe_handles[name] = handle
 
         return list(self._async_handles.values())
 
@@ -284,10 +299,9 @@ class Acquisition:
                 f"{value.header.selector}."
             )
             return
-        assert cycle_timestamp is not None
-
         if endpoint == START_CYCLE:
             assert cycle is not None
+            assert cycle_timestamp is not None
             self.cycle_started.emit(selector, cycle, cycle_timestamp)
             self._buffer.on_start_cycle(cycle, cycle_timestamp)
             return
@@ -412,7 +426,7 @@ class Acquisition:
         ]
 
         log.debug("Updating internal mappings.\n" + "\n".join(log_lines))
-        new_lsa_to_pls = {**normal_lsa_to_pls, **spare_pls_to_lsa}
+        new_lsa_to_pls = {**normal_lsa_to_pls, **spare_lsa_to_pls}
         new_pls_to_lsa = {**normal_pls_to_lsa, **spare_pls_to_lsa}
         self._pls_to_lsa.update(new_pls_to_lsa)
         self._lsa_to_pls.update(new_lsa_to_pls)

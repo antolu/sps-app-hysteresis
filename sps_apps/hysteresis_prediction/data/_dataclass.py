@@ -48,7 +48,9 @@ class SingleCycleData:
         self.cycle_time = from_timestamp(
             self.cycle_timestamp, from_utc=True, unit="ns"
         )
-        self.cycle_length = len(self.current_prog)
+        self.cycle_length = int(
+            self.current_prog[0][-1] * 1e3
+        )  # last time marker in ms
         self.num_samples = self.cycle_length
 
     def __eq__(self, other: Any) -> bool:
