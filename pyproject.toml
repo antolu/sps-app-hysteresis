@@ -170,3 +170,6 @@ module = [
 #    'sps_app_hysteresis.timing_acquisition',
 ]
 disallow_untyped_defs = false
+
+[tool.pyright]
+reportPrivateImportUsage = "none"

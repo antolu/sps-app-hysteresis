@@ -11,7 +11,7 @@ from datetime import datetime
 from functools import partial
 from signal import SIGINT, SIGTERM, signal
 from threading import Thread
-from typing import Callable, Iterable, Optional
+from typing import Callable, Iterable, Optional, Union
 
 from pyda import AsyncIOClient, SimpleClient
 from pyda.clients.asyncio import AsyncIOSubscription
@@ -57,7 +57,7 @@ ENDPOINT_RE = re.compile(
 
 log = logging.getLogger(__name__)
 
-from_utc_ns: Callable[[int], datetime] = partial(
+from_utc_ns: Callable[[Union[int, float]], datetime] = partial(
     from_timestamp, from_utc=True, unit="ns"
 )
 
@@ -113,6 +113,7 @@ class Acquisition:
         self.new_buffer_data = Signal(list[SingleCycleData])
         self.new_measured_data = Signal(SingleCycleData)
         self.cycle_mapping_changed = Signal(str)  # LSA cycle name
+        self.cycle_started = Signal(str, str, float)  # PLS, LSA, timestamp
 
         signal(SIGINT, lambda *_: self.stop())
         signal(SIGTERM, lambda *_: self.stop())  # noqa
@@ -267,6 +268,8 @@ class Acquisition:
             f"{cycle_time}."
         )
 
+        selector = str(value.header.selector)
+        cycle = self._pls_to_lsa.get(selector)
         endpoint = str(response.query.endpoint)
         if endpoint == START_SUPERCYCLE:
             self._on_start_supercycle(response)
@@ -274,22 +277,24 @@ class Acquisition:
         elif endpoint == TRIGGER_EVENT:
             self._on_forewarning(response)
             return
-        elif endpoint == START_CYCLE:
-            cycle = self._pls_to_lsa.get(value.header.selector)
+
+        if cycle is None:
+            log.error(
+                "Received event from timing user not mapped in supercycle: "
+                f"{value.header.selector}."
+            )
+            return
+        assert cycle_timestamp is not None
+
+        if endpoint == START_CYCLE:
+            assert cycle is not None
+            self.cycle_started.emit(selector, cycle, cycle_timestamp)
             self._buffer.on_start_cycle(cycle, cycle_timestamp)
             return
         elif endpoint in ENDPOINT2BF:
             pass
         else:
             log.error(f"Received event from unknown endpoint " f"{endpoint}.")
-            return
-
-        cycle = self._pls_to_lsa.get(value.header.selector)
-        if cycle is None:
-            log.error(
-                "Received event from timing user not mapped in supercycle: "
-                f"{value.header.selector}."
-            )
             return
 
         data = response.value.get("value")
@@ -311,6 +316,8 @@ class Acquisition:
         """
         cycle = response.value.get("lsaCycleName")
         cycle_timestamp = response.value.header.cycle_timestamp
+        assert cycle_timestamp is not None
+        assert cycle is not None
         log.debug(
             f"Cycle {cycle} at {from_utc_ns(cycle_timestamp)} is about to "
             "start. Notifying buffer."
