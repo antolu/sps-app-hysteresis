@@ -161,7 +161,9 @@ class AcquisitionBuffer:
         if cycle_timestamp in self._cycles_next_index:
             log.error(
                 f"[{cycle}@{from_timestamp(cycle_timestamp)}] "
-                "Cycle data already exists in NEXT buffer."
+                "Cycle data already exists in NEXT buffer. "
+                f"Shifting new cycle by "
+                f"{self._buffer_next[-1].num_samples * 1e6} ms."
             )
 
             # return
@@ -223,9 +225,9 @@ class AcquisitionBuffer:
             )
             return
 
-        if (
-            abs(last_cycle.cycle_timestamp - cycle_timestamp) / 1e6 < 5
-        ):  # diff less than 5 ms
+        time_descr = abs(last_cycle.cycle_timestamp - cycle_timestamp) / 1e6
+
+        if time_descr < 5:  # diff less than 5 ms
             log_cycle(
                 "Diff in cycle timestamp between last cycle in NEXT buffer"
                 "and started cycle is not the same, but less than 5 ms. "
@@ -240,6 +242,14 @@ class AcquisitionBuffer:
                 last_cycle.__post_init__()
                 self._cycles_next_index[cycle_timestamp] = last_cycle
 
+            return
+        else:
+            log.warning(
+                f"Time discrepancy {time_descr} ms between last cycle in "
+                "NEXT buffer and started cycle is not the same, and "
+                f"greater than 5 ms: {last_cycle} -> "
+                f"{cycle}@{from_timestamp(cycle_timestamp)}."
+            )
             return
 
         log.warning("Don't know what to do here.")
@@ -412,7 +422,7 @@ class AcquisitionBuffer:
             )
             return
 
-        value[0] /= 1e3  # s to ms
+        value[0] *= 1e3  # s to ms
 
         def set_new_programmed_current() -> None:
             log_cycle("Setting new programmed current.", cycle)
@@ -462,7 +472,7 @@ class AcquisitionBuffer:
             )
             return
 
-        value[0] /= 1e3  # s to ms
+        value[0] *= 1e3  # s to ms
 
         def set_new_programmed_field() -> None:
             log_cycle("Setting new programmed field.", cycle)
@@ -558,7 +568,7 @@ class AcquisitionBuffer:
                     log.warning(msg)
 
                     last_index = to_remove[-1] if len(to_remove) > 0 else 0
-                    to_remove.extend(list(range(last_index, i + 1)))
+                    to_remove.extend(list(range(last_index, i)))
 
             if len(to_remove) > 0:
                 log.warning(

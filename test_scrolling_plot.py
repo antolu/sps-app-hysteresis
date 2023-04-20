@@ -128,10 +128,20 @@ class MainWindow(ApplicationFrame):
         time_current, programmed_current = cycle_data.current_prog
         # field_time, programmed_field = cycle_data.field_prog
 
-        time_current = time_current / 1e3 + cycle_data.cycle_timestamp
+        time_current = time_current / 1e3 + cycle_data.cycle_timestamp / 1e9
+
+        time_interp = (
+            np.arange(cycle_data.num_samples) / 1e3
+            + cycle_data.cycle_timestamp / 1e9
+        )
+
+        programmed_current_interp = np.interp(
+            time_interp, time_current, programmed_current
+        )
+
         # time_field = field_time / 1e3 + cycle_data.cycle_timestamp
         # field_data = CurveData(x=time_field, y=programmed_field[::10])
-        current_data = CurveData(x=time_current, y=programmed_current)
+        current_data = CurveData(x=time_interp, y=programmed_current_interp)
         # self._programmed_field_source.send_data(field_data)
         self._programmed_current_source.send_data(current_data)
 

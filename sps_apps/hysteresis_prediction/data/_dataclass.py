@@ -49,7 +49,7 @@ class SingleCycleData:
             self.cycle_timestamp, from_utc=True, unit="ns"
         )
         self.cycle_length = int(
-            self.current_prog[0][-1] * 1e3
+            self.current_prog[0][-1]
         )  # last time marker in ms
         self.num_samples = self.cycle_length
 
