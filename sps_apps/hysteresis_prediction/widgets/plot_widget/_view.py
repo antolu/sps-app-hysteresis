@@ -4,7 +4,12 @@ import logging
 from typing import Optional
 
 import pyqtgraph as pg
-from accwidgets.graph import LivePlotCurve
+from accwidgets.graph import (
+    ExPlotWidgetConfig,
+    LivePlotCurve,
+    PlotWidgetStyle,
+    TimeSpan,
+)
 from accwidgets.graph.widgets.plotwidget import ScrollingPlotWidget
 from qtpy.QtGui import QPainter
 from qtpy.QtWidgets import QVBoxLayout, QWidget
@@ -53,6 +58,20 @@ class PlotWidget(QWidget):
         self.plotCurField.setRange(
             field=(-0.1, 2.2), current=(-0.045 * 7000, 7000)  # noqa
         )
+
+    def set_time_span(self, min: int, max: int) -> None:
+        """
+        Set the time span of the plot. From min to max.
+        Relative to the latest time.
+        """
+        time_span = TimeSpan(left=min, right=max)
+        plot_config = ExPlotWidgetConfig(
+            plotting_style=PlotWidgetStyle.SCROLLING_PLOT,
+            time_progress_line=True,
+            time_span=time_span,
+        )
+        self.plotCurField.update_config(config=plot_config)
+        self.plotDiscr.update_config(config=plot_config)
 
     def _setup_plots(self) -> None:
         self.plotCurField.setXLink(self.plotDiscr)

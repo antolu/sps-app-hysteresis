@@ -38,8 +38,8 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self.toggle_plot_settings
         )
 
-        self.widgetSettings.buttonResetAxis.clicked.connect(
-            self.widgetPlot.reset_axes_range
+        self.widgetSettings.timespan_changed.connect(
+            self.widgetPlot.set_time_span
         )
 
         self._acquisition.run()
