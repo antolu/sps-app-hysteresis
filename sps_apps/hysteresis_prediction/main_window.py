@@ -4,9 +4,12 @@ from accwidgets.app_frame import ApplicationFrame
 from accwidgets.log_console import LogConsole
 from accwidgets.timing_bar import TimingBar, TimingBarDomain, TimingBarModel
 from PyQt5.QtWidgets import QWidget
+from qtpy.QtGui import QCloseEvent
 
+from .data import Acquisition
 from .generated.main_window_ui import Ui_main_window
 from .settings import context
+from .widgets.plot_widget import PlotModel
 
 
 class MainWindow(Ui_main_window, ApplicationFrame):
@@ -25,4 +28,28 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         )
         timing_bar = TimingBar(self, model=timing_model)
         self.timing_bar = timing_bar
-        # self.centralWidget().layout().addWidget(timing_bar)
+
+        self._acquisition = Acquisition(min_buffer_size=300000)
+
+        plot_model = PlotModel(self._acquisition, parent=self)
+        self.widgetPlot.model = plot_model
+
+        self.actionShow_Plot_Settings.triggered.connect(
+            self.toggle_plot_settings
+        )
+
+        self.widgetSettings.buttonResetAxis.clicked.connect(
+            self.widgetPlot.reset_axes_range
+        )
+
+        self._acquisition.run()
+
+    def toggle_plot_settings(self) -> None:
+        if self.actionShow_Plot_Settings.isChecked():
+            self.widgetSettings.show()
+        else:
+            self.widgetSettings.hide()
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        self._acquisition.stop()
+        super().closeEvent(event)

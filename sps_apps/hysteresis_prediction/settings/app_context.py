@@ -8,7 +8,7 @@ class AppContext:
             incaAcceleratorName="SPS",
             selector="SPS.USER.ALL",
             noSet=True,
-            logLevel="DEBUG",
+            logLevel="INFO",
         )
 
 

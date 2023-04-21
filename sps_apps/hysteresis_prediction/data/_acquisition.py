@@ -32,8 +32,7 @@ from ._pyjapc import PyJapc2Pyda, PyJapcEndpoint, SubscriptionCallback
 
 __all__ = ["Acquisition"]
 
-# DEV_LSA_B = "rmi://virtual_sps/SPSBEAM/B"
-DEV_LSA_B = "MBI/REF.TABLE.FUNC.VALUE#value"  # placeholder until we can get B
+DEV_LSA_B = "rmi://virtual_sps/SPSBEAM/B"
 DEV_LSA_BDOT = "rmi://virtual_sps/SPSBEAM/BDOT"
 DEV_LSA_I = "MBI/REF.TABLE.FUNC.VALUE"
 
@@ -118,15 +117,16 @@ class Acquisition:
 
         self.data_acquired = Signal(PropertyRetrievalResponse)
         self.new_buffer_data = Signal(list[SingleCycleData])
-        self.new_measured_data = Signal(SingleCycleData)
         self.cycle_mapping_changed = Signal(str)  # LSA cycle name
         self.cycle_started = Signal(str, str, float)  # PLS, LSA, timestamp
 
+        self.new_measured_data = self._buffer.new_measured_data
+        self.new_programmed_cycle = self._buffer.new_programmed_cycle
+        self.data_acquired.connect(self._handle_acquisition)
+
+        # This must be executed in the main thread (I think)
         signal(SIGINT, lambda *_: self.stop())
         signal(SIGTERM, lambda *_: self.stop())  # noqa
-
-        self.buffer.new_measured_data.connect(self.new_measured_data.emit)
-        self.data_acquired.connect(self._handle_acquisition)
 
     def run(self) -> Thread:
         def wrapper() -> None:

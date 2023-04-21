@@ -11,10 +11,10 @@ from .main_window import MainWindow
 def setup_logger(logging_level: int = 0) -> None:
     log = logging.getLogger()
 
-    if logging_level == 0:
-        log.setLevel(logging.INFO)
-
-    log.setLevel(logging.DEBUG)
+    if logging_level >= 1:
+        log.setLevel(logging.DEBUG)
+    else:
+        log.setLevel(logging.WARNING)
 
     ch = logging.StreamHandler()
 
@@ -23,11 +23,13 @@ def setup_logger(logging_level: int = 0) -> None:
         "%Y-%m-%d %H:%M:%S",
     )
     ch.setFormatter(formatter)
+    ch.setLevel(logging.INFO)
     log.addHandler(ch)
 
     logging.getLogger("matplotlib").setLevel(logging.WARNING)
     logging.getLogger("PyQt5.uic").setLevel(logging.WARNING)
     logging.getLogger("py4j").setLevel(logging.WARNING)
+    logging.getLogger("cern").setLevel(logging.WARNING)
 
 
 def main() -> None:

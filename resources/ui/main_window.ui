@@ -17,25 +17,12 @@
    <bool>false</bool>
   </property>
   <widget class="QWidget" name="central_widget">
-   <layout class="QVBoxLayout" name="verticalLayout">
+   <layout class="QHBoxLayout" name="horizontalLayout">
     <item>
-     <widget class="QFrame" name="frame">
-      <property name="frameShape">
-       <enum>QFrame::StyledPanel</enum>
-      </property>
-      <property name="frameShadow">
-       <enum>QFrame::Raised</enum>
-      </property>
-      <layout class="QHBoxLayout" name="horizontalLayout">
-       <item>
-        <widget class="QPushButton" name="pushButton">
-         <property name="text">
-          <string>PushButton</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
+     <widget class="PlotWidget" name="widgetPlot" native="true"/>
+    </item>
+    <item>
+     <widget class="PlotSettingsWidget" name="widgetSettings" native="true"/>
     </item>
    </layout>
   </widget>
@@ -45,32 +32,39 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>19</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_file">
     <property name="title">
-     <string>File</string>
+     <string>&amp;File</string>
     </property>
     <addaction name="action_exit"/>
    </widget>
    <widget class="QMenu" name="menu_help">
     <property name="title">
-     <string>Help</string>
+     <string>&amp;Help</string>
     </property>
     <addaction name="action_about"/>
    </widget>
    <widget class="QMenu" name="menu_view">
     <property name="title">
-     <string>View</string>
+     <string>&amp;View</string>
     </property>
     <addaction name="action_minimize"/>
     <addaction name="action_maximize"/>
     <addaction name="action_fullscreen"/>
     <addaction name="separator"/>
    </widget>
+   <widget class="QMenu" name="menuTools">
+    <property name="title">
+     <string>&amp;Tools</string>
+    </property>
+    <addaction name="actionShow_Plot_Settings"/>
+   </widget>
    <addaction name="menu_file"/>
    <addaction name="menu_view"/>
+   <addaction name="menuTools"/>
    <addaction name="menu_help"/>
   </widget>
   <widget class="QStatusBar" name="status_bar"/>
@@ -111,12 +105,38 @@
     <string>Toggle Fullscreen</string>
    </property>
   </action>
+  <action name="actionShow_Plot_Settings">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Plot Settings</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+T</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
    <class>ApplicationFrame</class>
    <extends>QMainWindow</extends>
    <header>accwidgets.app_frame</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>PlotSettingsWidget</class>
+   <extends>QWidget</extends>
+   <header>sps_apps.hysteresis_prediction.widgets.plot_settings_widget</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>PlotWidget</class>
+   <extends>QWidget</extends>
+   <header>sps_apps.hysteresis_prediction.widgets.plot_widget.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

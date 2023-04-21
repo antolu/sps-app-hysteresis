@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/anton/code/sps-app-hysteresis/resources/ui/main_window.ui'
+# Form implementation generated from reading ui file '/opt/home/lua/code/sps-app-hysteresis/resources/ui/main_window.ui'
 #
 # Created by: PyQt5 UI code generator 5.12.3
 #
@@ -17,22 +17,18 @@ class Ui_main_window(object):
         main_window.setProperty("useRBAC", False)
         self.central_widget = QtWidgets.QWidget(main_window)
         self.central_widget.setObjectName("central_widget")
-        self.verticalLayout = QtWidgets.QVBoxLayout(self.central_widget)
-        self.verticalLayout.setContentsMargins(0, 0, 0, 0)
-        self.verticalLayout.setObjectName("verticalLayout")
-        self.frame = QtWidgets.QFrame(self.central_widget)
-        self.frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
-        self.frame.setFrameShadow(QtWidgets.QFrame.Raised)
-        self.frame.setObjectName("frame")
-        self.horizontalLayout = QtWidgets.QHBoxLayout(self.frame)
+        self.horizontalLayout = QtWidgets.QHBoxLayout(self.central_widget)
+        self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
         self.horizontalLayout.setObjectName("horizontalLayout")
-        self.pushButton = QtWidgets.QPushButton(self.frame)
-        self.pushButton.setObjectName("pushButton")
-        self.horizontalLayout.addWidget(self.pushButton)
-        self.verticalLayout.addWidget(self.frame)
+        self.widgetPlot = PlotWidget(self.central_widget)
+        self.widgetPlot.setObjectName("widgetPlot")
+        self.horizontalLayout.addWidget(self.widgetPlot)
+        self.widgetSettings = PlotSettingsWidget(self.central_widget)
+        self.widgetSettings.setObjectName("widgetSettings")
+        self.horizontalLayout.addWidget(self.widgetSettings)
         main_window.setCentralWidget(self.central_widget)
         self.menu_bar = QtWidgets.QMenuBar(main_window)
-        self.menu_bar.setGeometry(QtCore.QRect(0, 0, 800, 19))
+        self.menu_bar.setGeometry(QtCore.QRect(0, 0, 800, 20))
         self.menu_bar.setObjectName("menu_bar")
         self.menu_file = QtWidgets.QMenu(self.menu_bar)
         self.menu_file.setObjectName("menu_file")
@@ -40,6 +36,8 @@ class Ui_main_window(object):
         self.menu_help.setObjectName("menu_help")
         self.menu_view = QtWidgets.QMenu(self.menu_bar)
         self.menu_view.setObjectName("menu_view")
+        self.menuTools = QtWidgets.QMenu(self.menu_bar)
+        self.menuTools.setObjectName("menuTools")
         main_window.setMenuBar(self.menu_bar)
         self.status_bar = QtWidgets.QStatusBar(main_window)
         self.status_bar.setObjectName("status_bar")
@@ -57,14 +55,20 @@ class Ui_main_window(object):
         self.action_fullscreen = QtWidgets.QAction(main_window)
         self.action_fullscreen.setCheckable(True)
         self.action_fullscreen.setObjectName("action_fullscreen")
+        self.actionShow_Plot_Settings = QtWidgets.QAction(main_window)
+        self.actionShow_Plot_Settings.setCheckable(True)
+        self.actionShow_Plot_Settings.setChecked(True)
+        self.actionShow_Plot_Settings.setObjectName("actionShow_Plot_Settings")
         self.menu_file.addAction(self.action_exit)
         self.menu_help.addAction(self.action_about)
         self.menu_view.addAction(self.action_minimize)
         self.menu_view.addAction(self.action_maximize)
         self.menu_view.addAction(self.action_fullscreen)
         self.menu_view.addSeparator()
+        self.menuTools.addAction(self.actionShow_Plot_Settings)
         self.menu_bar.addAction(self.menu_file.menuAction())
         self.menu_bar.addAction(self.menu_view.menuAction())
+        self.menu_bar.addAction(self.menuTools.menuAction())
         self.menu_bar.addAction(self.menu_help.menuAction())
 
         self.retranslateUi(main_window)
@@ -77,15 +81,33 @@ class Ui_main_window(object):
 
     def retranslateUi(self, main_window):
         _translate = QtCore.QCoreApplication.translate
-        main_window.setWindowTitle(_translate("main_window", "SPS Hysteresis Prediction"))
-        self.pushButton.setText(_translate("main_window", "PushButton"))
-        self.menu_file.setTitle(_translate("main_window", "File"))
-        self.menu_help.setTitle(_translate("main_window", "Help"))
-        self.menu_view.setTitle(_translate("main_window", "View"))
+        main_window.setWindowTitle(
+            _translate("main_window", "SPS Hysteresis Prediction")
+        )
+        self.menu_file.setTitle(_translate("main_window", "&File"))
+        self.menu_help.setTitle(_translate("main_window", "&Help"))
+        self.menu_view.setTitle(_translate("main_window", "&View"))
+        self.menuTools.setTitle(_translate("main_window", "&Tools"))
         self.action_exit.setText(_translate("main_window", "Exit"))
         self.action_about.setText(_translate("main_window", "About"))
         self.action_minimize.setText(_translate("main_window", "Minimize"))
         self.action_maximize.setText(_translate("main_window", "Maximize"))
-        self.action_fullscreen.setText(_translate("main_window", "Toggle Fullscreen"))
-        self.action_fullscreen.setToolTip(_translate("main_window", "Toggle Fullscreen"))
+        self.action_fullscreen.setText(
+            _translate("main_window", "Toggle Fullscreen")
+        )
+        self.action_fullscreen.setToolTip(
+            _translate("main_window", "Toggle Fullscreen")
+        )
+        self.actionShow_Plot_Settings.setText(
+            _translate("main_window", "Show Plot Settings")
+        )
+        self.actionShow_Plot_Settings.setShortcut(
+            _translate("main_window", "Ctrl+T")
+        )
+
+
 from accwidgets.app_frame import ApplicationFrame
+from sps_apps.hysteresis_prediction.widgets.plot_settings_widget import (
+    PlotSettingsWidget,
+)
+from sps_apps.hysteresis_prediction.widgets.plot_widget import PlotWidget
