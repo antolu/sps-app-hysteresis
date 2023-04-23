@@ -8,7 +8,6 @@ import numpy as np
 from accwidgets.graph import CurveData, UpdateSource
 from qtpy.QtCore import QTimer
 
-
 __all__ = ["LocalTimerTimingSource"]
 
 log = logging.getLogger(__name__)
@@ -68,7 +67,7 @@ class CurrentFieldSource(UpdateSource):
         elif self.acquired_data_type == AcquiredDataType.ProgrammedData:
             self._handle_programmed_value(cycle_timestamp, value)
         elif self.acquired_data_type == AcquiredDataType.PredictedField:
-            pass
+            self._handle_predicted_value(cycle_timestamp, value)
         else:
             log.error(
                 f"Acquired data type of type {self.acquired_data_type}"
@@ -94,7 +93,10 @@ class CurrentFieldSource(UpdateSource):
         time_interp = np.arange(num_samples_ms) / MS + cycle_timestamp / NS
 
         value_interp = np.interp(time_interp, time_axis, value_)
-        data = CurveData(x=time_interp, y=value_interp)
+        data = CurveData(
+            x=time_interp[:: self.downsample],
+            y=value_interp[:: self.downsample],
+        )
         self.send_data(data)
 
     def _handle_measured_value(
@@ -109,5 +111,26 @@ class CurrentFieldSource(UpdateSource):
         time_range = np.arange(len(value)) / MS + cycle_timestamp / NS
         value = value.flatten()
 
-        data = CurveData(x=time_range, y=value)
+        data = CurveData(
+            x=time_range[:: self.downsample], y=value[:: self.downsample]
+        )
+        self.send_data(data)
+
+    def _handle_predicted_value(
+        self, cycle_timestamp: float, value: np.ndarray
+    ) -> None:
+        """
+        Handle new predicted value. The value is a single array with the
+        predicted values, without time axis. The value is assumed to be
+        with a sampling rate of 1kHz.
+
+        :param cycle_timestamp: timestamp of the cycle.
+        :param value: value of the cycle.
+        """
+        time_range = np.arange(len(value)) / MS + cycle_timestamp / NS
+        value = value.flatten()
+
+        data = CurveData(
+            x=time_range[:: self.downsample], y=value[:: self.downsample]
+        )
         self.send_data(data)

@@ -78,7 +78,7 @@ class Signal:
             )
         asyncio.run_coroutine_threadsafe(self._put(*args), loop=self._loop)
 
-    def connect(self, handle: Callable[..., None]) -> None:
+    def connect(self, handle: Callable[..., Any]) -> None:
         """
         Connect a slot to the signal. The slot is executed when the signal is
         emitted. The slot must have the same number of arguments as the

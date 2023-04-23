@@ -50,6 +50,14 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self.widgetPlot.set_time_span
         )
 
+        self.widgetSettings.downsample_changed.connect(
+            plot_model.set_downsample
+        )
+        self._inference.cycle_predicted.connect(plot_model.new_predicted_cycle)
+        self._acquisition.new_buffer_data.connect(
+            self._inference.predict_last_cycle
+        )
+
         self._acquisition.run()
 
     def on_load_model_triggered(self) -> None:

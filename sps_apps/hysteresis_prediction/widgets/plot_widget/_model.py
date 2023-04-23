@@ -3,7 +3,8 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from qtpy.QtCore import QObject
+import numpy as np
+from qtpy.QtCore import QObject, Signal
 
 from ...data import Acquisition, SingleCycleData
 from ._sources import AcquiredDataType, CurrentFieldSource
@@ -12,6 +13,8 @@ log = logging.getLogger(__name__)
 
 
 class PlotModel(QObject):
+    new_predicted_cycle = Signal(SingleCycleData, np.ndarray)
+
     def __init__(
         self,
         acquisition: Acquisition,
@@ -35,11 +38,15 @@ class PlotModel(QObject):
         self._field_prog_source = CurrentFieldSource(
             AcquiredDataType.ProgrammedData, downsample=downsample
         )
+        self._field_predict_source = CurrentFieldSource(
+            AcquiredDataType.PredictedField, downsample=downsample
+        )
 
         self._acquisition.new_measured_data.connect(self._handle_new_measured)
         self._acquisition.new_programmed_cycle.connect(
             self._handle_new_programmed
         )
+        self.new_predicted_cycle.connect(self._handle_new_predicted)
 
     def __del__(self) -> None:
         self._acquisition.new_measured_data.disconnect(
@@ -81,6 +88,19 @@ class PlotModel(QObject):
             )
             return
 
+    def _handle_new_predicted(
+        self, cycle_data: SingleCycleData, predicted: np.ndarray
+    ) -> None:
+        try:
+            self._field_predict_source.new_value(
+                cycle_data.cycle_timestamp, predicted
+            )
+        except Exception:  # noqa: broad-except
+            log.exception(
+                "An exception occurred while publishing new predicted data."
+            )
+            return
+
     @property
     def current_meas_source(self) -> CurrentFieldSource:
         return self._current_meas_source
@@ -96,6 +116,10 @@ class PlotModel(QObject):
     @property
     def field_prog_source(self) -> CurrentFieldSource:
         return self._field_prog_source
+
+    @property
+    def field_predict_source(self) -> CurrentFieldSource:
+        return self._field_predict_source
 
     @property
     def downsample(self) -> int:
@@ -114,3 +138,7 @@ class PlotModel(QObject):
         self._field_meas_source.downsample = value
         self._current_prog_source.downsample = value
         self._field_prog_source.downsample = value
+        self._field_predict_source.downsample = value
+
+    def set_downsample(self, value: int) -> None:
+        self.downsample = value
