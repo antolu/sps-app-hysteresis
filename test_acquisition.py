@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import logging
+import pickle
+from argparse import ArgumentParser
+from functools import partial
+from pathlib import Path
 from signal import SIGINT, SIGTERM, signal
 
 from sps_apps.hysteresis_prediction.data import Acquisition, SingleCycleData
@@ -8,11 +12,23 @@ from sps_apps.hysteresis_prediction.data import Acquisition, SingleCycleData
 log = logging.getLogger()
 
 
-def buffer_handler(buffer: list[SingleCycleData]) -> None:
+OUTPUT_PATH = Path(__file__).parent / "output"
+
+
+def buffer_handler(buffer: list[SingleCycleData], save: bool = False) -> None:
     msg = "\n".join(
         [f"{cycle} [-> {cycle.num_samples} ms]" for cycle in buffer]
     )
     log.info(f"Buffer handler called with {len(buffer)} elements.\n" + msg)
+
+    if save:
+        fmt = "%Y%m%d-%H%M%S"
+        filename = (
+            f"{buffer[0].cycle_time.strftime(fmt)}-"
+            f"--{buffer[-1].cycle_time.strftime(fmt)}.pickle"
+        )
+        with open(OUTPUT_PATH / filename, "wb") as f:
+            pickle.dump(buffer, f)
 
 
 def new_measured_handler(cycle_data: SingleCycleData) -> None:
@@ -34,10 +50,17 @@ def setup_logging() -> None:
 
 
 def main() -> None:
+    parser = ArgumentParser()
+    parser.add_argument(
+        "-s", "--save", action="store_true", help="Save buffers to file."
+    )
+    args = parser.parse_args()
+
     setup_logging()
+    OUTPUT_PATH.mkdir(exist_ok=True)
 
     acq = Acquisition(min_buffer_size=150000)
-    acq.new_buffer_data.connect(buffer_handler)
+    acq.new_buffer_data.connect(partial(buffer_handler, save=args.save))
     acq.new_measured_data.connect(new_measured_handler)
 
     th = acq.run()
