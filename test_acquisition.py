@@ -3,9 +3,9 @@ from __future__ import annotations
 import logging
 import pickle
 from argparse import ArgumentParser
-from functools import partial
 from pathlib import Path
 from signal import SIGINT, SIGTERM, signal
+
 
 from sps_apps.hysteresis_prediction.data import Acquisition, SingleCycleData
 
@@ -54,13 +54,13 @@ def main() -> None:
     parser.add_argument(
         "-s", "--save", action="store_true", help="Save buffers to file."
     )
-    args = parser.parse_args()
+    parser.parse_args()
 
     setup_logging()
     OUTPUT_PATH.mkdir(exist_ok=True)
 
     acq = Acquisition(min_buffer_size=150000)
-    acq.new_buffer_data.connect(partial(buffer_handler, save=args.save))
+    acq.new_buffer_data.connect(lambda x: buffer_handler(x, save=True))
     acq.new_measured_data.connect(new_measured_handler)
 
     th = acq.run()
