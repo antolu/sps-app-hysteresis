@@ -39,6 +39,8 @@
     <property name="title">
      <string>&amp;File</string>
     </property>
+    <addaction name="action_Load_Model"/>
+    <addaction name="separator"/>
     <addaction name="action_exit"/>
    </widget>
    <widget class="QMenu" name="menu_help">
@@ -117,6 +119,11 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+T</string>
+   </property>
+  </action>
+  <action name="action_Load_Model">
+   <property name="text">
+    <string>&amp;Load Model</string>
    </property>
   </action>
  </widget>

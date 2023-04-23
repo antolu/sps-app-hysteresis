@@ -59,6 +59,10 @@ class Ui_main_window(object):
         self.actionShow_Plot_Settings.setCheckable(True)
         self.actionShow_Plot_Settings.setChecked(True)
         self.actionShow_Plot_Settings.setObjectName("actionShow_Plot_Settings")
+        self.action_Load_Model = QtWidgets.QAction(main_window)
+        self.action_Load_Model.setObjectName("action_Load_Model")
+        self.menu_file.addAction(self.action_Load_Model)
+        self.menu_file.addSeparator()
         self.menu_file.addAction(self.action_exit)
         self.menu_help.addAction(self.action_about)
         self.menu_view.addAction(self.action_minimize)
@@ -81,9 +85,7 @@ class Ui_main_window(object):
 
     def retranslateUi(self, main_window):
         _translate = QtCore.QCoreApplication.translate
-        main_window.setWindowTitle(
-            _translate("main_window", "SPS Hysteresis Prediction")
-        )
+        main_window.setWindowTitle(_translate("main_window", "SPS Hysteresis Prediction"))
         self.menu_file.setTitle(_translate("main_window", "&File"))
         self.menu_help.setTitle(_translate("main_window", "&Help"))
         self.menu_view.setTitle(_translate("main_window", "&View"))
@@ -92,22 +94,11 @@ class Ui_main_window(object):
         self.action_about.setText(_translate("main_window", "About"))
         self.action_minimize.setText(_translate("main_window", "Minimize"))
         self.action_maximize.setText(_translate("main_window", "Maximize"))
-        self.action_fullscreen.setText(
-            _translate("main_window", "Toggle Fullscreen")
-        )
-        self.action_fullscreen.setToolTip(
-            _translate("main_window", "Toggle Fullscreen")
-        )
-        self.actionShow_Plot_Settings.setText(
-            _translate("main_window", "Show Plot Settings")
-        )
-        self.actionShow_Plot_Settings.setShortcut(
-            _translate("main_window", "Ctrl+T")
-        )
-
-
+        self.action_fullscreen.setText(_translate("main_window", "Toggle Fullscreen"))
+        self.action_fullscreen.setToolTip(_translate("main_window", "Toggle Fullscreen"))
+        self.actionShow_Plot_Settings.setText(_translate("main_window", "Show Plot Settings"))
+        self.actionShow_Plot_Settings.setShortcut(_translate("main_window", "Ctrl+T"))
+        self.action_Load_Model.setText(_translate("main_window", "&Load Model"))
 from accwidgets.app_frame import ApplicationFrame
-from sps_apps.hysteresis_prediction.widgets.plot_settings_widget import (
-    PlotSettingsWidget,
-)
+from sps_apps.hysteresis_prediction.widgets.plot_settings_widget import PlotSettingsWidget
 from sps_apps.hysteresis_prediction.widgets.plot_widget import PlotWidget
