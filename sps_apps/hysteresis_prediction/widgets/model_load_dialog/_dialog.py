@@ -59,17 +59,30 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QDialog):
         ckpt_path = self.textCkptPath.text()
 
         if ckpt_path == "":
-            QMessageBox.warning("No checkpoint path specified.")
+            QMessageBox.warning(
+                self, "Model load error", "No checkpoint path specified."
+            )
             log.error("No checkpoint path specified.")
             return
 
         if not path.exists(ckpt_path):
-            QMessageBox.warning("Checkpoint path does not exist.")
+            QMessageBox.warning(
+                self, "Model load error", "Checkpoint path does not exist."
+            )
             log.error("Checkpoint path does not exist.")
             return
 
         device = self.comboDevice.currentText().lower()
+        log.debug(f"Selected checkpoint at {ckpt_path} on device {device}.")
 
         self.load_checkpoint.emit(ckpt_path, device)
 
         self.accept()
+
+    @property
+    def ckpt_path(self) -> str:
+        return self.textCkptPath.text()
+
+    @property
+    def device(self) -> str:
+        return self.comboDevice.currentText().lower()
