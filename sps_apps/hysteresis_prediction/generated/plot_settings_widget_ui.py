@@ -41,7 +41,22 @@ class Ui_PlotSettingsWidget(object):
         self.buttonResetAxis = QtWidgets.QPushButton(self.frame)
         self.buttonResetAxis.setObjectName("buttonResetAxis")
         self.formLayout.setWidget(
-            1, QtWidgets.QFormLayout.SpanningRole, self.buttonResetAxis
+            2, QtWidgets.QFormLayout.SpanningRole, self.buttonResetAxis
+        )
+        self.labelDownsample = QtWidgets.QLabel(self.frame)
+        self.labelDownsample.setObjectName("labelDownsample")
+        self.formLayout.setWidget(
+            1, QtWidgets.QFormLayout.LabelRole, self.labelDownsample
+        )
+        self.spinBoxDownsample = QtWidgets.QSpinBox(self.frame)
+        self.spinBoxDownsample.setMinimum(1)
+        self.spinBoxDownsample.setMaximum(1000)
+        self.spinBoxDownsample.setStepType(
+            QtWidgets.QAbstractSpinBox.DefaultStepType
+        )
+        self.spinBoxDownsample.setObjectName("spinBoxDownsample")
+        self.formLayout.setWidget(
+            1, QtWidgets.QFormLayout.FieldRole, self.spinBoxDownsample
         )
         self.verticalLayout.addWidget(self.frame)
 
@@ -58,4 +73,7 @@ class Ui_PlotSettingsWidget(object):
         )
         self.buttonResetAxis.setText(
             _translate("PlotSettingsWidget", "Reset Axis")
+        )
+        self.labelDownsample.setText(
+            _translate("PlotSettingsWidget", "Downsample")
         )
