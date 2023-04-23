@@ -16,9 +16,14 @@ from typing import Callable, Iterable, Optional, Union
 from pyda import AsyncIOClient, SimpleClient
 from pyda.clients.asyncio import AsyncIOSubscription
 from pyda.data import PropertyRetrievalResponse
-from pyda_japc import JapcProvider
-from pyjapc import PyJapc
-from pyrbac import AuthenticationClient  # noqa: import-error
+
+try:
+    from pyda_japc import JapcProvider
+    from pyjapc import PyJapc
+    from pyrbac import AuthenticationClient  # noqa: import-error
+except ImportError:
+    # for my macos laptop
+    AuthenticationClient = None  # type: ignore
 
 from ..async_utils import Signal
 from ..utils import from_timestamp
