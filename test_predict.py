@@ -8,12 +8,15 @@ from signal import SIGINT, SIGTERM, signal
 from threading import Thread
 from traceback import print_exc
 
+import torch
 from qtpy.QtCore import QCoreApplication
 
 from sps_apps.hysteresis_prediction.data import SingleCycleData
 from sps_apps.hysteresis_prediction.inference import Inference
 
 log = logging.getLogger()
+
+torch.set_float32_matmul_precision("high")
 
 
 INPUT_PATH = Path(__file__).parent / "output"
@@ -63,7 +66,8 @@ class ThreadWrapper:
         try:
             for buffer in self._buffers:
                 start = time.time()
-                self._inference.predict_last_cycle(buffer)
+                th = self._inference.predict_last_cycle(buffer)
+                th.join()
                 stop = time.time()
                 print(f"Prediction took {stop - start:.2f} seconds.")
         except:  # noqa
@@ -79,9 +83,10 @@ def main() -> None:
     signal(SIGTERM, lambda *_: application.quit())
 
     inference = Inference()
-    inference.on_load_model(CKPT_PATH, device="cpu")
+    inference.set_do_inference(True)
+    inference.on_load_model(CKPT_PATH, device="cuda")
 
-    wrapper = ThreadWrapper(inference, load_buffers()[:10], application)
+    wrapper = ThreadWrapper(inference, load_buffers(), application)
     th = Thread(target=wrapper.run)
     th.start()
 

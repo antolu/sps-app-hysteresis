@@ -41,6 +41,7 @@ class Inference(QObject):
 
         self._lock = Lock()
         self._do_inference = False
+        self._doing_inference = False
 
         self.load_model.connect(self.on_load_model)
 
@@ -55,12 +56,18 @@ class Inference(QObject):
 
         self.model_loaded.emit()
 
-    def predict_last_cycle(self, cycle_data: list[SingleCycleData]) -> None:
+    def predict_last_cycle(self, cycle_data: list[SingleCycleData]) -> Thread:
         if not self._do_inference:
             log.debug("Inference is disabled. Not predicting.")
             return
 
-        def wrapper():
+        if self._doing_inference:
+            log.warning(
+                "Inference is already underway. " "Cannot do more in parallel."
+            )
+            return
+
+        def wrapper() -> None:
             # first check if all data has current set
             for data in cycle_data:
                 if data.current_input is None:
@@ -72,7 +79,10 @@ class Inference(QObject):
 
             last_cycle = cycle_data[-1]
 
-            predictions = self.predict(current_input, last_cycle.num_samples)
+            with self._lock:
+                predictions = self.predict(
+                    current_input, last_cycle.num_samples
+                )
 
             # uppsample predictions to match the number of samples
             time_axis = (
@@ -89,6 +99,7 @@ class Inference(QObject):
 
         th = Thread(target=wrapper)
         th.start()
+        return th
 
     def predict(
         self, input_current: np.ndarray, last_n_samples: Optional[int] = None
@@ -97,7 +108,7 @@ class Inference(QObject):
             raise RuntimeError("No model loaded.")
 
         dataloader = self._data_module.make_dataloader(
-            input_current, num_workers=0, pin_memory=True
+            input_current, num_workers=4, pin_memory=True
         )
 
         predictions = self._trainer.predict(self._module, dataloader)
