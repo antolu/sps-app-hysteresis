@@ -30,6 +30,7 @@ from ..utils import from_timestamp
 from ._acquisition_buffer import (
     AcquisitionBuffer,
     BufferData,
+    BufferSignal,
     InsufficientDataError,
 )
 from ._dataclass import SingleCycleData
@@ -45,6 +46,7 @@ DEV_MEAS_I = "MBI/LOG.I.MEAS"
 DEV_MEAS_B = "SR.BMEAS-SP-B-SD/CycleSamples#samples"
 
 TRIGGER_EVENT = "XTIM.SX.FCY2500-CT/Acquisition"
+TRIGGER_DYNECO = "XTIM.SX.APECO-CT/Acquisition"
 START_CYCLE = "XTIM.SX.SCY-CT/Acquisition"
 START_SUPERCYCLE = "SX.CZERO-CTML/SuperCycle"
 
@@ -55,6 +57,13 @@ ENDPOINT2BF = {
     DEV_LSA_I: BufferData.PROG_I,
     DEV_LSA_B: BufferData.PROG_B,
 }
+
+ENDPOINT2SIG = {
+    TRIGGER_EVENT: BufferSignal.FOREWARNING,
+    START_CYCLE: BufferSignal.CYCLE_START,
+    TRIGGER_DYNECO: BufferSignal.DYNECO,
+}
+
 
 ENDPOINT_RE = re.compile(
     r"^(?P<device>(?P<protocol>.+:\/\/)?[\w\/\.-]+)/(?P<property>[\w\#\.-]+)$"
@@ -197,6 +206,7 @@ class Acquisition:
             ("StartSuperCycle", START_SUPERCYCLE, ""),
             ("StartCycle", START_CYCLE, "SPS.USER.ALL"),
             ("Forewarning", TRIGGER_EVENT, "SPS.USER.ALL"),
+            ("PartialEconomy", TRIGGER_DYNECO, "SPS.USER.ALL"),
             ("MeasuredCurrent", DEV_MEAS_I, "SPS.USER.ALL"),
             ("MeasuredBField", DEV_MEAS_B, "SPS.USER.ALL"),
         ]
@@ -213,7 +223,7 @@ class Acquisition:
             self._japc_simple.get(START_SUPERCYCLE, context="")
         )
 
-        for _, endpoint, _ in pyda_subscriptions[3:]:
+        for _, endpoint, _ in pyda_subscriptions[4:]:
             for selector in self._pls_to_lsa.keys():
                 log.debug(f"GET-ting values for {endpoint}@{selector}.")
                 self._handle_acquisition(
@@ -305,35 +315,39 @@ class Acquisition:
         elif endpoint == TRIGGER_EVENT:
             self._on_forewarning(response)
             return
-
         if cycle is None:
             log.error(
                 "Received event from timing user not mapped in supercycle: "
                 f"{value.header.selector}."
             )
             return
-        if endpoint == START_CYCLE:
+
+        if endpoint in ENDPOINT2SIG:
             assert cycle is not None
             assert cycle_timestamp is not None
-            self.cycle_started.emit(selector, cycle, cycle_timestamp)
-            self._buffer.on_start_cycle(cycle, cycle_timestamp)
+
+            if endpoint == START_CYCLE:
+                self.cycle_started.emit(selector, cycle, cycle_timestamp)
+
+            self._buffer.dispatch_signal(
+                ENDPOINT2SIG[endpoint], cycle, cycle_timestamp
+            )
             return
         elif endpoint in ENDPOINT2BF:
-            pass
+            data = response.value.get("value")
+            if data is None:
+                if allow_empty:
+                    return
+                log.error(f"Received event with no data from {endpoint}.")
+                return
+
+            self._buffer.dispatch_data(
+                ENDPOINT2BF[endpoint], cycle, cycle_timestamp, data
+            )
+            return
         else:
             log.error(f"Received event from unknown endpoint " f"{endpoint}.")
             return
-
-        data = response.value.get("value")
-        if data is None:
-            if allow_empty:
-                return
-            log.error(f"Received event with no data from {endpoint}.")
-            return
-
-        self._buffer.dispatch_data(
-            ENDPOINT2BF[endpoint], cycle, cycle_timestamp, data
-        )
 
     def _on_forewarning(self, response: PropertyRetrievalResponse) -> None:
         """

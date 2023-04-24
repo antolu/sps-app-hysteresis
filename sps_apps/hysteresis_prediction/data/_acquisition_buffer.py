@@ -16,7 +16,12 @@ from ..async_utils import Signal
 from ..utils import from_timestamp
 from ._dataclass import SingleCycleData
 
-__all__ = ["AcquisitionBuffer", "BufferData", "InsufficientDataError"]
+__all__ = [
+    "AcquisitionBuffer",
+    "BufferData",
+    "BufferSignal",
+    "InsufficientDataError",
+]
 log = logging.getLogger(__name__)
 
 
@@ -45,6 +50,12 @@ class BufferData(Enum):
     PROG_I = "programmed_I"
     PROG_B = "programmed_B"
     REF_B = "reference_B"
+
+
+class BufferSignal(Enum):
+    CYCLE_START = "cycle_start"
+    DYNECO = "DYNECO"
+    FOREWARNING = "forewarning"
 
 
 class InsufficientDataError(Exception):
@@ -89,6 +100,37 @@ class AcquisitionBuffer:
             BufferData.PROG_B: self._new_programmed_B,
             BufferData.REF_B: self._new_reference_B,
         }
+
+        self._SIGNAL_MAP = {
+            BufferSignal.CYCLE_START: self.on_start_cycle,
+            BufferSignal.DYNECO: self._handle_dyneco,
+            BufferSignal.FOREWARNING: self.new_cycle,
+        }
+
+    def dispatch_signal(
+        self, dest: BufferSignal, cycle: str, cycle_timestamp: float
+    ) -> None:
+        """
+        Dispatches the signal to the appropriate method. This method is
+        intended to be used by the :class:`Acquisition` class, or any
+        other external callee that acquires data.`
+
+        This method catches any exceptions that may be raised by the
+        dispatched methods.
+
+        :param dest: The destination of the signal. Represents the signal type.
+        :param cycle: The LSA cycle corresponding to the signal.
+        :param cycle_timestamp: The timestamp of the cycle (in UTC, and ns).
+        """
+        if dest not in self._SIGNAL_MAP:
+            log.error(f"Invalid signal: {dest}.")
+            return
+
+        try:
+            self._SIGNAL_MAP[dest](cycle, cycle_timestamp)
+        except Exception:
+            log.exception(f"Error while dispatching signal to {dest}.")
+            return
 
     def dispatch_data(
         self,
@@ -255,6 +297,47 @@ class AcquisitionBuffer:
 
         log.warning("Don't know what to do here.")
 
+    def _handle_dyneco(
+        self, cycle: str, cycle_timestamp: Union[int, float]
+    ) -> None:
+        """
+        This method handles the dynamic / partial economy timing information.
+        The cycle associated with the cycle timestamp will have its LSA cycle
+        name appended with _DYNECO. This effectively creates a new cycle
+        in the buffer.
+
+        Cycles running in dyneco will therefore require require its own set
+        of measured data for prediction, and not reference current as normal
+        cycles.
+        """
+        log_cycle("Triggered by DYNECO signal.", cycle, cycle_timestamp)
+
+        if len(self._buffer_next) == 0:
+            log_cycle(
+                "NEXT buffer is empty. No need to handle DYNECO signal.",
+                cycle,
+                cycle_timestamp,
+            )
+            return
+
+        if cycle_timestamp not in self._cycles_next_index:
+            log_cycle(
+                "Could not find cycle in NEXT index. "
+                "Skipping DYNECO signal.",
+                cycle,
+                cycle_timestamp,
+            )
+            return
+
+        cycle_data = self._cycles_next_index[cycle_timestamp]
+
+        dyneco_cycle = cycle_data.cycle + "_DYNECO"
+        log_cycle(
+            f"Changing cycle name to {dyneco_cycle}.", cycle, cycle_timestamp
+        )
+        with self._lock:
+            cycle_data.cycle = dyneco_cycle
+
     def collate_samples(self) -> list[SingleCycleData]:
         """
         Collates samples from the buffered data. This requires the minimum
@@ -329,12 +412,37 @@ class AcquisitionBuffer:
         :param value: The new measured current value.
         """
         log_cycle("Buffer received new measured I", cycle, cycle_timestamp)
+
+        if cycle_timestamp not in self._cycles_next_index:
+            log_cycle(
+                "NEXT buffered cycle data not found.", cycle, cycle_timestamp
+            )
+            return
+
         if cycle not in self._i_ref or self._i_ref[cycle] is None:
             log_cycle("Measured current has not yet been set.", cycle)
             log_cycle("Setting new measured current for cycle.", cycle)
 
+            cycle_data = self._cycles_next_index[cycle_timestamp]
+            if cycle_data.cycle != cycle:
+                if not cycle_data.cycle.endswith("_DYNECO"):
+                    log_cycle(
+                        "Cycle name does not match. "
+                        f"Expected {cycle_data.cycle}, got {cycle}.",
+                        cycle,
+                        cycle_timestamp,
+                    )
+                    return
+                else:
+                    log_cycle(
+                        "Cycle is DYNECO. Saving current to cycle "
+                        f"{cycle_data.cycle}.",
+                        cycle,
+                        cycle_timestamp,
+                    )
+
             with self._lock:
-                self._i_ref[cycle] = value
+                self._i_ref[cycle_data.cycle] = value
 
         if cycle_timestamp not in self._cycles_next_index:
             log_cycle(
@@ -372,12 +480,37 @@ class AcquisitionBuffer:
         :param value: The new measured magnetic field value.
         """
         log_cycle("Buffer received new measured B.", cycle, cycle_timestamp)
+
+        if cycle_timestamp not in self._cycles_next_index:
+            log_cycle(
+                "NEXT buffered cycle data not found.", cycle, cycle_timestamp
+            )
+            return
+
         if cycle not in self._b_ref or self._b_ref[cycle] is None:
             log_cycle("Measured magnetic field has not yet been set.", cycle)
             log_cycle("Setting new measured magnetic field.", cycle)
 
+            cycle_data = self._cycles_next_index[cycle_timestamp]
+            if cycle_data.cycle != cycle:
+                if not cycle_data.cycle.endswith("_DYNECO"):
+                    log_cycle(
+                        "Cycle name does not match. "
+                        f"Expected {cycle_data.cycle}, got {cycle}.",
+                        cycle,
+                        cycle_timestamp,
+                    )
+                    return
+                else:
+                    log_cycle(
+                        "Cycle is DYNECO. Saving current to cycle "
+                        f"{cycle_data.cycle}.",
+                        cycle,
+                        cycle_timestamp,
+                    )
+
             with self._lock:
-                self._b_ref[cycle] = value
+                self._b_ref[cycle_data.cycle] = value
 
         if cycle_timestamp not in self._cycles_next_index:
             log_cycle(
