@@ -80,22 +80,29 @@ class Inference(QObject):
             last_cycle = cycle_data[-1]
 
             with self._lock:
+                self._doing_inference = True
+
+            try:
                 predictions = self.predict(
                     current_input, last_cycle.num_samples
                 )
 
-            # uppsample predictions to match the number of samples
-            time_axis = (
-                np.arange(last_cycle.num_samples) / MS
-                + last_cycle.cycle_timestamp / NS
-            )
-            predictions_upsampled = np.interp(
-                time_axis,
-                time_axis[:: self._data_module.hparams.downsample],
-                predictions,
-            )
+                # uppsample predictions to match the number of samples
+                time_axis = (
+                    np.arange(last_cycle.num_samples) / MS
+                    + last_cycle.cycle_timestamp / NS
+                )
+                predictions_upsampled = np.interp(
+                    time_axis,
+                    time_axis[:: self._data_module.hparams.downsample],
+                    predictions,
+                )
 
-            self.cycle_predicted.emit(last_cycle, predictions_upsampled)
+                self.cycle_predicted.emit(last_cycle, predictions_upsampled)
+            except:  # noqa: broad-except
+                with self._lock:
+                    self._doing_inference = False
+                log.exception("Inference failed.")
 
         th = Thread(target=wrapper)
         th.start()
