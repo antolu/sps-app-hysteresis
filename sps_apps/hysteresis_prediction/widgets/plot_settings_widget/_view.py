@@ -33,14 +33,17 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
         self.spinBoxDownsample.valueChanged.connect(self.downsample_changed)
         self.buttonResetAxis.clicked.connect(self._timespan_changed)
 
+        self.new_cycle.connect(self._on_new_cycle)
+
     def _timespan_changed(self, *_: Any) -> None:
         self.timespan_changed.emit(self.spinBoxTimespan.value(), 0)
 
+    @run_in_main_thread
     def _on_new_cycle(self, pls: str, lsa: str, timestamp: float) -> None:
         self.labelUser.setText(pls.split(".")[-1])
         self.labelCycle.setText(lsa)
-        self.labelTimestamp.setText(
-            datetime.fromtimestamp(timestamp).strftime(FMT)
+        self.labelCycleTime.setText(
+            datetime.fromtimestamp(timestamp / 1e9).strftime(FMT)
         )
 
         self.blink_led()

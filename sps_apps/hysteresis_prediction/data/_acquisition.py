@@ -258,19 +258,10 @@ class Acquisition:
         Ensures that the acquisition does not contain any errors,
         and sends it through the :attr:`data_acquired` signal.
         """
-        log.debug(f"Received acquisition event: {response.query.endpoint}.")
-        if response.exception is not None:
-            log.error(
-                "An error occurred trying to access value of event: "
-                f"{response.query.endpoint}:"
-                f"\n{str(response.exception)}"
-            )
-            return
-
         if response.notification_type == "FIRST_UPDATE":
             msg = (
                 "Received first update for "
-                f"{response.query.endpoint}@{response.value.header.selector}. "
+                f"{response.query.endpoint}@{response.query.context}. "
             )
             if str(response.query.endpoint) != DEV_LSA_I:
                 msg += "Discarding it."
@@ -278,6 +269,18 @@ class Acquisition:
                 return
             else:
                 log.debug(msg)
+
+        log.debug(f"Received acquisition event: {response.query.endpoint}.")
+        if response.exception is not None:
+            if not allow_empty:
+                log.error(
+                    "An error occurred trying to access value of event: "
+                    f"{response.query.endpoint}:"
+                    f"\n{str(response.exception)}"
+                )
+            else:
+                log.debug("Empty response in event. Skipping it.")
+            return
 
         value = response.value
         cycle_timestamp = value.header.cycle_timestamp

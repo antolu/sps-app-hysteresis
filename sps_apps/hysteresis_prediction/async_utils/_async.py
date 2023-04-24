@@ -76,7 +76,7 @@ class Signal:
             raise RuntimeError(
                 "Event loop has not yet been started. " "Cannot emit signal."
             )
-        asyncio.run_coroutine_threadsafe(self._put(*args), loop=self._loop)
+        asyncio.run_coroutine_threadsafe(self._put(args), loop=self._loop)
 
     def connect(self, handle: Callable[..., Any]) -> None:
         """
@@ -92,14 +92,23 @@ class Signal:
         if not isinstance(handle, Callable):
             raise TypeError(f"Expected a callable, got {type(handle)}")
 
-        signature = inspect.signature(handle)
-        if len(signature.parameters) != len(self._types):
-            raise TypeError(
-                f"Expected {len(self._types)} arguments, got "
-                f"{len(signature.parameters)}."
-            )
+        try:
+            signature = inspect.signature(handle)
+            positional_args = [
+                param
+                for param in signature.parameters.values()
+                if param.kind == param.POSITIONAL_OR_KEYWORD
+                and param.default is param.empty
+            ]
+            if len(positional_args) != len(self._types):
+                raise TypeError(
+                    f"Expected {len(self._types)} arguments, got "
+                    f"{positional_args}."
+                )
+            log.debug(f"Connecting {handle.__name__}.")
+        except ValueError:
+            log.debug(f"Exception occurred while handling slot {handle}.")
 
-        log.debug(f"Connecting {handle.__name__}.")
         self._handles.append(Handle(handle, current_thread()))
 
     def disconnect(self, handle: Callable[..., None]) -> None:
@@ -149,19 +158,22 @@ class Signal:
             log.debug("Signal wait loop cancelled.")
             pass
 
-    async def _put(self, *args: Any) -> None:
+    async def _put(self, args: Any) -> None:
         """
         Coroutine that puts a signal on the queue. This method should be
         called in the same event loop as the signal to avoid race
         conditions.
         """
-        if self._q is None:
-            raise RuntimeError(
-                "Event loop is not running. Did you forget "
-                "to schedule Signal._schedule_signal?"
-            )
-        value = tuple(args) if not isinstance(*args, tuple) else args
-        await self._q.put(value)
+        try:
+            if self._q is None:
+                raise RuntimeError(
+                    "Event loop is not running. Did you forget "
+                    "to schedule Signal._schedule_signal?"
+                )
+            value = tuple(args) if isinstance(args, tuple) else args
+            await self._q.put(value)
+        except Exception:
+            log.exception("An exception occurred while executing the slot.")
 
     @staticmethod
     def start_all(loop: asyncio.AbstractEventLoop) -> None:

@@ -1,5 +1,6 @@
 import logging
 import sys
+from argparse import ArgumentParser
 
 from accwidgets.qt import exec_app_interruptable
 from PyQt5.QtWidgets import QApplication
@@ -11,11 +12,6 @@ from .main_window import MainWindow
 def setup_logger(logging_level: int = 0) -> None:
     log = logging.getLogger()
 
-    if logging_level >= 1:
-        log.setLevel(logging.DEBUG)
-    else:
-        log.setLevel(logging.WARNING)
-
     ch = logging.StreamHandler()
 
     formatter = logging.Formatter(
@@ -23,8 +19,17 @@ def setup_logger(logging_level: int = 0) -> None:
         "%Y-%m-%d %H:%M:%S",
     )
     ch.setFormatter(formatter)
-    ch.setLevel(logging.INFO)
     log.addHandler(ch)
+
+    if logging_level >= 2:
+        log.setLevel(logging.DEBUG)
+        ch.setLevel(logging.DEBUG)
+    elif logging_level >= 1:
+        log.setLevel(logging.INFO)
+        log.setLevel(logging.INFO)
+    else:
+        log.setLevel(logging.WARNING)
+        log.setLevel(logging.WARNING)
 
     logging.getLogger("matplotlib").setLevel(logging.WARNING)
     logging.getLogger("PyQt5.uic").setLevel(logging.WARNING)
@@ -33,7 +38,10 @@ def setup_logger(logging_level: int = 0) -> None:
 
 
 def main() -> None:
-    setup_logger()
+    parser = ArgumentParser()
+    parser.add_argument("-v", dest="verbose", action="count", default=0)
+    args = parser.parse_args()
+    setup_logger(args.verbose)
 
     application = QApplication([])
     application.setApplicationVersion(__version__)
