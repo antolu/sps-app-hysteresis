@@ -58,9 +58,11 @@ dev = [
     "ruff"
 ]
 
+# keep this for dynamic versioning
+[tool.setuptools_scm]
+
 [tool.setuptools.dynamic]
 readme = {file = ["README.md"], content-type = "text/markdown"}
-version = { attr = "setuptools_scm.get_version" }
 
 [tool.setuptools]
 packages = [
