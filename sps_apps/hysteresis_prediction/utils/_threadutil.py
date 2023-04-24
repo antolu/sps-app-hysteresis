@@ -14,7 +14,7 @@ import typing as t
 from functools import wraps
 from threading import Event, Thread, get_ident
 
-from qtpy.QtCore import QObject, QThread, pyqtSignal
+from qtpy.QtCore import QObject, QThread, Signal
 from qtpy.QtWidgets import QApplication
 
 
@@ -129,7 +129,7 @@ class Task:
 
 
 class Sender(QObject):
-    signal = pyqtSignal()
+    signal = Signal()
 
 
 class Receiver(QObject):
