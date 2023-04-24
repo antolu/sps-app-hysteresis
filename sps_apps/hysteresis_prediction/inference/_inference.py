@@ -56,7 +56,7 @@ class Inference(QObject):
         self.model_loaded.emit()
 
     def predict_last_cycle(self, cycle_data: list[SingleCycleData]) -> None:
-        if not self.do_inference:
+        if not self._do_inference:
             log.debug("Inference is disabled. Not predicting.")
             return
 
