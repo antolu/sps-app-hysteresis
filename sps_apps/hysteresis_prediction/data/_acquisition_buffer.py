@@ -813,7 +813,6 @@ class AcquisitionBuffer:
 
         if not buffer_too_large(self._buffer, self._buffer_next):
             log.debug(logger_msg(self._buffer, self._buffer_next))
-            return
         else:
             while buffer_too_large(
                 self._buffer, self._buffer_next
@@ -824,9 +823,10 @@ class AcquisitionBuffer:
                     log.debug(f"Removing buffered cycle {cycle_data.cycle}.")
                     self._cycles_index.pop(cycle_data.cycle_timestamp)
 
-        self.buffer_size_changed.emit(
-            buffer_size(self._buffer) + buffer_size(self._buffer_next)
+        total_buffer_size = buffer_size(self._buffer) + buffer_size(
+            self._buffer_next
         )
+        self.buffer_size_changed.emit(total_buffer_size)
 
     def _check_move_to_buffer(self, cycle_data: SingleCycleData) -> None:
         """

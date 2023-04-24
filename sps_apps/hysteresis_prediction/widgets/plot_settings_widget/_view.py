@@ -55,7 +55,7 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
         QTimer.singleShot(500, lambda: self.Led.setStatus(self.Led.Status.OFF))
 
     @run_in_main_thread
-    def _on_prediction_toggle(self) -> None:
+    def _on_prediction_toggle(self, *_: Any) -> None:
         if self._prediction_enabled:
             self._prediction_enabled = False
             self.buttonPredict.setText("Start Predictions")
@@ -67,6 +67,16 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
 
     @run_in_main_thread
     def _set_progressbar(self, value: int, total: int) -> None:
-        print(f"setting new value to {value}")
-        new_value = value / total * 100 if value < total else 100
-        self.progressBar.setValue(new_value)
+        try:
+            new_value = value / total * 100 if value < total else 100
+            log.debug(f"Setting progress bar value to {new_value}.")
+            self.progressBar.setValue(new_value)
+
+            if new_value >= 100:
+                self.progressBar.hide()
+            else:
+                self.progressBar.show()
+        except:  # noqa: broad-except
+            log.exception(
+                "An exception occurred while setting progress bar value."
+            )
