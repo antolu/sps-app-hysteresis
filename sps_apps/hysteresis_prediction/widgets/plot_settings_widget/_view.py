@@ -32,6 +32,7 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
         self.spinBoxTimespan.valueChanged.connect(self._timespan_changed)
         self.spinBoxDownsample.valueChanged.connect(self.downsample_changed)
         self.buttonResetAxis.clicked.connect(self._timespan_changed)
+        self.buttonPredict.clicked.connect(self._on_prediction_toggle)
 
         self.new_cycle.connect(self._on_new_cycle)
 
@@ -53,12 +54,19 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
         self.Led.setStatus(self.Led.Status.ON)
         QTimer.singleShot(500, lambda: self.Led.setStatus(self.Led.Status.OFF))
 
+    @run_in_main_thread
     def _on_prediction_toggle(self) -> None:
         if self._prediction_enabled:
             self._prediction_enabled = False
-            self.buttonPrediction.setText("Start Predictions")
+            self.buttonPredict.setText("Start Predictions")
         else:
             self._prediction_enabled = True
-            self.buttonPrediction.setText("Stop Predictions")
+            self.buttonPredict.setText("Stop Predictions")
 
         self.toggle_predictions.emit(self._prediction_enabled)
+
+    @run_in_main_thread
+    def _set_progressbar(self, value: int, total: int) -> None:
+        print(f"setting new value to {value}")
+        new_value = value / total * 100 if value < total else 100
+        self.progressBar.setValue(new_value)

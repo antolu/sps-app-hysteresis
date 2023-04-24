@@ -19,7 +19,7 @@ class PlotModel(QObject):
         self,
         acquisition: Acquisition,
         parent: Optional[QObject] = None,
-        downsample: int = 1,
+        downsample: int = 100,
     ) -> None:
         super().__init__(parent=parent)
 

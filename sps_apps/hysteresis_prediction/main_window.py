@@ -6,7 +6,7 @@ from accwidgets.log_console import LogConsole
 from accwidgets.timing_bar import TimingBar, TimingBarDomain, TimingBarModel
 from PyQt5.QtWidgets import QWidget
 from qtpy.QtGui import QCloseEvent
-from qtpy.QtWidgets import QDialog
+from qtpy.QtWidgets import QDialog, QMessageBox
 
 from .data import Acquisition
 from .generated.main_window_ui import Ui_main_window
@@ -63,8 +63,16 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self._acquisition.cycle_started.connect(
             self.widgetSettings._on_new_cycle
         )
+        self._acquisition.buffer.buffer_size_changed.connect(
+            lambda x: self.widgetSettings._set_progressbar(x, 300000)
+        )
 
         self.action_Load_Model.triggered.connect(self.on_load_model_triggered)
+        self._inference.model_loaded.connect(
+            lambda: QMessageBox.information(
+                self, "Model loaded", "Model successfully loaded."
+            )
+        )
 
         self._acquisition.run()
 

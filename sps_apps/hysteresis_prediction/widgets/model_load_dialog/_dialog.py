@@ -44,7 +44,7 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QDialog):
             self,
             "Select model checkpoint",
             "",
-            "PyTorch model (*.pt, *.pth, *.ckpt)",
+            "PyTorch model (*.pt *.pth *.ckpt)",
         )
 
         if not ok:

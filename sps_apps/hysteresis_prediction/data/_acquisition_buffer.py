@@ -76,6 +76,7 @@ class AcquisitionBuffer:
         self.new_buffered_data = Signal(list[SingleCycleData])
         self.new_measured_data = Signal(SingleCycleData)
         self.new_programmed_cycle = Signal(SingleCycleData)
+        self.buffer_size_changed = Signal(int)
 
         self._unknown_cycles: dict[int, SingleCycleData] = {}
 
@@ -689,6 +690,10 @@ class AcquisitionBuffer:
                     cycle_data = self._buffer.popleft()
                     log.debug(f"Removing buffered cycle {cycle_data.cycle}.")
                     self._cycles_index.pop(cycle_data.cycle_timestamp)
+
+        self.buffer_size_changed.emit(
+            buffer_size(self._buffer) + buffer_size(self._buffer_next)
+        )
 
     def _check_move_to_buffer(self, cycle_data: SingleCycleData) -> None:
         """
