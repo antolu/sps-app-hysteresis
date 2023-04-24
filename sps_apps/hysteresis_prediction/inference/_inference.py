@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from threading import Lock, Thread
 from typing import Optional
 
 import lightning as L
@@ -38,47 +39,56 @@ class Inference(QObject):
         self._module: Optional[PhyLSTMModule] = None
         self._data_module: Optional[PhyLSTMDataModule] = None
 
+        self._lock = Lock()
+        self._do_inference = False
+
         self.load_model.connect(self.on_load_model)
 
     def on_load_model(self, ckpt_path: str, device: str = "cpu") -> None:
         try:
-            self._load_model(ckpt_path)
-            self.device = device
+            with self._lock:
+                self._load_model(ckpt_path)
+                self.device = device
         except:  # noqa: broad-except
             log.exception("Failed to load model.")
             return
 
         self.model_loaded.emit()
 
-    def predict_last_cycle(
-        self, cycle_data: list[SingleCycleData]
-    ) -> np.ndarray:
-        # first check if all data has current set
-        for data in cycle_data:
-            if data.current_input is None:
-                raise ValueError("Not all data has input current set.")
+    def predict_last_cycle(self, cycle_data: list[SingleCycleData]) -> None:
+        if not self.do_inference:
+            log.debug("Inference is disabled. Not predicting.")
+            return
 
-        current_input = np.concatenate(
-            [data.current_input for data in cycle_data]
-        )
+        def wrapper():
+            # first check if all data has current set
+            for data in cycle_data:
+                if data.current_input is None:
+                    raise ValueError("Not all data has input current set.")
 
-        last_cycle = cycle_data[-1]
+            current_input = np.concatenate(
+                [data.current_input for data in cycle_data]
+            )
 
-        predictions = self.predict(current_input, last_cycle.num_samples)
+            last_cycle = cycle_data[-1]
 
-        # uppsample predictions to match the number of samples
-        time_axis = (
-            np.arange(last_cycle.num_samples) / MS
-            + last_cycle.cycle_timestamp / NS
-        )
-        predictions_upsampled = np.interp(
-            time_axis,
-            time_axis[:: self._data_module.hparams.downsample],
-            predictions,
-        )
+            predictions = self.predict(current_input, last_cycle.num_samples)
 
-        self.cycle_predicted.emit(last_cycle, predictions_upsampled)
-        return predictions_upsampled
+            # uppsample predictions to match the number of samples
+            time_axis = (
+                np.arange(last_cycle.num_samples) / MS
+                + last_cycle.cycle_timestamp / NS
+            )
+            predictions_upsampled = np.interp(
+                time_axis,
+                time_axis[:: self._data_module.hparams.downsample],
+                predictions,
+            )
+
+            self.cycle_predicted.emit(last_cycle, predictions_upsampled)
+
+        th = Thread(target=wrapper)
+        th.start()
 
     def predict(
         self, input_current: np.ndarray, last_n_samples: Optional[int] = None
@@ -139,3 +149,7 @@ class Inference(QObject):
     @property
     def model_is_loaded(self) -> bool:
         return self._module is not None
+
+    def set_do_inference(self, state: bool) -> None:
+        with self._lock:
+            self._do_inference = state

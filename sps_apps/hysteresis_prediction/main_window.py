@@ -53,6 +53,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self.widgetSettings.downsample_changed.connect(
             plot_model.set_downsample
         )
+        self.widgetSettings.toggle_predictions.connect(
+            self._inference.set_do_inference
+        )
         self._inference.cycle_predicted.connect(plot_model.new_predicted_cycle)
         self._acquisition.new_buffer_data.connect(
             self._inference.predict_last_cycle

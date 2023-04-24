@@ -20,11 +20,14 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
     timespan_changed = Signal(int, int)  # min, max
     downsample_changed = Signal(int)
     new_cycle = Signal(str, str, float)  # PLS, LSA, timestamp
+    toggle_predictions = Signal(bool)
 
     def __init__(self, parent: Optional[QWidget] = None):
         QWidget.__init__(self, parent=parent)
 
         self.setupUi(self)
+
+        self._prediction_enabled = False
 
         self.spinBoxTimespan.valueChanged.connect(self._timespan_changed)
         self.spinBoxDownsample.valueChanged.connect(self.downsample_changed)
@@ -46,3 +49,13 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
     def blink_led(self) -> None:
         self.Led.setStatus(self.Led.Status.ON)
         QTimer.singleShot(500, lambda: self.Led.setStatus(self.Led.Status.OFF))
+
+    def _on_prediction_toggle(self) -> None:
+        if self._prediction_enabled:
+            self._prediction_enabled = False
+            self.buttonPrediction.setText("Start Predictions")
+        else:
+            self._prediction_enabled = True
+            self.buttonPrediction.setText("Stop Predictions")
+
+        self.toggle_predictions.emit(self._prediction_enabled)
