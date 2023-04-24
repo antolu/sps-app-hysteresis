@@ -57,6 +57,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self._acquisition.new_buffer_data.connect(
             self._inference.predict_last_cycle
         )
+        self._acquisition.cycle_started.connect(self.widgetSettings.new_cycle)
 
         self._acquisition.run()
 

@@ -74,7 +74,7 @@ class PlotWidget(QWidget):
         self.plotDiscr.update_config(config=plot_config)
 
     def _setup_plots(self) -> None:
-        self.plotCurField.setXLink(self.plotDiscr)
+        # self.plotCurField.setXLink(self.plotDiscr)
         self.plotCurField.addLegend()
 
         self.plotCurField.add_layer(layer_id="current", unit="A")

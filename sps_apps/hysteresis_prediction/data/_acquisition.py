@@ -219,16 +219,19 @@ class Acquisition:
                 self._handle_acquisition(
                     self._japc_simple.get(
                         PyJapcEndpoint.from_str(endpoint), context=selector
-                    )
+                    ),
+                    allow_empty=True,
                 )
 
         for _, endpoint, _ in pyjapc_subscriptions:
             for selector in self._pls_to_lsa.keys():
                 log.debug(f"GET-ting values for {endpoint}@{selector}.")
                 self._handle_acquisition(
-                    self._japc.get(endpoint, context=selector)
+                    self._japc.get(endpoint, context=selector),
+                    allow_empty=True,
                 )
 
+        handle: Union[SubscriptionCallback, AsyncIOSubscription]
         log.debug("Subscribing to events.")
         for name, endpoint, selector in pyda_subscriptions:
             log.debug(f"Subscribing to {endpoint} with selector {selector}.")
@@ -248,7 +251,9 @@ class Acquisition:
 
         return list(self._async_handles.values())
 
-    def _handle_acquisition(self, response: PropertyRetrievalResponse) -> None:
+    def _handle_acquisition(
+        self, response: PropertyRetrievalResponse, allow_empty: bool = False
+    ) -> None:
         """
         Ensures that the acquisition does not contain any errors,
         and sends it through the :attr:`data_acquired` signal.
@@ -318,6 +323,8 @@ class Acquisition:
 
         data = response.value.get("value")
         if data is None:
+            if allow_empty:
+                return
             log.error(f"Received event with no data from {endpoint}.")
             return
 
