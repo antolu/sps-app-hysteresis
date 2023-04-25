@@ -368,9 +368,6 @@ class AcquisitionBuffer:
         """
         log.debug("Buffer asked to collate samples.")
 
-        def buffer_size(buffer: deque[SingleCycleData]) -> int:
-            return sum([o.cycle_length for o in buffer])
-
         with self._lock:
             total_samples = buffer_size(self._buffer) + buffer_size(
                 self._buffer_next
@@ -800,9 +797,6 @@ class AcquisitionBuffer:
             log.debug("No buffered NEXT cycles.")
             return
 
-        def buffer_size(buffer: Iterable[SingleCycleData]) -> int:
-            return sum([o.num_samples for o in buffer])
-
         def buffer_too_large(
             buffer: Iterable[SingleCycleData],
             buffer_next: Iterable[SingleCycleData],
@@ -841,10 +835,7 @@ class AcquisitionBuffer:
                     log.debug(f"Removing buffered cycle {cycle_data.cycle}.")
                     self._cycles_index.pop(cycle_data.cycle_timestamp)
 
-        total_buffer_size = buffer_size(self._buffer) + buffer_size(
-            self._buffer_next
-        )
-        self.buffer_size_changed.emit(total_buffer_size)
+        self.buffer_size_changed.emit(len(self))
 
     def _check_move_to_buffer(self, cycle_data: SingleCycleData) -> None:
         """
@@ -916,3 +907,10 @@ class AcquisitionBuffer:
                 cycle_timestamp,
             )
             self.new_measured_data.emit(cycle_data)
+
+    def __len__(self) -> int:
+        return buffer_size(self._buffer) + buffer_size(self._buffer_next)
+
+
+def buffer_size(buffer: Iterable[SingleCycleData]) -> int:
+    return sum([o.num_samples for o in buffer])

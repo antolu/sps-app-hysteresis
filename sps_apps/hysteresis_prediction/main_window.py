@@ -93,7 +93,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         )
         self._inference.model_loaded.connect(
             lambda *_: self.widgetSettings.status_changed.emit(
-                AppStatus.INFERENCE_DISABLED
+                AppStatus.BUFFER_WAITING
+                if len(self._acquisition.buffer) < BUFFER_SIZE
+                else AppStatus.INFERENCE_IDLE
             )
         )
         self._inference.started.connect(
@@ -106,6 +108,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
                 AppStatus.INFERENCE_IDLE
             )
         )
+        # TODO: add internal status saving with the enum
 
         self.widgetSettings.status_changed.emit(AppStatus.NO_MODEL)
         self._acquisition.run()
