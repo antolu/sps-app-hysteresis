@@ -19,6 +19,7 @@ from sps_projects.hysteresis_compensation.utils import (
 from torch import nn
 
 from ..data import SingleCycleData
+from ..utils import load_cursor
 
 MS = int(1e3)
 NS = int(1e9)
@@ -55,7 +56,7 @@ class Inference(QObject):
 
     def on_load_model(self, ckpt_path: str, device: str = "cpu") -> None:
         try:
-            with self._lock:
+            with self._lock and load_cursor():
                 self._load_model(ckpt_path)
                 self.device = device
         except:  # noqa: broad-except

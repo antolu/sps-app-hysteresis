@@ -202,7 +202,15 @@ class AcquisitionBuffer:
             cycle, cycle_timestamp, self._i_prog[cycle], self._b_prog[cycle]
         )
         if cycle in self._b_ref:
+            log_cycle("Adding reference field.", cycle, cycle_timestamp)
             cycle_data.field_ref = self._b_ref[cycle]
+        else:
+            log_cycle(
+                "No reference field available, not adding it to "
+                "buffered cycle data.",
+                cycle,
+                cycle_timestamp,
+            )
 
         if cycle_timestamp in self._cycles_next_index:
             log.error(
@@ -647,7 +655,7 @@ class AcquisitionBuffer:
     ) -> None:
         log_cycle("Buffer received new reference B.", cycle)
 
-        if cycle in self._b_meas:
+        if cycle in self._b_ref:
             log_cycle("Reference field already set. Not updating it.", cycle)
             return
 

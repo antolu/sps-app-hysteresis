@@ -74,12 +74,12 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         self.action_Load_Model.triggered.connect(self.on_load_model_triggered)
         self._inference.model_loaded.connect(
+            self.widgetSettings.on_model_loaded
+        )
+        self._inference.model_loaded.connect(
             lambda: QMessageBox.information(
                 self, "Model loaded", "Model successfully loaded."
             )
-        )
-        self._inference.model_loaded.connect(
-            self.widgetSettings.on_model_loaded
         )
 
         self._acquisition.run()

@@ -56,6 +56,7 @@ class PlotWidget(QWidget):
         self._setup_plots()
 
     def reset_axes_range(self) -> None:
+        self.plotDiscr.autoRange()
         self.plotCurField.autoRange()
 
         self.plotCurField.setRange(**AXES_RANGE_KWARGS)  # noqa
@@ -79,11 +80,14 @@ class PlotWidget(QWidget):
     def _setup_plots(self) -> None:
         # self.plotCurField.setXLink(self.plotDiscr)
         self.plotCurField.addLegend()
+        self.plotDiscr.addLegend()
 
         self.plotCurField.add_layer(layer_id="current", unit="A")
         self.plotCurField.add_layer(layer_id="field", unit="T")
         self.plotCurField.hideAxis("left")
         self.plotCurField.setRenderHint(QPainter.Antialiasing)
+
+        self.plotDiscr.setRenderHint(QPainter.Antialiasing)
 
         self.reset_axes_range()
 

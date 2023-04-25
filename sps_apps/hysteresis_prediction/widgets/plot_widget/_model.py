@@ -100,6 +100,7 @@ class PlotModel(QObject):
             )
 
             if cycle_data.field_ref is not None:
+                log.debug(f"Plotting field diff for cycle {cycle_data.cycle}")
                 discr = np.abs(cycle_data.field_ref - predicted)
                 self._field_ref_discr_source.new_value(
                     cycle_data.cycle_timestamp, discr
