@@ -113,7 +113,8 @@ class Inference(QObject):
                     predictions,
                 )
                 log.debug(
-                    f"Upsampled predictions to {len(predictions)} samples."
+                    f"Upsampled predictions to {len(predictions_upsampled)} "
+                    "samples."
                 )
 
                 last_cycle.field_pred = predictions_upsampled
