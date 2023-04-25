@@ -88,12 +88,14 @@ class Inference(QObject):
             )
 
             last_cycle = cycle_data[-1]
+            log.debug(f"Running prediction on {len(current_input)} samples.")
 
             with self._lock:
                 self._doing_inference = True
 
             try:
                 start = time.time()
+                log.debug("Running inference.")
                 predictions = self.predict(
                     current_input, last_cycle.num_samples
                 )
@@ -110,6 +112,9 @@ class Inference(QObject):
                     time_axis[:: self._data_module.hparams.downsample],  # noqa
                     predictions,
                 )
+                log.debug(
+                    f"Upsampled predictions to {len(predictions)} samples."
+                )
 
                 self.cycle_predicted.emit(last_cycle, predictions_upsampled)
             except:  # noqa: broad-except
@@ -117,6 +122,7 @@ class Inference(QObject):
                     self._doing_inference = False
                 log.exception("Inference failed.")
 
+        log.debug("Starting inference inference in new thread.")
         th = Thread(target=wrapper)
         th.start()
         return th
@@ -154,6 +160,8 @@ class Inference(QObject):
             *predictions_tpl
         )
 
+        log.debug(f"Raw predictions shape: {predictions.z.shape}")
+        log.debug("Running prediction postprocessing.")
         dataset = dataloader.dataset
         current = torch.cat(
             [batch.squeeze() for batch in dataset], dim=0
@@ -169,20 +177,26 @@ class Inference(QObject):
         if last_n_samples is not None:
             last_n_samples //= self._data_module.hparams.downsample
             pred_field = pred_field[-last_n_samples:]
+            log.debug(f"Truncated predictions to {len(pred_field)} samples.")
 
         return pred_field
 
     def _load_model(self, ckpt_path: str) -> None:
         self._ckpt_path = ckpt_path
 
+        log.debug(f"Loading model and datamodule from {ckpt_path}.")
         module = PhyLSTMModule.load_from_checkpoint(ckpt_path)
         self._data_module = PhyLSTMDataModule.load_from_checkpoint(ckpt_path)
+
         model = module._model
         module.eval()
         model.eval()
         assert model is not None
+        log.debug("Compiling model.")
         self._model = torch.compile(model)  # type: ignore
         self._module = module
+
+        log.info("Model loaded.")
 
     def _get_device(self) -> str:
         return self._device
@@ -196,6 +210,7 @@ class Inference(QObject):
             if self._model is None:
                 log.error("No model loaded. Cannot move to device.")
             else:
+                log.debug("Setting up model with Fabric.")
                 self._model = self._fabric.setup(self._model)
         self._device = device
 
