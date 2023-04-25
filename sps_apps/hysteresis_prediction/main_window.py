@@ -14,6 +14,7 @@ from .generated.main_window_ui import Ui_main_window
 from .inference import Inference
 from .settings import context
 from .widgets import ModelLoadDialog, PlotModel
+from .widgets.plot_settings_widget import AppStatus
 
 log = logging.getLogger(__name__)
 
@@ -82,6 +83,31 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             )
         )
 
+        # status messages
+        self.widgetSettings.toggle_predictions.connect(
+            lambda enabled, *_: self.widgetSettings.status_changed.emit(
+                AppStatus.INFERENCE_IDLE
+                if enabled
+                else AppStatus.INFERENCE_DISABLED
+            )
+        )
+        self._inference.model_loaded.connect(
+            lambda *_: self.widgetSettings.status_changed.emit(
+                AppStatus.INFERENCE_DISABLED
+            )
+        )
+        self._inference.started.connect(
+            lambda *_: self.widgetSettings.status_changed.emit(
+                AppStatus.INFERENCE_RUNNING
+            )
+        )
+        self._inference.completed.connect(
+            lambda *_: self.widgetSettings.status_changed.emit(
+                AppStatus.INFERENCE_IDLE
+            )
+        )
+
+        self.widgetSettings.status_changed.emit(AppStatus.NO_MODEL)
         self._acquisition.run()
 
     def on_load_model_triggered(self) -> None:

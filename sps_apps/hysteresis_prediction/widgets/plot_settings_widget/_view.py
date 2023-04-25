@@ -9,6 +9,7 @@ from qtpy.QtWidgets import QWidget
 
 from ...generated.plot_settings_widget_ui import Ui_PlotSettingsWidget
 from ...utils import run_in_main_thread
+from ._status import LOG_MESSAGES, AppStatus
 
 log = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
     downsample_changed = Signal(int)
     new_cycle = Signal(str, str, float)  # PLS, LSA, timestamp
     toggle_predictions = Signal(bool)
+    status_changed = Signal(AppStatus)
 
     def __init__(self, parent: Optional[QWidget] = None):
         QWidget.__init__(self, parent=parent)
@@ -35,6 +37,7 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
         self.buttonPredict.clicked.connect(self._on_prediction_toggle)
 
         self.new_cycle.connect(self._on_new_cycle)
+        self.status_changed.connect(self._on_new_status)
 
         self.buttonPredict.setEnabled(False)
 
@@ -45,6 +48,11 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
 
     def _timespan_changed(self, *_: Any) -> None:
         self.timespan_changed.emit(self.spinBoxTimespan.value(), 0)
+
+    @run_in_main_thread
+    def _on_new_status(self, status: AppStatus):
+        message = LOG_MESSAGES[status]
+        self.labelStatus.setText(message)
 
     @run_in_main_thread
     def _on_new_cycle(self, pls: str, lsa: str, timestamp: float) -> None:

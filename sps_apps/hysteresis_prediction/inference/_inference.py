@@ -31,7 +31,9 @@ class Inference(QObject):
     load_model = Signal(str, str)  # ckpt path, device
     cycle_predicted = Signal(SingleCycleData, np.ndarray)
     model_loaded = Signal()
-    do_inference = Signal()
+
+    started = Signal()
+    completed = Signal()
 
     def __init__(
         self, device: str = "cpu", parent: Optional[QObject] = None
@@ -79,6 +81,7 @@ class Inference(QObject):
             return None
 
         def wrapper() -> None:
+            self.started.emit()
             # first check if all data has current set
             for data in cycle_data:
                 if data.current_input is None:
@@ -125,6 +128,7 @@ class Inference(QObject):
             finally:
                 with self._lock:
                     self._doing_inference = False
+                self.completed.emit()
 
         log.debug("Starting inference inference in new thread.")
         th = Thread(target=wrapper)

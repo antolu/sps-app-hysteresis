@@ -181,7 +181,7 @@
         </property>
        </spacer>
       </item>
-      <item row="5" column="0" colspan="2">
+      <item row="6" column="0" colspan="2">
        <widget class="QProgressBar" name="progressBar">
         <property name="maximumSize">
          <size>
@@ -194,6 +194,13 @@
         </property>
         <property name="textVisible">
          <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0" colspan="2">
+       <widget class="QLabel" name="labelStatus">
+        <property name="text">
+         <string>No Status Message</string>
         </property>
        </widget>
       </item>

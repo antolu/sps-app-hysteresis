@@ -107,7 +107,10 @@ class Ui_PlotSettingsWidget(object):
         self.progressBar.setProperty("value", 0)
         self.progressBar.setTextVisible(False)
         self.progressBar.setObjectName("progressBar")
-        self.formLayout.setWidget(5, QtWidgets.QFormLayout.SpanningRole, self.progressBar)
+        self.formLayout.setWidget(6, QtWidgets.QFormLayout.SpanningRole, self.progressBar)
+        self.labelStatus = QtWidgets.QLabel(self.frame)
+        self.labelStatus.setObjectName("labelStatus")
+        self.formLayout.setWidget(5, QtWidgets.QFormLayout.SpanningRole, self.labelStatus)
         self.verticalLayout_2.addWidget(self.frame)
 
         self.retranslateUi(PlotSettingsWidget)
@@ -123,4 +126,5 @@ class Ui_PlotSettingsWidget(object):
         self.labelDownsample.setText(_translate("PlotSettingsWidget", "Downsample"))
         self.buttonResetAxis.setText(_translate("PlotSettingsWidget", "Reset Axis"))
         self.buttonPredict.setText(_translate("PlotSettingsWidget", "Start Prediction"))
+        self.labelStatus.setText(_translate("PlotSettingsWidget", "No Status Message"))
 from accwidgets.led import Led
