@@ -16,22 +16,24 @@ log = logging.getLogger(__name__)
 
 class ModelLoadDialog(Ui_ModelLoadDialog, QDialog):
     load_checkpoint = Signal(str, str)  # ckpt path, device
+    last_selected_device: int = -1
 
-    def __init__(
-        self, default_device: str = "cpu", parent: Optional[QWidget] = None
-    ):
+    def __init__(self, parent: Optional[QWidget] = None):
         QDialog.__init__(self, parent)
         self.setupUi(self)
 
         gpu_item: QStandardItem = self.comboDevice.model().item(1)
 
-        if torch.cuda.is_available():
-            gpu_item.setFlags(gpu_item.flags() | Qt.ItemIsEnabled)
-            if default_device == "gpu":
+        if self.last_selected_device == -1:
+            if torch.cuda.is_available():
+                gpu_item.setFlags(gpu_item.flags() | Qt.ItemIsEnabled)
                 self.comboDevice.setCurrentIndex(1)
+            else:
+                gpu_item.setFlags(gpu_item.flags() & ~Qt.ItemIsEnabled)
+                self.comboDevice.setCurrentIndex(0)
+            self.last_selected_device = self.comboDevice.currentIndex()
         else:
-            gpu_item.setFlags(gpu_item.flags() & ~Qt.ItemIsEnabled)
-            self.comboDevice.setCurrentIndex(0)
+            self.comboDevice.setCurrentIndex(self.last_selected_device)
 
         self.buttonBrowse.clicked.connect(self.on_browse_clicked)
         self.buttonBox.accepted.connect(self.on_ok_clicked)
@@ -74,6 +76,7 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QDialog):
 
         device = self.comboDevice.currentText().lower()
         log.debug(f"Selected checkpoint at {ckpt_path} on device {device}.")
+        self.last_selected_device = self.comboDevice.currentIndex()
 
         self.load_checkpoint.emit(ckpt_path, device)
 
