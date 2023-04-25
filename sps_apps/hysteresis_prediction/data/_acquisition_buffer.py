@@ -63,12 +63,15 @@ class InsufficientDataError(Exception):
 
 
 class AcquisitionBuffer:
-    def __init__(self, min_buffer_size: int) -> None:
+    def __init__(
+        self, min_buffer_size: int, buffer_only_measured: bool = False
+    ) -> None:
         """
         :param min_buffer_size: The minimum number of samples required to
             collate samples from the buffer.
         """
         self._buffer_size = min_buffer_size
+        self._buffer_only_measured = buffer_only_measured
 
         """ Reference values for creating samples without measured data """
         self._i_ref: dict[str, np.ndarray] = {}
@@ -369,9 +372,7 @@ class AcquisitionBuffer:
         log.debug("Buffer asked to collate samples.")
 
         with self._lock:
-            total_samples = buffer_size(self._buffer) + buffer_size(
-                self._buffer_next
-            )
+            total_samples = len(self)
             if total_samples < self._buffer_size:
                 raise InsufficientDataError(
                     f"Buffer size is less than {self._buffer_size} "
@@ -385,20 +386,26 @@ class AcquisitionBuffer:
             )
 
             out_buffer = list(self._buffer)
-            incomplete_samples = list(self._buffer_next)
 
-            # TODO: log cycle data parsing
-            for cycle_data in out_buffer:
-                cycle_data.current_input = cycle_data.current_meas
+            if not self._buffer_only_measured:
+                incomplete_samples = list(self._buffer_next)
 
-            for cycle_data in incomplete_samples:
-                if cycle_data.cycle not in self._i_ref:
-                    msg = (
-                        f"Missing reference current for {cycle_data.cycle}. "
-                        "Cannot build buffer."
-                    )
-                    raise InsufficientDataError(msg)
-                cycle_data.current_input = self._i_ref[cycle_data.cycle]
+                # TODO: log cycle data parsing
+                for cycle_data in out_buffer:
+                    assert cycle_data.current_meas is not None
+                    cycle_data.current_input = cycle_data.current_meas
+
+                for cycle_data in incomplete_samples:
+                    if cycle_data.cycle not in self._i_ref:
+                        msg = (
+                            "Missing reference current for "
+                            f"{cycle_data.cycle}. "
+                            "Cannot build buffer."
+                        )
+                        raise InsufficientDataError(msg)
+                    cycle_data.current_input = self._i_ref[cycle_data.cycle]
+            else:
+                incomplete_samples = []
 
         out_buffer += incomplete_samples
 
@@ -425,6 +432,16 @@ class AcquisitionBuffer:
             log_cycle(
                 "NEXT buffered cycle data not found.", cycle, cycle_timestamp
             )
+            return
+
+        if meas_I_is_zero(value):
+            log_cycle(
+                "Measured current is ~zero. "
+                "Assuming FULLECO and clearing buffer.",
+                cycle,
+                cycle_timestamp,
+            )
+            self._reset_except_last()
             return
 
         if cycle not in self._i_ref or self._i_ref[cycle] is None:
@@ -790,7 +807,9 @@ class AcquisitionBuffer:
             return
 
         if len(self._buffer) == 1:
-            log.debug(f"Insufficient buffered cycles ({len(self._buffer)}).")
+            log.debug(
+                "Insufficient buffered cycles " f"({len(self._buffer)})."
+            )
             return
 
         if len(self._buffer_next) == 0:
@@ -823,17 +842,43 @@ class AcquisitionBuffer:
 
             return msg
 
-        if not buffer_too_large(self._buffer, self._buffer_next):
-            log.debug(logger_msg(self._buffer, self._buffer_next))
-        else:
-            while buffer_too_large(
-                self._buffer, self._buffer_next
-            ) and buffer_too_large(list(self._buffer)[1:], self._buffer_next):
+        if not self._buffer_only_measured:
+            if not buffer_too_large(self._buffer, self._buffer_next):
                 log.debug(logger_msg(self._buffer, self._buffer_next))
-                with self._lock:
-                    cycle_data = self._buffer.popleft()
-                    log.debug(f"Removing buffered cycle {cycle_data.cycle}.")
-                    self._cycles_index.pop(cycle_data.cycle_timestamp)
+            else:
+                while buffer_too_large(
+                    self._buffer, self._buffer_next
+                ) and buffer_too_large(
+                    list(self._buffer)[1:], self._buffer_next
+                ):
+                    log.debug(logger_msg(self._buffer, self._buffer_next))
+                    with self._lock:
+                        cycle_data = self._buffer.popleft()
+                        log.debug(
+                            f"Removing buffered cycle {cycle_data.cycle}."
+                        )
+                        self._cycles_index.pop(cycle_data.cycle_timestamp)
+        else:
+            if not buffer_size(self._buffer) > self._buffer_size:
+                log.debug(
+                    "Buffer size is within bounds:"
+                    f"{buffer_size(self._buffer)} / {self._buffer_size}"
+                )
+            else:
+                while (
+                    buffer_size(self._buffer) > self._buffer_size
+                    and buffer_size(list(self._buffer)[1:]) > self._buffer_size
+                ):
+                    log.debug(
+                        "Buffer size is too large. Removing oldest buffered "
+                        "cycle."
+                    )
+                    with self._lock:
+                        cycle_data = self._buffer.popleft()
+                        log.debug(
+                            f"Removing buffered cycle {cycle_data.cycle}."
+                        )
+                        self._cycles_index.pop(cycle_data.cycle_timestamp)
 
         self.buffer_size_changed.emit(len(self))
 
@@ -908,9 +953,38 @@ class AcquisitionBuffer:
             )
             self.new_measured_data.emit(cycle_data)
 
+    def _reset_buffer(self) -> None:
+        log.debug("Resetting buffer...")
+        with self._lock:
+            self._buffer.clear()
+            self._buffer_next.clear()
+            self._cycles_index.clear()
+            self._cycles_next_index.clear()
+
+    def _reset_except_last(self) -> None:
+        """
+        Reset buffer but keep last cycle in the NEXT buffer.
+        """
+        log.debug("Resetting buffer except last cycle...")
+        with self._lock:
+            if len(self._buffer_next) > 0:
+                last = self._buffer_next[-1]
+
+                self._reset_buffer()
+
+                self._buffer_next.append(last)
+                self._cycles_next_index[last.cycle_timestamp] = last
+
     def __len__(self) -> int:
-        return buffer_size(self._buffer) + buffer_size(self._buffer_next)
+        if self._buffer_only_measured:
+            return buffer_size(self._buffer)
+        else:
+            return buffer_size(self._buffer) + buffer_size(self._buffer_next)
 
 
 def buffer_size(buffer: Iterable[SingleCycleData]) -> int:
     return sum([o.num_samples for o in buffer])
+
+
+def meas_I_is_zero(value: np.ndarray, tol: float = 10) -> bool:
+    return value.max() < tol

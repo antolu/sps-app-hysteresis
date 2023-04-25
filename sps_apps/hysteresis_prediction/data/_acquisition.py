@@ -81,6 +81,7 @@ class Acquisition:
     def __init__(
         self,
         min_buffer_size: int = 300000,
+        buffer_only_measured: bool = False,
         japc_provider: Optional[JapcProvider] = None,
     ):
         """
@@ -100,7 +101,9 @@ class Acquisition:
             and reference currents.
         """
         self._min_buffer_size = min_buffer_size
-        self._buffer = AcquisitionBuffer(min_buffer_size)
+        self._buffer = AcquisitionBuffer(
+            min_buffer_size, buffer_only_measured=buffer_only_measured
+        )
 
         self._pls_to_lsa: dict[str, str] = {}
         self._lsa_to_pls: dict[str, str] = {}
