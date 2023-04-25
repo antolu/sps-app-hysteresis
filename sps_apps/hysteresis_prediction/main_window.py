@@ -19,6 +19,9 @@ log = logging.getLogger(__name__)
 __all__ = ["MainWindow"]
 
 
+BUFFER_SIZE = 150000
+
+
 class MainWindow(Ui_main_window, ApplicationFrame):
     def __init__(self, parent: Optional[QWidget] = None):
         ApplicationFrame.__init__(self, parent)
@@ -36,7 +39,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         timing_bar = TimingBar(self, model=timing_model)
         self.timing_bar = timing_bar
 
-        self._acquisition = Acquisition(min_buffer_size=150000)
+        self._acquisition = Acquisition(min_buffer_size=BUFFER_SIZE)
         self._inference = Inference(parent=self)
 
         plot_model = PlotModel(self._acquisition, parent=self)
@@ -64,7 +67,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self.widgetSettings._on_new_cycle
         )
         self._acquisition.buffer.buffer_size_changed.connect(
-            lambda x: self.widgetSettings._set_progressbar(x, 300000)
+            lambda x: self.widgetSettings._set_progressbar(x, BUFFER_SIZE)
         )
 
         self.action_Load_Model.triggered.connect(self.on_load_model_triggered)

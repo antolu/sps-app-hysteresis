@@ -117,8 +117,15 @@ class PlotWidget(QWidget):
             unit="A",
             name="Programmed I",
         )
+        field_pred = self.plotCurField.addCurve(
+            data_source=model.field_predict_source,
+            layer="field",
+            pen=pg.mkPen(color="#FC814A", width=2),
+            unit="T",
+            name="Predicted B",
+        )
 
-        for curve in (current_meas, field_meas, current_prog):
+        for curve in (current_meas, field_meas, current_prog, field_pred):
             self._curves[1].add(curve)
 
     def _disconnect_model(self, model: PlotModel) -> None:
