@@ -67,6 +67,9 @@ class ThreadWrapper:
             for buffer in self._buffers:
                 start = time.time()
                 th = self._inference.predict_last_cycle(buffer)
+                if th is None:
+                    log.error("FATAL: Thread item is None.")
+                    return
                 th.join()
                 stop = time.time()
                 print(f"Prediction took {stop - start:.2f} seconds.")

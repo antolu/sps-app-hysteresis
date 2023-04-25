@@ -2,11 +2,14 @@ import logging
 import sys
 from argparse import ArgumentParser
 
+import torch
 from accwidgets.qt import exec_app_interruptable
 from PyQt5.QtWidgets import QApplication
 
 from . import __version__
 from .main_window import MainWindow
+
+torch.set_float32_matmul_precision("high")
 
 
 def setup_logger(logging_level: int = 0) -> None:

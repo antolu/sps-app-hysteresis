@@ -36,7 +36,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         timing_bar = TimingBar(self, model=timing_model)
         self.timing_bar = timing_bar
 
-        self._acquisition = Acquisition(min_buffer_size=300000)
+        self._acquisition = Acquisition(min_buffer_size=150000)
         self._inference = Inference(parent=self)
 
         plot_model = PlotModel(self._acquisition, parent=self)

@@ -118,9 +118,10 @@ class Inference(QObject):
 
                 self.cycle_predicted.emit(last_cycle, predictions_upsampled)
             except:  # noqa: broad-except
+                log.exception("Inference failed.")
+            finally:
                 with self._lock:
                     self._doing_inference = False
-                log.exception("Inference failed.")
 
         log.debug("Starting inference inference in new thread.")
         th = Thread(target=wrapper)
