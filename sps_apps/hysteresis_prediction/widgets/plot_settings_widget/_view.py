@@ -44,7 +44,7 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
         self.labelUser.setText(pls.split(".")[-1])
         self.labelCycle.setText(lsa)
         self.labelCycleTime.setText(
-            datetime.fromtimestamp(timestamp / 1e9).strftime(FMT)
+            datetime.fromtimestamp(timestamp / 1e9).strftime(FMT)[:-3]
         )
 
         self.blink_led()

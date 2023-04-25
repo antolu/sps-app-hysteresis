@@ -72,6 +72,7 @@ class AcquisitionBuffer:
 
         """ Reference values for creating samples without measured data """
         self._i_ref: dict[str, np.ndarray] = {}
+        self._b_meas: dict[str, np.ndarray] = {}
         self._b_ref: dict[str, np.ndarray] = {}
 
         self._i_prog: dict[str, np.ndarray] = {}
@@ -200,6 +201,8 @@ class AcquisitionBuffer:
         cycle_data = SingleCycleData(
             cycle, cycle_timestamp, self._i_prog[cycle], self._b_prog[cycle]
         )
+        if cycle in self._b_ref:
+            cycle_data.field_ref = self._b_ref[cycle]
 
         if cycle_timestamp in self._cycles_next_index:
             log.error(
@@ -487,7 +490,7 @@ class AcquisitionBuffer:
             )
             return
 
-        if cycle not in self._b_ref or self._b_ref[cycle] is None:
+        if cycle not in self._b_meas or self._b_meas[cycle] is None:
             log_cycle("Measured magnetic field has not yet been set.", cycle)
             log_cycle("Setting new measured magnetic field.", cycle)
 
@@ -510,7 +513,7 @@ class AcquisitionBuffer:
                     )
 
             with self._lock:
-                self._b_ref[cycle_data.cycle] = value
+                self._b_meas[cycle_data.cycle] = value
 
         if cycle_timestamp not in self._cycles_next_index:
             log_cycle(
@@ -598,7 +601,6 @@ class AcquisitionBuffer:
         value: np.ndarray,
     ) -> None:
         log_cycle("Buffer received new programmed B.", cycle)
-        log_cycle("Buffer received new programmed B.", cycle)
         if len(value) != 2:
             log.error(
                 "Received programmed B that is not composed of "
@@ -643,7 +645,15 @@ class AcquisitionBuffer:
     def _new_reference_B(
         self, cycle: str, cycle_timestamp: Union[int, float], value: np.ndarray
     ) -> None:
-        log.warning("Reference magnetic field not yet implemented.")
+        log_cycle("Buffer received new reference B.", cycle)
+
+        if cycle in self._b_meas:
+            log_cycle("Reference field already set. Not updating it.", cycle)
+            return
+
+        log_cycle("Setting new reference field.", cycle)
+        with self._lock:
+            self._b_ref[cycle] = value
 
     def _check_buffer_integrity(self) -> None:
         """

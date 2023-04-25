@@ -36,7 +36,10 @@ class SingleCycleData:
     current_input: np.ndarray = field(init=False)  # input current to NN
 
     """ The reference data to compare against, set externally """
-    field_ref: np.ndarray = field(init=False)  # reference field
+    field_ref: Optional[np.ndarray] = None  # reference field
+
+    """ The predicted field """
+    field_pred: Optional[np.ndarray] = None
 
     """ The data for these fields arrives after cycle is played """
     current_meas: Optional[np.ndarray] = None

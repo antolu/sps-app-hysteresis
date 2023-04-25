@@ -1,6 +1,7 @@
 import logging
 from typing import Optional
 
+import numpy as np
 from accwidgets.app_frame import ApplicationFrame
 from accwidgets.log_console import LogConsole
 from accwidgets.timing_bar import TimingBar, TimingBarDomain, TimingBarModel
@@ -8,7 +9,7 @@ from PyQt5.QtWidgets import QWidget
 from qtpy.QtGui import QCloseEvent
 from qtpy.QtWidgets import QDialog, QMessageBox
 
-from .data import Acquisition
+from .data import Acquisition, BufferData, SingleCycleData
 from .generated.main_window_ui import Ui_main_window
 from .inference import Inference
 from .settings import context
@@ -60,6 +61,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self._inference.set_do_inference
         )
         self._inference.cycle_predicted.connect(plot_model.new_predicted_cycle)
+        self._inference.cycle_predicted.connect(self.on_new_prediction)
         self._acquisition.new_buffer_data.connect(
             self._inference.predict_last_cycle
         )
@@ -91,6 +93,20 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             device = dialog.device
 
             self._inference.load_model.emit(ckpt_path, device)
+
+    def on_new_prediction(
+        self, cycle_data: SingleCycleData, prediction: np.ndarray
+    ):
+        try:
+            self._acquisition.buffer.dispatch_data(
+                BufferData.REF_B,
+                cycle_data.cycle,
+                cycle_data.cycle_timestamp,
+                prediction,
+            )
+        except:  # noqa: broad-except
+            log.exception("An exception occurred while saving reference B.")
+            return
 
     def toggle_plot_settings(self) -> None:
         if self.actionShow_Plot_Settings.isChecked():

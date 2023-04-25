@@ -20,6 +20,9 @@ from ._sources import LocalTimerTimingSource
 log = logging.getLogger(__name__)
 
 
+AXES_RANGE_KWARGS = {"field": (-0.1, 2.2), "current": (-0.045 * 7000, 7000)}
+
+
 class PlotWidget(QWidget):
     def __init__(
         self,
@@ -55,9 +58,7 @@ class PlotWidget(QWidget):
     def reset_axes_range(self) -> None:
         self.plotCurField.autoRange()
 
-        self.plotCurField.setRange(
-            field=(-0.1, 2.2), current=(-0.045 * 7000, 7000)  # noqa
-        )
+        self.plotCurField.setRange(**AXES_RANGE_KWARGS)  # noqa
 
     def set_time_span(self, min: int, max: int) -> None:
         """
@@ -72,6 +73,8 @@ class PlotWidget(QWidget):
         )
         self.plotCurField.update_config(config=plot_config)
         self.plotDiscr.update_config(config=plot_config)
+
+        self.plotCurField.setRange(**AXES_RANGE_KWARGS)  # noqa
 
     def _setup_plots(self) -> None:
         # self.plotCurField.setXLink(self.plotDiscr)
@@ -124,9 +127,18 @@ class PlotWidget(QWidget):
             unit="T",
             name="Predicted B",
         )
+        field_ref_disc = self.plotDiscr.addCurve(
+            data_source=model.field_ref_discr_source,
+            pen=pg.mkPen(color="#BFBFBF", width=2),
+            unit="T",
+            name="Ref B - Pred B",
+        )
 
         for curve in (current_meas, field_meas, current_prog, field_pred):
             self._curves[1].add(curve)
+
+        for curve in (field_ref_disc,):
+            self._curves[0].add(curve)
 
     def _disconnect_model(self, model: PlotModel) -> None:
         for curve in self._curves[0]:

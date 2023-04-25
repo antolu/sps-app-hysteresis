@@ -116,6 +116,7 @@ class Inference(QObject):
                     f"Upsampled predictions to {len(predictions)} samples."
                 )
 
+                last_cycle.field_pred = predictions_upsampled
                 self.cycle_predicted.emit(last_cycle, predictions_upsampled)
             except:  # noqa: broad-except
                 log.exception("Inference failed.")
