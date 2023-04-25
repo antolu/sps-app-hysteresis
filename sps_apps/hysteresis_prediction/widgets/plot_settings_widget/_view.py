@@ -36,6 +36,13 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
 
         self.new_cycle.connect(self._on_new_cycle)
 
+        self.buttonPredict.setEnabled(False)
+
+    @run_in_main_thread
+    def on_model_loaded(self) -> None:
+        """Called when the model is loaded. Enable prediction button."""
+        self.buttonPredict.setEnabled(True)
+
     def _timespan_changed(self, *_: Any) -> None:
         self.timespan_changed.emit(self.spinBoxTimespan.value(), 0)
 

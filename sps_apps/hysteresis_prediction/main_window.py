@@ -78,6 +78,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
                 self, "Model loaded", "Model successfully loaded."
             )
         )
+        self._inference.model_loaded.connect(
+            self.widgetSettings.on_model_loaded
+        )
 
         self._acquisition.run()
 
