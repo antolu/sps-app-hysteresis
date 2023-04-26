@@ -93,8 +93,6 @@ class AcquisitionBuffer:
         self.new_programmed_cycle = Signal(SingleCycleData)
         self.buffer_size_changed = Signal(int)
 
-        self._unknown_cycles: dict[int, SingleCycleData] = {}
-
         self._lock = Lock()
 
         self.DISPATCH_MAP = {
@@ -201,6 +199,21 @@ class AcquisitionBuffer:
             )
             return
 
+        if cycle_timestamp in self._cycles_next_index:
+            log.error(
+                f"[{cycle}@{from_timestamp(cycle_timestamp)}] "
+                "Cycle data already exists in NEXT buffer. "
+                f"Shifting new cycle by "
+                f"{self._buffer_next[-1].num_samples * 1e6} ms."
+            )
+
+            # return
+            # below is only a fix for FCY cycle timestamp being incorrect
+            prev_cycle = self._buffer_next[-1]
+            cycle_timestamp = (
+                prev_cycle.cycle_timestamp + prev_cycle.num_samples * int(1e6)
+            )
+
         cycle_data = SingleCycleData(
             cycle, cycle_timestamp, self._i_prog[cycle], self._b_prog[cycle]
         )
@@ -214,30 +227,6 @@ class AcquisitionBuffer:
                 cycle,
                 cycle_timestamp,
             )
-
-        if cycle_timestamp in self._cycles_next_index:
-            log.error(
-                f"[{cycle}@{from_timestamp(cycle_timestamp)}] "
-                "Cycle data already exists in NEXT buffer. "
-                f"Shifting new cycle by "
-                f"{self._buffer_next[-1].num_samples * 1e6} ms."
-            )
-
-            # return
-            # below is only a fix for FCY cycle timestamp being incorrect
-            if len(self._unknown_cycles) > 1:
-                log.warning(
-                    "There exists more than one unknown cycle. "
-                    "Don't know what to do."
-                )
-                return
-
-            prev_cycle = self._buffer_next[-1]
-            cycle_timestamp = (
-                prev_cycle.cycle_timestamp + prev_cycle.num_samples * int(1e6)
-            )
-            with self._lock:
-                self._unknown_cycles[cycle_timestamp] = cycle_data
 
         log_cycle(
             "Creating new cycle data in NEXT buffer.", cycle, cycle_timestamp
