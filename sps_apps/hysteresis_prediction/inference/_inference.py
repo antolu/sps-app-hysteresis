@@ -153,8 +153,12 @@ class Inference(QObject):
         dataloader_f = self._fabric.setup_dataloaders(dataloader)
 
         predictions_raw: list[PhyLSTMOutput] = []
+        hidden = None
         for batch in dataloader_f:
-            predictions_raw.append(self._model(batch))
+            model_output, hidden = self._model(
+                batch, hidden=hidden, return_states=True
+            )
+            predictions_raw.append(model_output)
 
         if len(predictions_raw) == 0:
             log.warning("No predictions were made.")
