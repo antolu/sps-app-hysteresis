@@ -135,13 +135,19 @@ class PlotWidget(QWidget):
             data_source=model.field_ref_discr_source,
             pen=pg.mkPen(color="#BFBFBF", width=2),
             unit="T",
-            name="Ref B - Pred B",
+            name="Ref. B - Pred. B",
+        )
+        field_meas_discr = self.plotDiscr.addCurve(
+            data_source=model.field_meas_discr_source,
+            pen=pg.mkPen(color="#1F5673", width=2),
+            unit="T",
+            name="Meas. B - Pred. B",
         )
 
         for curve in (current_meas, field_meas, current_prog, field_pred):
             self._curves[1].add(curve)
 
-        for curve in (field_ref_disc,):
+        for curve in (field_ref_disc, field_meas_discr):
             self._curves[0].add(curve)
 
     def _disconnect_model(self, model: PlotModel) -> None:

@@ -296,6 +296,12 @@ class AcquisitionBuffer:
                 f"greater than 5 ms: {last_cycle} -> "
                 f"{cycle}@{from_timestamp(cycle_timestamp)}."
             )
+            log.debug(
+                "Current buffer state:\nNEXT"
+                + debug_msg(self._buffer_next)
+                + "\n\nBUFFER\n"
+                + debug_msg(self._buffer)
+            )
             return
 
         log.warning("Don't know what to do here.")
@@ -423,7 +429,7 @@ class AcquisitionBuffer:
             )
             return
 
-        if meas_I_is_zero(value):
+        if meas_is_zero(value):
             log_cycle(
                 "Measured current is ~zero. "
                 "Assuming FULLECO and clearing buffer.",
@@ -499,6 +505,16 @@ class AcquisitionBuffer:
             log_cycle(
                 "NEXT buffered cycle data not found.", cycle, cycle_timestamp
             )
+            return
+
+        if meas_is_zero(value, tol=0.05):
+            log_cycle(
+                "Measured field is ~zero. "
+                "Assuming sensors tripped and clearing buffer.",
+                cycle,
+                cycle_timestamp,
+            )
+            self._reset_except_last()
             return
 
         if cycle not in self._b_meas or self._b_meas[cycle] is None:
@@ -735,6 +751,12 @@ class AcquisitionBuffer:
         log.debug("Checking buffer integrity.")
         to_remove = check_integrity(self._buffer)
         if len(to_remove) > 0:
+            log.debug(
+                "Current buffer state:\nNEXT"
+                + debug_msg(self._buffer_next)
+                + "\n\nBUFFER\n"
+                + debug_msg(self._buffer)
+            )
             for i in reversed(to_remove):
                 log.info(
                     f"Removing buffered cycle {self._buffer[i]} at index {i}."
@@ -745,6 +767,12 @@ class AcquisitionBuffer:
 
             to_remove = check_integrity(self._buffer)
             if len(to_remove) > 0:
+                log.debug(
+                    "Current buffer state:\nNEXT"
+                    + debug_msg(self._buffer_next)
+                    + "\n\nBUFFER\n"
+                    + debug_msg(self._buffer)
+                )
                 log.error(
                     "Buffer integrity compromised. Could not fix "
                     "automatically. Clearing buffer."
@@ -758,6 +786,12 @@ class AcquisitionBuffer:
         log.debug("Checking NEXT buffer integrity.")
         to_remove = check_integrity(self._buffer_next)
         if len(to_remove) > 0:
+            log.debug(
+                "Current buffer state:\nNEXT"
+                + debug_msg(self._buffer_next)
+                + "\n\nBUFFER\n"
+                + debug_msg(self._buffer)
+            )
             for i in reversed(to_remove):
                 log.info(
                     f"Removing buffered cycle {self._buffer_next[i].cycle}."
@@ -770,6 +804,12 @@ class AcquisitionBuffer:
 
             to_remove = check_integrity(self._buffer_next)
             if len(to_remove) > 0:
+                log.debug(
+                    "Current buffer state:\nNEXT"
+                    + debug_msg(self._buffer_next)
+                    + "\n\nBUFFER\n"
+                    + debug_msg(self._buffer)
+                )
                 log.error(
                     "Buffer integrity compromised. Could not fix "
                     "automatically. Clearing buffer."
@@ -975,5 +1015,13 @@ def buffer_size(buffer: Iterable[SingleCycleData]) -> int:
     return sum([o.num_samples for o in buffer])
 
 
-def meas_I_is_zero(value: np.ndarray, tol: float = 10) -> bool:
+def meas_is_zero(value: np.ndarray, tol: float = 10) -> bool:
     return value.max() < tol
+
+
+def debug_msg(buffer: Iterable[SingleCycleData]) -> str:
+    msg = []
+    for cycle in buffer:
+        msg.append(f"{cycle.cycle}@{str(cycle.cycle_time)[:-4]}")
+
+    return "\n".join(msg)

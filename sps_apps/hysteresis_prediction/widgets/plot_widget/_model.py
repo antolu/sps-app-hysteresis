@@ -44,6 +44,9 @@ class PlotModel(QObject):
         self._field_ref_discr_source = CurrentFieldSource(
             AcquiredDataType.PredictedField, downsample=downsample
         )
+        self._field_meas_discr_source = CurrentFieldSource(
+            AcquiredDataType.PredictedField, downsample=downsample
+        )
 
         self._acquisition.new_measured_data.connect(self._handle_new_measured)
         self._acquisition.new_programmed_cycle.connect(
@@ -70,6 +73,13 @@ class PlotModel(QObject):
             self._field_meas_source.new_value(
                 cycle_data.cycle_timestamp, cycle_data.field_meas
             )
+
+            if cycle_data.field_pred is not None:
+                self._field_meas_discr_source.new_value(
+                    cycle_data.cycle_timestamp,
+                    cycle_data.field_meas - cycle_data.field_pred,
+                )
+
         except Exception:  # noqa: broad-except
             log.exception(
                 "An exception occurred while publishing new " "measured data."
@@ -101,7 +111,7 @@ class PlotModel(QObject):
 
             if cycle_data.field_ref is not None:
                 log.debug(f"Plotting field diff for cycle {cycle_data.cycle}")
-                discr = np.abs(cycle_data.field_ref - predicted)
+                discr = cycle_data.field_ref - predicted
                 self._field_ref_discr_source.new_value(
                     cycle_data.cycle_timestamp, discr
                 )
@@ -136,6 +146,10 @@ class PlotModel(QObject):
         return self._field_ref_discr_source
 
     @property
+    def field_meas_discr_source(self) -> CurrentFieldSource:
+        return self._field_meas_discr_source
+
+    @property
     def downsample(self) -> int:
         return self._downsample
 
@@ -154,6 +168,7 @@ class PlotModel(QObject):
         self._field_prog_source.downsample = value
         self._field_predict_source.downsample = value
         self._field_ref_discr_source.downsample = value
+        self._field_meas_discr_source
 
     def set_downsample(self, value: int) -> None:
         self.downsample = value
