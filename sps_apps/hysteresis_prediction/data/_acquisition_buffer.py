@@ -26,7 +26,10 @@ log = logging.getLogger(__name__)
 
 
 def log_cycle(
-    msg: str, cycle: str, timestamp: Optional[Union[int, float]] = None
+    msg: str,
+    cycle: str,
+    timestamp: Optional[Union[int, float]] = None,
+    log_level: int = logging.DEBUG,
 ) -> None:
     if timestamp is None:
         timestamp_s = ""
@@ -35,7 +38,7 @@ def log_cycle(
             from_timestamp(timestamp, from_utc=True, unit="ns")
         )
 
-    log.debug(f"[{cycle}{timestamp_s}] " + msg)
+    log.log(log_level, f"[{cycle}{timestamp_s}] " + msg)
 
 
 def _cycle_buffer_str(buffer: Iterable[SingleCycleData]) -> str:
@@ -187,6 +190,7 @@ class AcquisitionBuffer:
                 "Cannot create new cycle data.",
                 cycle,
                 cycle_timestamp,
+                log_level=logging.WARNING,
             )
             return
 
@@ -196,15 +200,19 @@ class AcquisitionBuffer:
                 "Cannot create new cycle data.",
                 cycle,
                 cycle_timestamp,
+                log_level=logging.WARNING,
             )
             return
 
         if cycle_timestamp in self._cycles_next_index:
-            log.error(
+            log_cycle(
                 f"[{cycle}@{from_timestamp(cycle_timestamp)}] "
                 "Cycle data already exists in NEXT buffer. "
                 f"Shifting new cycle by "
-                f"{self._buffer_next[-1].num_samples * 1e6} ms."
+                f"{self._buffer_next[-1].num_samples * 1e6} ms.",
+                cycle,
+                cycle_timestamp,
+                log_level=logging.WARNING,
             )
 
             # return
@@ -292,12 +300,12 @@ class AcquisitionBuffer:
         else:
             log.warning(
                 f"Time discrepancy {time_descr} ms between last cycle in "
-                "NEXT buffer and started cycle is not the same, and "
+                "NEXT buffer and started cycle is not the 0, and "
                 f"greater than 5 ms: {last_cycle} -> "
                 f"{cycle}@{from_timestamp(cycle_timestamp)}."
             )
             log.debug(
-                "Current buffer state:\nNEXT"
+                "Current buffer state:\nNEXT\n"
                 + debug_msg(self._buffer_next)
                 + "\n\nBUFFER\n"
                 + debug_msg(self._buffer)

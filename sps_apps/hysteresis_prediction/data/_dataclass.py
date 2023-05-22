@@ -24,7 +24,7 @@ class SingleCycleData:
     cycle_time: datetime = field(init=False)
 
     """ The cycle timestamp in UTC, and ns. """
-    cycle_timestamp: int
+    cycle_timestamp: float
 
     """ Cycle length, in ms. This corresponds to number of samples. """
     cycle_length: int = field(init=False)

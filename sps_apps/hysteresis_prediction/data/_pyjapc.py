@@ -61,6 +61,8 @@ class SubscriptionCallback:
         self._context = CompositeContext(TimingSelector(selector))
         self._query = PropertyAccessQuery(self._endpoint, self._context)
 
+        self.handle: Any = None
+
     def on_value_received(
         self, param_name: str, value: dict[str, Any], header: dict[str, Any]
     ) -> None:
@@ -127,13 +129,14 @@ class PyJapc2Pyda:
     ) -> SubscriptionCallback:
         sub_callback = SubscriptionCallback(endpoint, context, callback)
         try:
-            self._pyjapc.subscribeParam(
+            handle = self._pyjapc.subscribeParam(
                 endpoint,
                 onValueReceived=sub_callback.on_value_received,  # type: ignore
                 onException=sub_callback.on_exception_received,
                 timingSelectorOverride=context,
                 getHeader=True,
             )
+            sub_callback.handle = handle
         except JavaException:
             raise
 
@@ -143,17 +146,23 @@ class PyJapc2Pyda:
 def pyjapc_acq_to_pyda(
     results: Any, header: dict[str, Union[str, datetime, bool]]
 ) -> AcquiredPropertyData:
-    def datetime_to_ns(d: Optional[datetime]) -> Union[float, None]:
+    def datetime_to_ns(d: Optional[datetime]) -> float:
         assert d is not None
 
         if d.timestamp() == 0.0:
-            return None
+            return 0.0
         else:
             return d.timestamp() * 1e9
 
+    acq_time = header.get("acqStamp")
+    cycle_time = header.get("cycleStamp")
+
+    assert isinstance(acq_time, (datetime, type(None)))
+    assert isinstance(cycle_time, (datetime, type(None)))
+
     pyda_header = RetrievalHeader(
-        acquisition_timestamp=datetime_to_ns(header.get("acqStamp")),  # noqa
-        cycle_timestamp=datetime_to_ns(header.get("cycleStamp")),  # noqa
+        acquisition_timestamp=datetime_to_ns(acq_time),
+        cycle_timestamp=datetime_to_ns(cycle_time),
         set_timestamp=datetime_to_ns(header.get("setStamp")),  # type: ignore
         selector=header.get("selector"),  # type: ignore
     )

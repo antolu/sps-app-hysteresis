@@ -188,6 +188,10 @@ class Acquisition:
             log.exception("Error while setting up subscriptions.")
             return
 
+        for name, sub in self._subscribe_handles.items():
+            log.debug(f"Starting subscription {name}.")
+            sub.handle.startMonitoring()
+
         try:
             async for response in AsyncIOClient.merge_subscriptions(*handles):
                 if self._stop_execution:
