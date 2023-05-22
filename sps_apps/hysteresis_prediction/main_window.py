@@ -15,6 +15,7 @@ from .inference import Inference
 from .settings import context
 from .widgets import ModelLoadDialog, PlotModel
 from .widgets.plot_settings_widget import AppStatus
+from .widgets.status_tracker import StatusManager
 
 log = logging.getLogger(__name__)
 
@@ -43,6 +44,8 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         self._acquisition = Acquisition(min_buffer_size=BUFFER_SIZE)
         self._inference = Inference(parent=self)
+
+        self._status_manager = StatusManager(self)
 
         plot_model = PlotModel(self._acquisition, parent=self)
         self.widgetPlot.model = plot_model
@@ -85,32 +88,39 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         # status messages
         self.widgetSettings.toggle_predictions.connect(
-            lambda enabled, *_: self.widgetSettings.status_changed.emit(
-                AppStatus.INFERENCE_IDLE
+            lambda enabled, *_: self._status_manager.statusChanged.emit(
+                AppStatus.INFERENCE_ENABLED
                 if enabled
                 else AppStatus.INFERENCE_DISABLED
             )
         )
         self._inference.model_loaded.connect(
-            lambda *_: self.widgetSettings.status_changed.emit(
-                AppStatus.BUFFER_WAITING
-                if len(self._acquisition.buffer) < BUFFER_SIZE
-                else AppStatus.INFERENCE_IDLE
+            lambda *_: self._status_manager.statusChanged.emit(
+                AppStatus.MODEL_LOADED
             )
         )
         self._inference.started.connect(
-            lambda *_: self.widgetSettings.status_changed.emit(
+            lambda *_: self.widgetSettings.statusChanged.emit(
                 AppStatus.INFERENCE_RUNNING
             )
         )
         self._inference.completed.connect(
-            lambda *_: self.widgetSettings.status_changed.emit(
+            lambda *_: self.widgetSettings.statusChanged.emit(
                 AppStatus.INFERENCE_IDLE
             )
         )
-        # TODO: add internal status saving with the enum
+        self._status_manager.setStatus.connect(
+            self.widgetSettings.status_changed.emit
+        )
+        self._acquisition.buffer.buffer_size_changed.connect(
+            lambda size, *_: self._status_manager.emit(
+                AppStatus.BUFFER_WAITING
+                if size < BUFFER_SIZE
+                else AppStatus.BUFFER_FULL
+            )
+        )
 
-        self.widgetSettings.status_changed.emit(AppStatus.NO_MODEL)
+        self._status_manager.statusChanged.emit(AppStatus.NO_MODEL)
         self._acquisition.run()
 
     def on_load_model_triggered(self) -> None:

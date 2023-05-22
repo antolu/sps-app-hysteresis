@@ -50,7 +50,7 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
         self.timespan_changed.emit(self.spinBoxTimespan.value(), 0)
 
     @run_in_main_thread
-    def _on_new_status(self, status: AppStatus):
+    def _on_new_status(self, status: AppStatus) -> None:
         message = LOG_MESSAGES[status]
         self.labelStatus.setText(message)
 

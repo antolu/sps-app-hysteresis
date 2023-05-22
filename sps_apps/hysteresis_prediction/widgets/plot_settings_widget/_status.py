@@ -14,8 +14,11 @@ __all__ = ["AppStatus", "LOG_MESSAGES"]
 
 class AppStatus(Enum):
     NO_MODEL = auto()
+    MODEL_LOADED = auto()
     BUFFER_WAITING = auto()
+    BUFFER_FULL = auto()
     INFERENCE_DISABLED = auto()
+    INFERENCE_ENABLED = auto()
     INFERENCE_IDLE = auto()
     INFERENCE_RUNNING = auto()
 
