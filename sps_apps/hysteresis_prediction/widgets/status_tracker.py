@@ -50,8 +50,8 @@ class StatusManager(QObject):
                 if AppStatus.BUFFER_WAITING in self._current_state:
                     self.setStatus.emit(AppStatus.BUFFER_WAITING)
                 else:
-                    self.setStatus.emit(status)
-            if AppStatus.INFERENCE_IDLE in self._previous_status:
+                    self.setStatus.emit(AppStatus.INFERENCE_IDLE)
+            if AppStatus.INFERENCE_IDLE in self._current_state:
                 self.setStatus.emit(AppStatus.INFERENCE_IDLE)
 
         elif status == AppStatus.INFERENCE_DISABLED:
@@ -61,7 +61,7 @@ class StatusManager(QObject):
 
         elif status == AppStatus.BUFFER_WAITING:
             if AppStatus.BUFFER_FULL in self._current_state:
-                self._previous_status.remove(AppStatus.BUFFER_FULL)
+                self._current_state.remove(AppStatus.BUFFER_FULL)
 
         elif status == AppStatus.BUFFER_FULL:
             if AppStatus.BUFFER_WAITING in self._current_state:
@@ -86,7 +86,6 @@ class StatusManager(QObject):
                 self.setStatus.emit(AppStatus.BUFFER_WAITING)
 
         elif status == AppStatus.NO_MODEL:  # start of application
-            self._previous_status.clear()
             self._current_state.clear()
             self._current_state.add(AppStatus.NO_MODEL)
             self._current_state.add(AppStatus.INFERENCE_DISABLED)
