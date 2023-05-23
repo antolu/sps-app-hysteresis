@@ -395,16 +395,13 @@ class Acquisition:
                 "Fetching LSA programs."
             )
 
+            selector = self._lsa_to_pls[cycle]
             try:
                 self._handle_acquisition(
-                    self._japc.get(
-                        DEV_LSA_I, context=str(response.query.context)
-                    )
+                    self._japc.get(DEV_LSA_I, context=selector)
                 )
                 self._handle_acquisition(
-                    self._japc.get(
-                        DEV_LSA_B, context=str(response.query.context)
-                    )
+                    self._japc.get(DEV_LSA_B, context=selector)
                 )
             except:  # noqa: broad-except
                 log.exception("Error fetching LSA programs.")
