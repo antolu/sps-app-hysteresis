@@ -33,6 +33,7 @@ from ._acquisition_buffer import (
     BufferSignal,
     InsufficientDataError,
 )
+from ._cycle_to_tgm import LSAContexts
 from ._dataclass import SingleCycleData
 from ._pyjapc import PyJapc2Pyda, PyJapcEndpoint, SubscriptionCallback
 
@@ -85,6 +86,9 @@ class Acquisition:
     supercycle_started: Signal  # int, str
     supercycle_changed: Signal  # no argument
 
+    new_measured_data: Signal  # SingleCycleData
+    new_programmed_cycle: Signal  # SingleCycleData
+
     def __init__(
         self,
         min_buffer_size: int = 300000,
@@ -112,10 +116,6 @@ class Acquisition:
             min_buffer_size, buffer_only_measured=buffer_only_measured
         )
 
-        self._pls_to_lsa: dict[str, str] = {}
-        self._lsa_to_pls: dict[str, str] = {}
-        self._current_supercycle: int | None = None
-
         self._async_handles: dict[str, AsyncIOSubscription] = {}
         self._subscribe_handles: dict[str, SubscriptionCallback] = {}
         self._main_task: Optional[asyncio.Task] = None
@@ -132,14 +132,27 @@ class Acquisition:
             )
             japc_provider = JapcProvider(rbac_token=token)
 
+        # Get mapped contextd
+        self._pls_to_lsa: dict[str, str]
+        self._lsa_to_pls: dict[str, str]
+        self._current_supercycle: int | None = None
+
+        self._lsa_contexts = LSAContexts(machine="SPS")
+        self._lsa_contexts.update()
+
+        self._pls_to_lsa = self._lsa_contexts.pls_to_lsa
+        self._lsa_to_pls = self._lsa_contexts.lsa_to_pls
+
         self._stop_execution = False
 
+        # set up PyDA and PyJApc
         self._japc_simple = SimpleClient(provider=japc_provider)
         self._japc_async = AsyncIOClient(provider=japc_provider)
         japc = PyJapc(incaAcceleratorName="SPS", selector="SPS.USER.ALL")
         japc.rbacLogin()
         self._japc = PyJapc2Pyda(japc)
 
+        # Initialize signals, but don't start them
         self.data_acquired = Signal(PropertyRetrievalResponse)
         self.new_buffer_data = Signal(list[SingleCycleData])
         self.cycle_mapping_changed = Signal(str)  # LSA cycle name
@@ -148,6 +161,7 @@ class Acquisition:
         self.supercycle_started = Signal(int, str)  # ID, name
         self.supercycle_changed = Signal()
 
+        # add buffer signals
         self.new_measured_data = self._buffer.new_measured_data
         self.new_programmed_cycle = self._buffer.new_programmed_cycle
         self.data_acquired.connect(self._handle_acquisition)
@@ -241,24 +255,6 @@ class Acquisition:
             self._japc_simple.get(START_SUPERCYCLE, context="")
         )
 
-        for _, endpoint, _ in pyda_subscriptions[4:]:
-            for selector in self._pls_to_lsa.keys():
-                log.debug(f"GET-ting values for {endpoint}@{selector}.")
-                self._handle_acquisition(
-                    self._japc_simple.get(
-                        PyJapcEndpoint.from_str(endpoint), context=selector
-                    ),
-                    allow_empty=True,
-                )
-
-        for _, endpoint, _ in pyjapc_subscriptions:
-            for selector in self._pls_to_lsa.keys():
-                log.debug(f"GET-ting values for {endpoint}@{selector}.")
-                self._handle_acquisition(
-                    self._japc.get(endpoint, context=selector),
-                    allow_empty=True,
-                )
-
         handle: Union[SubscriptionCallback, AsyncIOSubscription]
         log.debug("Subscribing to events.")
         for name, endpoint, selector in pyda_subscriptions:
@@ -300,11 +296,13 @@ class Acquisition:
 
         log.debug(f"Received acquisition event: {response.query.endpoint}.")
         if response.exception is not None:
-            if not allow_empty:
+            if not allow_empty and not str(response.exception).endswith(
+                "is not mapped to any context"
+            ):
                 log.error(
                     "An error occurred trying to access value of event: "
                     f"{response.query.endpoint}:"
-                    f"\n{str(response.exception)}"
+                    f"\n{str(response.exception)}."
                 )
             else:
                 log.debug("Empty response in event. Skipping it.")

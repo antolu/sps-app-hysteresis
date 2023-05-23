@@ -78,7 +78,7 @@ class SubscriptionCallback:
     def on_exception_received(
         self, param_name: str, exc_desc: str, exception: Any
     ) -> None:
-        err_prop = PropertyAccessError(exc_desc)
+        err_prop = PropertyAccessError(exception)
 
         prop_response = PropertyRetrievalResponse(
             self._query, exception=err_prop
@@ -112,6 +112,9 @@ class PyJapc2Pyda:
             value = pyjapc_acq_to_pyda(response, header)
             not_type = notification_type(header)
         except JavaException as e:
+            log.exception(
+                f"An error occurred while getting {endpoint}@{context}"
+            )
             exception = PropertyAccessError(str(e))
 
         return PropertyRetrievalResponse(
