@@ -113,7 +113,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self.widgetSettings.status_changed.emit
         )
         self._acquisition.buffer.buffer_size_changed.connect(
-            lambda size, *_: self._status_manager.emit(
+            lambda size, *_: self._status_manager.statusChanged.emit(
                 AppStatus.BUFFER_WAITING
                 if size < BUFFER_SIZE
                 else AppStatus.BUFFER_FULL

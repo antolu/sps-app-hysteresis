@@ -21,7 +21,9 @@ class StatusManager(QObject):
 
         self._current_state: set[AppStatus] = set()
 
-    def _on_status_changed(self, status: AppStatus) -> None:
+        self.statusChanged.connect(self._on_status_changed)
+
+    def _on_status_changed(self, status: AppStatus) -> None:  # noqa: C901
         """
         Update the status and emit a signal if it has changed.
         """
