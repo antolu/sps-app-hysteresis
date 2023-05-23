@@ -298,7 +298,7 @@ class Acquisition:
         log.debug(f"Received acquisition event: {response.query.endpoint}.")
         if response.exception is not None:
             if not allow_empty and not str(response.exception).endswith(
-                "is not mapped to any context"
+                "is not mapped to any context."
             ):
                 log.error(
                     "An error occurred trying to access value of event: "
@@ -397,10 +397,14 @@ class Acquisition:
 
             try:
                 self._handle_acquisition(
-                    self._japc.get(DEV_LSA_I, context=f"SPS.CYCLE.{cycle}")
+                    self._japc.get(
+                        DEV_LSA_I, context=str(response.query.context)
+                    )
                 )
                 self._handle_acquisition(
-                    self._japc.get(DEV_LSA_B, context=f"SPS.CYCLE.{cycle}")
+                    self._japc.get(
+                        DEV_LSA_B, context=str(response.query.context)
+                    )
                 )
             except:  # noqa: broad-except
                 log.exception("Error fetching LSA programs.")

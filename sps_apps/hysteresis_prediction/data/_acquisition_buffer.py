@@ -61,6 +61,9 @@ class BufferSignal(Enum):
     FOREWARNING = "forewarning"
 
 
+FOREWARNING = 2500
+
+
 class InsufficientDataError(Exception):
     pass
 
@@ -218,21 +221,36 @@ class AcquisitionBuffer:
             return
 
         if cycle_timestamp in self._cycles_next_index:
+            """
+            This should never happen, but does happen on duplicated cycles
+            in the current TGM configuration.
+            """
             log_cycle(
                 f"[{cycle}@{from_timestamp(cycle_timestamp)}] "
                 "Cycle data already exists in NEXT buffer. "
-                f"Shifting new cycle by "
-                f"{self._buffer_next[-1].num_samples * 1e6} ms.",
+                "Shifting data...",
+                cycle,
+                cycle_timestamp,
+            )
+
+            conflicting_cycle = self._cycles_next_index[cycle_timestamp]
+            index = self._buffer_next.index(conflicting_cycle)
+
+            base_timestamp = conflicting_cycle.cycle_timestamp
+            for i in range(len(self._buffer_next), index, -1):
+                base_timestamp += self._buffer_next[i - 1].num_samples * int(
+                    1e6
+                )
+
+            orig_cycle_timestamp = cycle_timestamp
+            cycle_timestamp = base_timestamp
+
+            log_cycle(
+                "Shifted cycle timestamp "
+                f"{orig_cycle_timestamp} -> {cycle_timestamp}",
                 cycle,
                 cycle_timestamp,
                 log_level=logging.WARNING,
-            )
-
-            # return
-            # below is only a fix for FCY cycle timestamp being incorrect
-            prev_cycle = self._buffer_next[-1]
-            cycle_timestamp = (
-                prev_cycle.cycle_timestamp + prev_cycle.num_samples * int(1e6)
             )
 
         cycle_data = SingleCycleData(
