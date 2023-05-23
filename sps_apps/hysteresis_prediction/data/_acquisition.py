@@ -121,6 +121,7 @@ class Acquisition:
         self._main_task: Optional[asyncio.Task] = None
 
         if japc_provider is None:
+            assert AuthenticationClient is not None
             rbac_client = AuthenticationClient.create()
             log.info(
                 "JapcProvider not provided, logging into RBAC by location."
