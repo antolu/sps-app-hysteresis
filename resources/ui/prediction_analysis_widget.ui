@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>957</width>
+    <width>1023</width>
     <height>564</height>
    </rect>
   </property>
@@ -18,7 +18,7 @@
     <widget class="QFrame" name="frame">
      <property name="maximumSize">
       <size>
-       <width>300</width>
+       <width>250</width>
        <height>16777215</height>
       </size>
      </property>
@@ -48,7 +48,7 @@
        <number>0</number>
       </property>
       <item>
-       <widget class="LsaSelector" name="LsaSelector" native="true">
+       <widget class="LsaSelector" name="LsaSelector">
         <property name="maximumSize">
          <size>
           <width>400</width>
@@ -287,6 +287,21 @@
          <enum>QFrame::Raised</enum>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_4">
+         <property name="spacing">
+          <number>2</number>
+         </property>
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
          <item>
           <widget class="QLabel" name="label">
            <property name="text">
@@ -314,9 +329,25 @@
          <item>
           <widget class="QRadioButton" name="radioButton_3">
            <property name="text">
-            <string>Subtract reference</string>
+            <string>dp/p</string>
            </property>
           </widget>
+         </item>
+         <item>
+          <spacer name="verticalSpacer_2">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeType">
+            <enum>QSizePolicy::Preferred</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
          </item>
          <item>
           <widget class="QPushButton" name="pushButton">
@@ -351,13 +382,6 @@
         </property>
        </widget>
       </item>
-      <item row="4" column="0">
-       <widget class="QLabel" name="labelYAxis">
-        <property name="text">
-         <string>Y-axis</string>
-        </property>
-       </widget>
-      </item>
       <item row="4" column="1">
        <widget class="QDoubleSpinBox" name="spinBoxYMax">
         <property name="enabled">
@@ -372,6 +396,13 @@
         </property>
        </widget>
       </item>
+      <item row="4" column="0" rowspan="2">
+       <widget class="QLabel" name="labelYAxis">
+        <property name="text">
+         <string>Y-axis</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
@@ -382,17 +413,6 @@
    </property>
    <property name="toolTip">
     <string>Clear buffered predictions</string>
-   </property>
-  </action>
-  <action name="actionShow_GT">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>&amp;Show Ground Truth</string>
-   </property>
-   <property name="toolTip">
-    <string>Show ground truth field together with predicted field</string>
    </property>
   </action>
   <action name="actionExport_Predictions">
