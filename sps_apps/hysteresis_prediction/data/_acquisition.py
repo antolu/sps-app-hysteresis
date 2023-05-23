@@ -78,6 +78,13 @@ from_utc_ns: Callable[[Union[int, float]], datetime] = partial(
 
 
 class Acquisition:
+    data_acquired: Signal  # PropertyRetrievalResponse
+    new_buffer_data: Signal  # list[SingleCycleData]
+    cycle_mapping_changed: Signal  # str
+    cycle_started: Signal  # str, str, int
+    supercycle_started: Signal  # int, str
+    supercycle_changed: Signal  # no argument
+
     def __init__(
         self,
         min_buffer_size: int = 300000,
@@ -107,6 +114,7 @@ class Acquisition:
 
         self._pls_to_lsa: dict[str, str] = {}
         self._lsa_to_pls: dict[str, str] = {}
+        self._current_supercycle: int | None = None
 
         self._async_handles: dict[str, AsyncIOSubscription] = {}
         self._subscribe_handles: dict[str, SubscriptionCallback] = {}
@@ -136,6 +144,9 @@ class Acquisition:
         self.new_buffer_data = Signal(list[SingleCycleData])
         self.cycle_mapping_changed = Signal(str)  # LSA cycle name
         self.cycle_started = Signal(str, str, float)  # PLS, LSA, timestamp
+
+        self.supercycle_started = Signal(int, str)  # ID, name
+        self.supercycle_changed = Signal()
 
         self.new_measured_data = self._buffer.new_measured_data
         self.new_programmed_cycle = self._buffer.new_programmed_cycle
@@ -280,7 +291,7 @@ class Acquisition:
                 "Received first update for "
                 f"{response.query.endpoint}@{response.query.context}. "
             )
-            if str(response.query.endpoint) != DEV_LSA_I:
+            if str(response.query.endpoint) not in (DEV_LSA_I, DEV_LSA_B):
                 msg += "Discarding it."
                 log.debug(msg)
                 return
@@ -348,6 +359,7 @@ class Acquisition:
                 log.error(f"Received event with no data from {endpoint}.")
                 return
 
+            assert cycle_timestamp is not None
             self._buffer.dispatch_data(
                 ENDPOINT2BF[endpoint], cycle, cycle_timestamp, data
             )
@@ -407,10 +419,13 @@ class Acquisition:
         mappings_changed = []
 
         def parse_mappings(
-            users: Iterable[str], cycles: Iterable[str]
+            users: Iterable[str] | None, cycles: Iterable[str] | None
         ) -> tuple[dict[str, str], dict[str, str]]:
             lsa_to_pls = {}
             pls_to_lsa = {}
+
+            if users is None or cycles is None:
+                raise ValueError("Neither users and cycles can be None.")
 
             for user, cycle in zip(users, cycles):
                 user = "SPS.USER." + user
@@ -474,3 +489,13 @@ class Acquisition:
             )
             for user in mappings_changed:
                 self.cycle_mapping_changed.emit(new_pls_to_lsa[user])
+
+        supercycle_id = value["bcdId"]
+        supercycle_name = value["bcdName"]
+
+        log.debug(f"Supercycle {supercycle_id} ({supercycle_name}) started.")
+        if supercycle_id != self._current_supercycle:
+            self.supercycle_started.emit(supercycle_id, supercycle_name)
+            self.supercycle_changed.emit()
+
+            self._current_supercycle = supercycle_id
