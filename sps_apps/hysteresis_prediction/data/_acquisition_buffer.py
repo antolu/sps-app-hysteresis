@@ -169,7 +169,10 @@ class AcquisitionBuffer:
             return
 
     def new_cycle(
-        self, cycle: str, cycle_timestamp: Union[int, float]
+        self,
+        cycle: str,
+        cycle_timestamp: Union[int, float],
+        user: str,
     ) -> None:
         """
         Called when a new cycle is started (or is going to start).
@@ -223,7 +226,11 @@ class AcquisitionBuffer:
             )
 
         cycle_data = SingleCycleData(
-            cycle, cycle_timestamp, self._i_prog[cycle], self._b_prog[cycle]
+            cycle,
+            user,
+            cycle_timestamp,
+            self._i_prog[cycle],
+            self._b_prog[cycle],
         )
         if cycle in self._b_ref:
             log_cycle("Adding reference field.", cycle, cycle_timestamp)

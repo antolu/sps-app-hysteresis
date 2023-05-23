@@ -373,7 +373,7 @@ class Acquisition:
             "start. Notifying buffer."
         )
 
-        self.buffer.new_cycle(cycle, cycle_timestamp)
+        self.buffer.new_cycle(cycle, cycle_timestamp, self._lsa_to_pls[cycle])
 
         log.debug("Query buffer for latest buffered data.")
 

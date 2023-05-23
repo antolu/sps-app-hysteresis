@@ -16,34 +16,36 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class SingleCycleData:
+    cycle: str
     """LSA cycle name"""
 
-    cycle: str
+    user: str
+    """ Timing user """
 
-    """The cycle timestamp converted to datetime in localtime. """
     cycle_time: datetime = field(init=False)
+    """The cycle timestamp converted to datetime in localtime. """
 
-    """ The cycle timestamp in UTC, and ns. """
     cycle_timestamp: float
+    """ The cycle timestamp in UTC, and ns. """
 
-    """ Cycle length, in ms. This corresponds to number of samples. """
     cycle_length: int = field(init=False)
+    """ Cycle length, in ms. This corresponds to number of samples. """
 
-    """ Programmed current and field """
     current_prog: np.ndarray
     field_prog: np.ndarray
+    """ Programmed current and field """
 
     current_input: np.ndarray = field(init=False)  # input current to NN
 
-    """ The reference data to compare against, set externally """
     field_ref: Optional[np.ndarray] = None  # reference field
+    """ The reference data to compare against, set externally """
 
-    """ The predicted field """
     field_pred: Optional[np.ndarray] = None
+    """ The predicted field """
 
-    """ The data for these fields arrives after cycle is played """
     current_meas: Optional[np.ndarray] = None
     field_meas: Optional[np.ndarray] = None
+    """ The data for these fields arrives after cycle is played """
 
     num_samples: int = field(init=False)
 
