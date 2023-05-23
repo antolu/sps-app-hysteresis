@@ -41,10 +41,10 @@ class PlotModel(QObject):
         self._field_predict_source = CurrentFieldSource(
             AcquiredDataType.PredictedField, downsample=downsample
         )
-        self._field_ref_discr_source = CurrentFieldSource(
+        self._field_ref_dpp_source = CurrentFieldSource(
             AcquiredDataType.PredictedField, downsample=downsample
         )
-        self._field_meas_discr_source = CurrentFieldSource(
+        self._field_meas_dpp_source = CurrentFieldSource(
             AcquiredDataType.PredictedField, downsample=downsample
         )
 
@@ -75,9 +75,14 @@ class PlotModel(QObject):
             )
 
             if cycle_data.field_pred is not None:
-                self._field_meas_discr_source.new_value(
+                dpp = (
+                    (cycle_data.field_meas - cycle_data.field_pred)
+                    / cycle_data.field_meas
+                    * 1e4
+                )
+                self._field_meas_dpp_source.new_value(
                     cycle_data.cycle_timestamp,
-                    cycle_data.field_meas - cycle_data.field_pred,
+                    dpp,
                 )
 
         except Exception:  # noqa: broad-except
@@ -111,9 +116,13 @@ class PlotModel(QObject):
 
             if cycle_data.field_ref is not None:
                 log.debug(f"Plotting field diff for cycle {cycle_data.cycle}")
-                discr = cycle_data.field_ref - predicted
-                self._field_ref_discr_source.new_value(
-                    cycle_data.cycle_timestamp, discr
+                dpp = (
+                    (cycle_data.field_ref - predicted)
+                    / cycle_data.field_ref
+                    * 1e4
+                )
+                self._field_ref_dpp_source.new_value(
+                    cycle_data.cycle_timestamp, dpp
                 )
         except Exception:  # noqa: broad-except
             log.exception(
@@ -142,12 +151,12 @@ class PlotModel(QObject):
         return self._field_predict_source
 
     @property
-    def field_ref_discr_source(self) -> CurrentFieldSource:
-        return self._field_ref_discr_source
+    def field_ref_dpp_source(self) -> CurrentFieldSource:
+        return self._field_ref_dpp_source
 
     @property
-    def field_meas_discr_source(self) -> CurrentFieldSource:
-        return self._field_meas_discr_source
+    def field_meas_dpp_source(self) -> CurrentFieldSource:
+        return self._field_meas_dpp_source
 
     @property
     def downsample(self) -> int:
@@ -167,8 +176,8 @@ class PlotModel(QObject):
         self._current_prog_source.downsample = value
         self._field_prog_source.downsample = value
         self._field_predict_source.downsample = value
-        self._field_ref_discr_source.downsample = value
-        self._field_meas_discr_source
+        self._field_ref_dpp_source.downsample = value
+        self._field_meas_dpp_source
 
     def set_downsample(self, value: int) -> None:
         self.downsample = value

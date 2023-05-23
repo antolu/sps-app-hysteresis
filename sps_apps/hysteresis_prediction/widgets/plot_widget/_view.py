@@ -132,16 +132,16 @@ class PlotWidget(QWidget):
             name="Predicted B",
         )
         field_ref_disc = self.plotDiscr.addCurve(
-            data_source=model.field_ref_discr_source,
+            data_source=model.field_ref_dpp_source,
             pen=pg.mkPen(color="#BFBFBF", width=2),
-            unit="T",
-            name="Ref. B - Pred. B",
+            unit="E-4",
+            name="dp/p w.r.t. Ref.",
         )
         field_meas_discr = self.plotDiscr.addCurve(
-            data_source=model.field_meas_discr_source,
+            data_source=model.field_meas_dpp_source,
             pen=pg.mkPen(color="#1F5673", width=2),
-            unit="T",
-            name="Meas. B - Pred. B",
+            unit="E-4",
+            name="dp/p w.r.t. Meas.",
         )
 
         for curve in (current_meas, field_meas, current_prog, field_pred):
