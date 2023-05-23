@@ -334,10 +334,15 @@ class Acquisition:
             self._on_forewarning(response)
             return
         if cycle is None:
-            log.error(
+            msg = (
                 "Received event from timing user not mapped in supercycle: "
                 f"{value.header.selector}."
             )
+            if response.notification_type == "FIRST_UPDATE":
+                log.debug("First update: " + msg)
+            else:
+                log.error(msg)
+
             return
 
         if endpoint in ENDPOINT2SIG:
@@ -348,7 +353,7 @@ class Acquisition:
                 self.cycle_started.emit(selector, cycle, cycle_timestamp)
 
             self._buffer.dispatch_signal(
-                ENDPOINT2SIG[endpoint], cycle, cycle_timestamp
+                ENDPOINT2SIG[endpoint], cycle, cycle_timestamp, selector
             )
             return
         elif endpoint in ENDPOINT2BF:
@@ -384,6 +389,23 @@ class Acquisition:
             f"Cycle {cycle} at {from_utc_ns(cycle_timestamp)} is about to "
             "start. Notifying buffer."
         )
+
+        if cycle not in self.buffer.known_cycles:
+            log.debug(
+                f"Cycle {cycle} is not known to the buffer. "
+                "Fetching LSA programs."
+            )
+
+            try:
+                self._handle_acquisition(
+                    self._japc.get(DEV_LSA_I, context=f"SPS.CYCLE.{cycle}")
+                )
+                self._handle_acquisition(
+                    self._japc.get(DEV_LSA_B, context=f"SPS.CYCLE.{cycle}")
+                )
+            except:  # noqa: broad-except
+                log.exception("Error fetching LSA programs.")
+                return
 
         self.buffer.new_cycle(cycle, cycle_timestamp, self._lsa_to_pls[cycle])
 

@@ -8,7 +8,7 @@ import logging
 from collections import deque
 from enum import Enum
 from threading import Lock
-from typing import Iterable, Optional, Union
+from typing import Callable, Iterable, Optional, Union
 
 import numpy as np
 
@@ -87,6 +87,8 @@ class AcquisitionBuffer:
         self._buffer: deque[SingleCycleData] = deque()
         self._buffer_next: deque[SingleCycleData] = deque()
 
+        self._known_cycles: set[str] = set()  # LSA cycles the buffer has seen
+
         # maps cycle time(stamp) to data
         self._cycles_index: dict[Union[int, float], SingleCycleData] = {}
         self._cycles_next_index: dict[Union[int, float], SingleCycleData] = {}
@@ -98,7 +100,9 @@ class AcquisitionBuffer:
 
         self._lock = Lock()
 
-        self.DISPATCH_MAP = {
+        self.DISPATCH_MAP: dict[
+            BufferData, Callable[[str, int | float, np.ndarray], None]
+        ] = {
             BufferData.MEAS_I: self._new_measured_I,
             BufferData.MEAS_B: self._new_measured_B,
             BufferData.PROG_I: self._new_programmed_I,
@@ -106,14 +110,20 @@ class AcquisitionBuffer:
             BufferData.REF_B: self._new_reference_B,
         }
 
-        self._SIGNAL_MAP = {
+        self._SIGNAL_MAP: dict[
+            BufferSignal, Callable[[str, int | float, str], None]
+        ] = {
             BufferSignal.CYCLE_START: self.on_start_cycle,
             BufferSignal.DYNECO: self._handle_dyneco,
             BufferSignal.FOREWARNING: self.new_cycle,
         }
 
+    @property
+    def known_cycles(self) -> set[str]:
+        return self._known_cycles
+
     def dispatch_signal(
-        self, dest: BufferSignal, cycle: str, cycle_timestamp: float
+        self, dest: BufferSignal, cycle: str, cycle_timestamp: float, user: str
     ) -> None:
         """
         Dispatches the signal to the appropriate method. This method is
@@ -132,7 +142,7 @@ class AcquisitionBuffer:
             return
 
         try:
-            self._SIGNAL_MAP[dest](cycle, cycle_timestamp)
+            self._SIGNAL_MAP[dest](cycle, cycle_timestamp, user)
         except Exception:
             log.exception(f"Error while dispatching signal to {dest}.")
             return
@@ -256,7 +266,7 @@ class AcquisitionBuffer:
         self.new_programmed_cycle.emit(cycle_data)
 
     def on_start_cycle(
-        self, cycle: str, cycle_timestamp: Union[int, float]
+        self, cycle: str, cycle_timestamp: Union[int, float], user: str
     ) -> None:
         """
         This method is implemented only to cope with the timing cycle
@@ -322,7 +332,7 @@ class AcquisitionBuffer:
         log.warning("Don't know what to do here.")
 
     def _handle_dyneco(
-        self, cycle: str, cycle_timestamp: Union[int, float]
+        self, cycle: str, cycle_timestamp: Union[int, float], user: str
     ) -> None:
         """
         This method handles the dynamic / partial economy timing information.
@@ -618,6 +628,9 @@ class AcquisitionBuffer:
                 self._i_ref.pop(cycle)
 
             return
+
+        if cycle not in self._known_cycles:
+            self._known_cycles.add(cycle)
 
         if cycle not in self._i_prog or self._i_prog[cycle] is None:
             log_cycle("Programmed current has not yet been set.", cycle)
