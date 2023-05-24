@@ -47,7 +47,7 @@ class StatusManager(QObject):
 
         elif status == AppStatus.INFERENCE_ENABLED:
             if AppStatus.INFERENCE_DISABLED in self._current_state:
-                self._previous_status.remove(AppStatus.INFERENCE_DISABLED)
+                self._current_state.remove(AppStatus.INFERENCE_DISABLED)
 
                 if AppStatus.BUFFER_WAITING in self._current_state:
                     self.setStatus.emit(AppStatus.BUFFER_WAITING)
@@ -74,6 +74,8 @@ class StatusManager(QObject):
                     self.setStatus.emit(AppStatus.INFERENCE_IDLE)
                 else:
                     self.setStatus.emit(AppStatus.INFERENCE_DISABLED)
+            if AppStatus.MODEL_LOADED not in self._current_state:
+                self.setStatus.emit(AppStatus.NO_MODEL)
 
         elif status == AppStatus.MODEL_LOADED:
             self._current_state.add(status)
@@ -96,4 +98,4 @@ class StatusManager(QObject):
         else:
             raise NotImplementedError(f"Unknown status: {status}")
 
-        self._previous_status.add(status)
+        self._current_state.add(status)

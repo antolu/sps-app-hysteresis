@@ -100,12 +100,12 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             )
         )
         self._inference.started.connect(
-            lambda *_: self.widgetSettings.statusChanged.emit(
+            lambda *_: self._status_manager.statusChanged.emit(
                 AppStatus.INFERENCE_RUNNING
             )
         )
         self._inference.completed.connect(
-            lambda *_: self.widgetSettings.statusChanged.emit(
+            lambda *_: self._status_manager.statusChanged.emit(
                 AppStatus.INFERENCE_IDLE
             )
         )

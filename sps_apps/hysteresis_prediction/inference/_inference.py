@@ -11,9 +11,8 @@ import numpy as np
 import torch
 from qtpy.QtCore import QObject, Signal
 from sps_projects.hysteresis_compensation.data import PhyLSTMDataModule
-from sps_projects.hysteresis_compensation.models import PhyLSTMModule
+from sps_projects.hysteresis_compensation.models import PhyLSTM1, PhyLSTMModule
 from sps_projects.hysteresis_compensation.utils import PhyLSTM1Output, ops
-from torch import nn
 
 from ..data import SingleCycleData
 from ..utils import load_cursor
@@ -45,7 +44,7 @@ class Inference(QObject):
         self._ckpt_path: Optional[str] = None
         self._module: Optional[PhyLSTMModule] = None
         self._data_module: Optional[PhyLSTMDataModule] = None
-        self._model: Optional[nn.Module] = None
+        self._model: Optional[PhyLSTM1] = None
 
         self._lock = Lock()
         self._do_inference = False
@@ -146,7 +145,7 @@ class Inference(QObject):
             raise RuntimeError("No model loaded.")
 
         dataloader = self._data_module.make_dataloader(
-            input_current, num_workers=4, pin_memory=True
+            input_current, num_workers=4, pin_memory=False
         )
 
         assert self._fabric is not None
@@ -156,7 +155,7 @@ class Inference(QObject):
         hidden = None
         for batch in dataloader_f:
             model_output, hidden = self._model(
-                batch, hidden=hidden, return_states=True
+                batch["input"], hidden_state=hidden, return_states=True
             )
             predictions_raw.append(model_output)
 
@@ -165,14 +164,16 @@ class Inference(QObject):
             return np.array([])
 
         predictions_detached = ops.to_cpu(ops.detach(predictions_raw))
-        predictions: PhyLSTM1Output = ops.concatenate(predictions_detached)
+        predictions: PhyLSTM1Output = ops.concatenate(
+            *ops.squeeze(predictions_detached)
+        )
 
         log.debug(f"Raw predictions shape: {predictions['z'].shape}")
         log.debug("Running prediction postprocessing.")
         current = torch.cat(
             [batch["input"].squeeze() for batch in dataloader], dim=0
         ).numpy()
-        pred_field = predictions["z"].numpy()[:, 0]
+        pred_field = predictions["z"].numpy()[..., 0]
 
         current, pred_field = dataloader.dataset.truncate_arrays(
             current, pred_field
@@ -192,18 +193,23 @@ class Inference(QObject):
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            module = PhyLSTMModule.load_from_checkpoint(ckpt_path)
+            module = PhyLSTMModule.load_from_checkpoint(
+                ckpt_path, phylstm=1, strict=False
+            )
             self._data_module = PhyLSTMDataModule.load_from_checkpoint(
                 ckpt_path
             )
 
-        model = module._model
+        model = module.model
         module.eval()
         model.eval()
         assert model is not None
         log.debug("Compiling model.")
-        self._model = torch.compile(model)  # type: ignore
+        # self._model = torch.compile(model)  # type: ignore
+        self._model = model
         self._module = module
+
+        self._data_module.hparams["batch_size"] = 1
 
         log.info("Model loaded.")
 

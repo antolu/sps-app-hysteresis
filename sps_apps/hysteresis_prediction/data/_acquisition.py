@@ -155,7 +155,7 @@ class Acquisition:
 
         # Initialize signals, but don't start them
         self.data_acquired = Signal(PropertyRetrievalResponse)
-        self.new_buffer_data = Signal(list[SingleCycleData])
+        self.new_buffer_data = self._buffer.new_buffered_data
         self.cycle_mapping_changed = Signal(str)  # LSA cycle name
         self.cycle_started = Signal(str, str, float)  # PLS, LSA, timestamp
 
