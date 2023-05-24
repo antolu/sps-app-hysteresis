@@ -52,6 +52,9 @@ class Inference(QObject):
 
         self.load_model.connect(self.on_load_model)
 
+        self.started.connect(lambda: self._set_doing_inference(True))
+        self.completed.connect(lambda: self._set_doing_inference(False))
+
     def on_load_model(self, ckpt_path: str, device: str = "cpu") -> None:
         try:
             with self._lock and load_cursor():
@@ -79,54 +82,16 @@ class Inference(QObject):
         def wrapper() -> None:
             self.started.emit()
             # first check if all data has current set
-            for data in cycle_data:
-                if data.current_input is None:
-                    raise ValueError("Not all data has input current set.")
-
-            current_input = np.concatenate(
-                [data.current_input for data in cycle_data]
-            )
-
-            last_cycle = cycle_data[-1]
-            log.debug(f"Running prediction on {len(current_input)} samples.")
-
-            with self._lock:
-                self._doing_inference = True
-
             assert self._data_module is not None
             try:
-                start = time.time()
-                log.debug("Running inference.")
-                predictions = self.predict(
-                    current_input, last_cycle.num_samples
-                )
-                stop = time.time()
-                log.info("Inference took: %f s", stop - start)
+                predictions = self._predict_last_cycle(cycle_data)
+                last_cycle = cycle_data[-1]
 
-                # uppsample predictions to match the number of samples
-                time_axis = (
-                    np.arange(last_cycle.num_samples) / MS
-                    + last_cycle.cycle_timestamp / NS
-                )
-                predictions_upsampled = np.interp(
-                    time_axis,
-                    time_axis[
-                        :: self._data_module.hparams["downsample"]
-                    ],  # noqa
-                    predictions,
-                )
-                log.debug(
-                    f"Upsampled predictions to {len(predictions_upsampled)} "
-                    "samples."
-                )
-
-                last_cycle.field_pred = predictions_upsampled
-                self.cycle_predicted.emit(last_cycle, predictions_upsampled)
+                last_cycle.field_pred = predictions
+                self.cycle_predicted.emit(last_cycle, predictions)
             except:  # noqa: broad-except
                 log.exception("Inference failed.")
             finally:
-                with self._lock:
-                    self._doing_inference = False
                 self.completed.emit()
 
         log.debug("Starting inference inference in new thread.")
@@ -137,6 +102,18 @@ class Inference(QObject):
     def predict(
         self, input_current: np.ndarray, last_n_samples: Optional[int] = None
     ) -> np.ndarray:
+        """
+        Predict the field for the given input current.
+        Returns the predicted field for the last n samples.
+
+        :param input_current: The input current to predict the field for.
+        :param last_n_samples: Number of predicted samples to return. If None,
+            all predictions are returned.
+
+        :return: The predicted field.
+
+        :raises RuntimeError: If no model is loaded.
+        """
         if (
             self._module is None
             or self._data_module is None
@@ -184,7 +161,53 @@ class Inference(QObject):
             pred_field = pred_field[-last_n_samples:]
             log.debug(f"Truncated predictions to {len(pred_field)} samples.")
 
+        print(f"Dimension of predicted field: {pred_field.shape}")
         return pred_field
+
+    def _predict_last_cycle(self, cycle_data: list[SingleCycleData]):
+        """
+        Predict the field for the last cycle in the given data.
+
+        :param cycle_data: The data to predict the field for.
+
+        :return: The predicted field of the last cycle.
+
+        :raises ValueError: If not all data has input current set.
+        """
+        for data in cycle_data:
+            if data.current_input is None:
+                raise ValueError("Not all data has input current set.")
+
+        current_input = np.concatenate(
+            [data.current_input for data in cycle_data]
+        )
+
+        last_cycle = cycle_data[-1]
+        log.debug(f"Running prediction on {len(current_input)} samples.")
+
+        assert self._data_module is not None
+        start = time.time()
+        log.debug("Running inference.")
+        predictions = self.predict(current_input, last_cycle.num_samples)
+        stop = time.time()
+        log.info("Inference took: %f s", stop - start)
+
+        # upsample predictions to match the number of samples
+        time_axis = (
+            np.arange(last_cycle.num_samples) / MS
+            + last_cycle.cycle_timestamp / NS
+        )
+        predictions_upsampled = np.interp(
+            time_axis,
+            time_axis[:: self._data_module.hparams["downsample"]],  # noqa
+            predictions,
+        )
+        log.debug(
+            f"Upsampled predictions to {len(predictions_upsampled)} "
+            "samples."
+        )
+
+        return predictions_upsampled
 
     def _load_model(self, ckpt_path: str) -> None:
         self._ckpt_path = ckpt_path
@@ -238,3 +261,7 @@ class Inference(QObject):
     def set_do_inference(self, state: bool) -> None:
         with self._lock:
             self._do_inference = state
+
+    def _set_doing_inference(self, state: bool) -> None:
+        with self._lock:
+            self._doing_inference = state
