@@ -124,7 +124,7 @@ class Inference(QObject):
             raise RuntimeError("No model loaded.")
 
         dataloader = self._data_module.make_dataloader(
-            input_current, num_workers=4, pin_memory=False
+            input_current, num_workers=0, pin_memory=False, predict=True
         )
 
         assert self._fabric is not None
