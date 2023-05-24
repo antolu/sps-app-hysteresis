@@ -94,6 +94,8 @@ class Inference(QObject):
             finally:
                 self.completed.emit()
 
+            log.debug("Inference completed. Closing thread.")
+
         log.debug("Starting inference inference in new thread.")
         th = Thread(target=wrapper)
         th.start()
@@ -161,7 +163,6 @@ class Inference(QObject):
             pred_field = pred_field[-last_n_samples:]
             log.debug(f"Truncated predictions to {len(pred_field)} samples.")
 
-        print(f"Dimension of predicted field: {pred_field.shape}")
         return pred_field
 
     def _predict_last_cycle(self, cycle_data: list[SingleCycleData]):
@@ -264,4 +265,5 @@ class Inference(QObject):
 
     def _set_doing_inference(self, state: bool) -> None:
         with self._lock:
+            log.debug(f"Setting doing inference to {state}.")
             self._doing_inference = state
