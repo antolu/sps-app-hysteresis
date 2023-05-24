@@ -2,14 +2,10 @@ from __future__ import annotations
 
 import logging
 import pickle
-import time
 from pathlib import Path
-from signal import SIGINT, SIGTERM, signal
-from threading import Thread
-from traceback import print_exc
+from matplotlib import pyplot as plt
 
 import torch
-from qtpy.QtCore import QCoreApplication
 
 from sps_apps.hysteresis_prediction.data import SingleCycleData
 from sps_apps.hysteresis_prediction.inference import Inference
@@ -19,8 +15,8 @@ log = logging.getLogger()
 torch.set_float32_matmul_precision("high")
 
 
-INPUT_PATH = Path(__file__).parent / "output"
-CKPT_PATH: str = "model_every_epoch=3000_val_loss=193.24742126464844.pt"
+INPUT_PATH = Path(__file__).parent / "test_scripts" / "output"
+CKPT_PATH: str = "phylstm_checkpoint.ckpt"
 
 
 def load_buffers() -> list[list[SingleCycleData]]:
@@ -49,52 +45,40 @@ def setup_logging() -> None:
     log.addHandler(ch)
 
 
-class ThreadWrapper:
-    def __init__(
-        self,
-        inference: Inference,
-        buffers: list[list[SingleCycleData]],
-        app: QCoreApplication,
-    ) -> None:
-        self._inference = inference
-        self._buffers = buffers
-        self._app = app
+def plot_predictions(
+    cycle_data: SingleCycleData, predictions: torch.Tensor
+) -> None:
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6))
 
-    def run(self) -> None:
-        time.sleep(5)  # wait for event loop to start
+    ax1.plot(cycle_data.current_input, label="True", c="k")
+    ax11 = ax1.twinx()
+    ax11.plot(cycle_data.field_meas, label="True", c="b")
+    ax11.plot(predictions, label="Predicted", c="r")
 
-        try:
-            for buffer in self._buffers:
-                start = time.time()
-                th = self._inference.predict_last_cycle(buffer)
-                if th is None:
-                    log.error("FATAL: Thread item is None.")
-                    return
-                th.join()
-                stop = time.time()
-                print(f"Prediction took {stop - start:.2f} seconds.")
-        except:  # noqa
-            print("Exception caught.")
-            print_exc()
-        finally:
-            self._app.quit()
+    dpp = (cycle_data.field_meas - predictions) / cycle_data.field_meas * 1e4
+    ax2.plot(dpp, c="k")
+
+    ax1.set_title("Predictions")
+
+    plt.show()
 
 
 def main() -> None:
-    application = QCoreApplication([])
-    signal(SIGINT, lambda *_: application.quit())
-    signal(SIGTERM, lambda *_: application.quit())
+    buffers = load_buffers()
 
     inference = Inference()
     inference.set_do_inference(True)
-    inference.on_load_model(CKPT_PATH, device="cuda")
+    inference._load_model(CKPT_PATH)
+    inference.device = "cpu"
 
-    wrapper = ThreadWrapper(inference, load_buffers(), application)
-    th = Thread(target=wrapper.run)
-    th.start()
+    for b in buffers:
+        for c in b:
+            c.current_input = c.current_meas
 
-    application.exec()
-    th.join()
+        predictions = inference._predict_last_cycle(b)
+        print(predictions)
+
+    return
 
 
 if __name__ == "__main__":
