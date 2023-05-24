@@ -358,7 +358,7 @@ class AcquisitionBuffer:
         name appended with _DYNECO. This effectively creates a new cycle
         in the buffer.
 
-        Cycles running in dyneco will therefore require require its own set
+        Cycles running in dyneco will therefore require its own set
         of measured data for prediction, and not reference current as normal
         cycles.
         """
