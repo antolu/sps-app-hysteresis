@@ -69,5 +69,14 @@ class SingleCycleData:
             and self.field_prog is other.field_prog
         )
 
+    @property
+    def dp_p(self) -> np.ndarray:
+        if self.field_meas is None:
+            raise ValueError("Reference field is not set")
+        if self.field_pred is None:
+            raise ValueError("Predicted field is not set")
+
+        return (self.field_meas - self.field_pred) / self.field_meas
+
     def __str__(self) -> str:
         return f"{self.cycle}@{self.cycle_time}"

@@ -21,13 +21,13 @@ OUTPUT_PATH = Path(__file__).parent / "output_pred"
 CKPT_PATH: str = "phylstm_checkpoint.ckpt"
 
 
-def load_buffers() -> list[list[SingleCycleData]]:
+def load_buffers(pth: Path = INPUT_PATH) -> list[list[SingleCycleData]]:
     """
     Load all pickle files in the input directory.
     """
     buffers = []
 
-    for file in INPUT_PATH.glob("*.pickle"):
+    for file in pth.glob("*.pickle"):
         with open(file, "rb") as f:
             buffers.append(pickle.load(f))
 

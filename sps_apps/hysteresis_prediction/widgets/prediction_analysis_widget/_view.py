@@ -4,30 +4,72 @@ This file contains the view for the prediction analysis widget.
 from __future__ import annotations
 
 import logging
+import typing
 
-from qtpy.QtWidgets import QMenuBar, QWidget
+import pyqtgraph as pg
+from qtpy import QtCore, QtWidgets
 
 from ...generated.prediction_analysis_widget_ui import (
     Ui_PredictionAnalysisWidget,
 )
-from ._model import PredictionAnalysisModel
+from ...generated.reference_selector_dialog_ui import (
+    Ui_ReferenceSelectorDialog,
+)
+from ._model import PlotMode, PredictionAnalysisModel
 
 log = logging.getLogger(__name__)
 
 
-class PredictionAnalysisWidget(QWidget, Ui_PredictionAnalysisWidget):
+class ReferenceSelectorDialog(QtWidgets.QDialog, Ui_ReferenceSelectorDialog):
     def __init__(
         self,
-        model: PredictionAnalysisModel | None,
-        parent: QWidget | None = None,
+        model: QtCore.QAbstractListModel | None = None,
+        parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent=parent)
         self.setupUi(self)
 
+        self._model: QtCore.QAbstractProxyModel | None = (
+            QtCore.QIdentityProxyModel(model) if model is not None else None
+        )
+
+    def _get_model(self) -> QtCore.QAbstractProxyModel:
+        if self._model is None:
+            raise ValueError("Model has not been set.")
+        return self._model
+
+    def _set_model(self, model: QtCore.QAbstractListModel) -> None:
+        self._model = QtCore.QIdentityProxyModel(model)
+
+    model = property(_get_model, _set_model)
+
+    @property
+    def selected_item(self) -> QtCore.QModelIndex | None:
+        try:
+            return self.listView.selectedIndexes()[0]
+        except IndexError:
+            return None
+
+
+class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
+    def __init__(
+        self,
+        model: PredictionAnalysisModel | None,
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent=parent)
+        self.setupUi(self)
+        self.plotPredWidget = pg.PlotItem()
+        self.plotDiffWidget = pg.PlotItem()
+        self.plotPredWidget.vb.setBackgroundColor("w")  # type: ignore
+        self.plotDiffWidget.vb.setBackgroundColor("w")  # type: ignore
+        self.plotDiffWidget.vb.setFixedHeight(100)  # type: ignore
+        self.widget.setBackground("w")
+
         self._model: PredictionAnalysisModel | None = None
         self.model = model or PredictionAnalysisModel()
 
-        self.menubar = QMenuBar(self)
+        self.menubar = QtWidgets.QMenuBar(self)
         self.horizontalLayout.setMenuBar(self.menubar)
 
         file_menu = self.menubar.addMenu("&File")
@@ -36,16 +78,30 @@ class PredictionAnalysisWidget(QWidget, Ui_PredictionAnalysisWidget):
         file_menu.addAction(self.actionExit)
 
         tools_menu = self.menubar.addMenu("&Tools")
-        tools_menu.addAction(self.actionShow_GT)
         tools_menu.addAction(self.actionClear_Buffer)
+
+        self.widget.addItem(self.plotDiffWidget, row=0, col=0)
+        self.widget.addItem(self.plotPredWidget, row=1, col=0, rowspan=3)
+
+        # self.plotDiffWidget.addItem(
+        #     pg.InfiniteLine(
+        #         pos=None, angle=0, pen=pg.mkPen(style=QtCore.Qt.DashLine)
+        #     )
+        # )
 
         self._connect_slots()
 
     def _connect_slots(self) -> None:
+        def num_predictions_changed() -> None:
+            num_predictions = self.spinBoxNumPredictions.value()
+            self.model.set_max_buffer_samples(num_predictions)
+
+            self.spinBoxSCPatience.setMaximum(num_predictions)
+            if self.checkBox.isEnabled():
+                self.spinBoxSCPatience.editingFinished.emit()
+
         self.spinBoxNumPredictions.editingFinished.connect(
-            lambda *_: self.model.set_max_buffer_samples(
-                self.spinBoxNumPredictions.value()
-            )
+            num_predictions_changed
         )
 
         self.spinBoxYMax.valueChanged.connect(
@@ -58,6 +114,11 @@ class PredictionAnalysisWidget(QWidget, Ui_PredictionAnalysisWidget):
                 (value, self.spinBoxYMax.value())
             )
         )
+
+        self.checkBox.stateChanged.connect(self.spinBoxSCPatience.setEnabled)
+        self.buttonReference.clicked.connect(self._on_select_new_reference)
+
+        self.actionExit.triggered.connect(self.close)
 
     def _get_model(self) -> PredictionAnalysisModel:
         if self._model is None:
@@ -78,8 +139,65 @@ class PredictionAnalysisWidget(QWidget, Ui_PredictionAnalysisWidget):
         self.listPredictions.setModel(model.list_model)
 
         self.spinBoxNumPredictions.editingFinished.connect(
-            model.maxBufferSizeChanged.emit
+            lambda: model.maxBufferSizeChanged.emit(
+                self.spinBoxNumPredictions.value()
+            )
+        )
+
+        self.checkBox.stateChanged.connect(
+            lambda state: model.set_watch_supercycle(state)
+        )
+
+        self.spinBoxSCPatience.editingFinished.connect(
+            lambda: model.set_supercycle_patience(
+                self.spinBoxSCPatience.value()
+            )
+        )
+
+        self.LsaSelector.userSelectionChanged.connect(
+            lambda selector: model.set_selector(selector)
+        )
+
+        self.listPredictions.clicked.connect(model.item_clicked)
+
+        def radio_changed(*_: typing.Any) -> None:
+            if self.radioPredicted.isChecked():
+                model.plotModeChanged.emit(PlotMode.PredictedOnly)
+            elif self.radioMeasured.isChecked():
+                model.plotModeChanged.emit(PlotMode.VsMeasured)
+            elif self.radioDpp.isChecked():
+                model.plotModeChanged.emit(PlotMode.dpp)
+
+        self.radioPredicted.toggled.connect(radio_changed)
+        # self.radioMeasured.toggled.connect(radio_changed)
+        self.radioDpp.toggled.connect(radio_changed)
+
+        model.plot_model.plotAdded.connect(self.plotPredWidget.addItem)
+        model.plot_model.plotRemoved.connect(self.plotPredWidget.removeItem)
+        model.plot_model.plotAdded_dpp.connect(self.plotDiffWidget.addItem)
+        model.plot_model.plotRemoved_dpp.connect(
+            self.plotDiffWidget.removeItem
         )
 
     def _disconnect_model(self, model: PredictionAnalysisModel) -> None:
-        ...
+        raise NotImplementedError("Disconnect model not implemented.")
+
+    def _on_select_new_reference(self) -> None:
+        """
+        Select a new reference cycle for plots, use a QIdentityProxyModel,
+        but select only one.
+        """
+        list_model = self.model.list_model
+        assert list_model is not None
+        dialog = ReferenceSelectorDialog(model=list_model, parent=self)
+
+        def on_dialog_accepted() -> None:
+            selected_index = dialog.selected_item
+            if selected_index is not None:
+                item = self.model.list_model.itemAt(selected_index)
+
+                self.model.plot_model.newReference.emit(item)
+
+        dialog.accepted.connect(on_dialog_accepted)
+
+        dialog.open()
