@@ -393,6 +393,14 @@
     <string>&amp;Exit</string>
    </property>
   </action>
+  <action name="actionImport_Predictions">
+   <property name="text">
+    <string>Import Predictions</string>
+   </property>
+   <property name="toolTip">
+    <string>Import Predictions from Pandas Dataframe</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>

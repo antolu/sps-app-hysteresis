@@ -11,6 +11,7 @@ from enum import Enum, auto
 from typing import Any
 
 import numpy as np
+import pandas as pd
 import pyqtgraph as pg
 from qtpy import QtCore, QtGui
 
@@ -577,3 +578,31 @@ class PredictionAnalysisModel(QtCore.QObject):
         self._list_model.clear()
 
         self._n_acq_since_supercycle = 0
+
+    def to_pandas(self) -> pd.DataFrame:
+        """
+        Export the currently saved predictions to Pandas.
+        """
+        predictions = self.list_model.buffered_data
+
+        predictions_out = [o.cycle_data.to_dict() for o in predictions]
+
+        df = pd.concat(
+            [pd.DataFrame.from_dict(pred) for pred in predictions_out]
+        )
+
+        return df
+
+    def from_pandas(self, df: pd.DataFrame) -> None:
+        """
+        Load predictions from a Pandas DataFrame.
+        """
+        log.debug("Loading predictions from Pandas DataFrame.")
+
+        dicts = [row.to_dict() for _, row in df.iterrows()]
+
+        predictions = [SingleCycleData.from_dict(d) for d in dicts]
+
+        self.clear()
+        for pred in predictions:
+            self.newData.emit(pred)

@@ -168,6 +168,8 @@ class Ui_PredictionAnalysisWidget(object):
         self.actionExport_Predictions.setObjectName("actionExport_Predictions")
         self.actionExit = QtWidgets.QAction(PredictionAnalysisWidget)
         self.actionExit.setObjectName("actionExit")
+        self.actionImport_Predictions = QtWidgets.QAction(PredictionAnalysisWidget)
+        self.actionImport_Predictions.setObjectName("actionImport_Predictions")
 
         self.retranslateUi(PredictionAnalysisWidget)
         QtCore.QMetaObject.connectSlotsByName(PredictionAnalysisWidget)
@@ -195,5 +197,7 @@ class Ui_PredictionAnalysisWidget(object):
         self.actionExport_Predictions.setText(_translate("PredictionAnalysisWidget", "&Export Predictions"))
         self.actionExport_Predictions.setToolTip(_translate("PredictionAnalysisWidget", "Export predictions to parquet format"))
         self.actionExit.setText(_translate("PredictionAnalysisWidget", "&Exit"))
+        self.actionImport_Predictions.setText(_translate("PredictionAnalysisWidget", "Import Predictions"))
+        self.actionImport_Predictions.setToolTip(_translate("PredictionAnalysisWidget", "Import Predictions from Pandas Dataframe"))
 from accwidgets.lsa_selector import LsaSelector
 from pyqtgraph import GraphicsLayoutWidget

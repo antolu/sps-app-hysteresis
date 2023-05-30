@@ -6,8 +6,9 @@ from __future__ import annotations
 import logging
 import typing
 
+import pandas as pd
 import pyqtgraph as pg
-from qtpy import QtCore, QtWidgets
+from qtpy import QtCore, QtGui, QtWidgets
 
 from ...generated.prediction_analysis_widget_ui import (
     Ui_PredictionAnalysisWidget,
@@ -21,6 +22,8 @@ log = logging.getLogger(__name__)
 
 
 class ReferenceSelectorDialog(QtWidgets.QDialog, Ui_ReferenceSelectorDialog):
+    _model: QtCore.QAbstractProxyModel | None
+
     def __init__(
         self,
         model: QtCore.QAbstractListModel | None = None,
@@ -63,6 +66,8 @@ class ReferenceSelectorDialog(QtWidgets.QDialog, Ui_ReferenceSelectorDialog):
 
 
 class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
+    windowClosed = QtCore.Signal()
+
     def __init__(
         self,
         model: PredictionAnalysisModel | None,
@@ -88,6 +93,7 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.horizontalLayout.setMenuBar(self.menubar)
 
         file_menu = self.menubar.addMenu("&File")
+        file_menu.addAction(self.actionImport_Predictions)
         file_menu.addAction(self.actionExport_Predictions)
         file_menu.addSeparator()
         file_menu.addAction(self.actionExit)
@@ -134,6 +140,8 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.buttonReference.clicked.connect(self._on_select_new_reference)
 
         self.actionExit.triggered.connect(self.close)
+        self.actionExport_Predictions.triggered.connect(self._on_save_clicked)
+        self.actionImport_Predictions.triggered.connect(self._on_load_clicked)
 
     def _get_model(self) -> PredictionAnalysisModel:
         if self._model is None:
@@ -202,6 +210,7 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         model.plot_model.plotRemoved_dpp.connect(
             self.plotDiffWidget.removeItem
         )
+        self.actionClear_Buffer.triggered.connect(model.clear)
 
     def _disconnect_model(self, model: PredictionAnalysisModel) -> None:
         raise NotImplementedError("Disconnect model not implemented.")
@@ -225,3 +234,41 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         dialog.accepted.connect(on_dialog_accepted)
 
         dialog.open()
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        self.windowClosed.emit()
+        event.accept()
+
+    def _on_save_clicked(self) -> None:
+        if self._model is None:
+            raise ValueError("Model has not been set.")
+
+        log.debug("Saving predictions to file.")
+        file_name, ok = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Export predictions", "", "parquet (*.parquet)"
+        )
+
+        if not ok or not file_name or file_name == "":
+            log.debug("Export cancelled.")
+            return
+
+        df = self.model.to_pandas()
+
+        df.to_parquet(file_name)
+
+    def _on_load_clicked(self) -> None:
+        if self._model is None:
+            raise ValueError("Model has not been set.")
+
+        log.debug("Loading predictions from file.")
+        file_name, ok = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Import predictions", "", "parquet (*.parquet)"
+        )
+
+        if not ok or not file_name or file_name == "":
+            log.debug("Import cancelled.")
+            return
+
+        df = pd.read_parquet(file_name)
+
+        self.model.from_pandas(df)

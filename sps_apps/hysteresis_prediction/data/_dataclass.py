@@ -78,5 +78,42 @@ class SingleCycleData:
 
         return (self.field_meas - self.field_pred) / self.field_meas
 
+    def to_dict(
+        self,
+    ) -> dict[str, np.ndarray | int | float | str | datetime | None]:
+        return {
+            "cycle": self.cycle,
+            "user": self.user,
+            "cycle_time": self.cycle_time,
+            "cycle_timestamp": self.cycle_timestamp,
+            "cycle_length": self.cycle_length,
+            "current_prog": self.current_prog,
+            "field_prog": self.field_prog,
+            "current_input": self.current_input,
+            "field_ref": self.field_ref,
+            "field_pred": self.field_pred,
+            "current_meas": self.current_meas,
+            "field_meas": self.field_meas,
+            "num_samples": self.num_samples,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> SingleCycleData:  # type: ignore
+        item = cls(
+            d["cycle"],
+            d["user"],
+            d["cycle_timestamp"],
+            d["current_prog"],
+            d["field_prog"],
+        )
+
+        item.current_input = d["current_input"]
+        item.field_ref = d["field_ref"]
+        item.field_pred = d["field_pred"]
+        item.current_meas = d["current_meas"]
+        item.field_meas = d["field_meas"]
+
+        return item
+
     def __str__(self) -> str:
         return f"{self.cycle}@{self.cycle_time}"
