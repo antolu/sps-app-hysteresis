@@ -4,6 +4,7 @@ This module contains the model for the prediction analysis widget.
 from __future__ import annotations
 
 import logging
+import random
 from collections import deque
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -41,7 +42,9 @@ class ColorPool:
 
     def __init__(self) -> None:
         assert self.CM is not None
-        self._colors = deque(self.CM.getColors(), maxlen=20)
+        color_list = list(self.CM.getColors())
+        random.shuffle(color_list)
+        self._colors = deque(color_list, maxlen=20)
 
     def get_color(self) -> QtGui.QColor:
         return QtGui.QColor(*self._colors.popleft())
@@ -345,7 +348,9 @@ class PredictionPlotModel(QtCore.QObject):
 
         :raises ValueError: If the plot mode or reference is not set.
         """
-        log.debug(f"Creating plot for cycle {item.cycle_data.cycle_time}")
+        log.debug(
+            "Creating/updating plot for cycle " f"{item.cycle_data.cycle_time}"
+        )
         if item.color is None:
             item.color = self._color_pool.get_color()
 
@@ -356,16 +361,18 @@ class PredictionPlotModel(QtCore.QObject):
             if self._reference is None:
                 raise ValueError("No reference set.")
             raise NotImplementedError
-        elif self._plot_mode == PlotMode.VsMeasured:
+        elif self._plot_mode == PlotMode.dpp:
             if self._reference is None:
                 raise ValueError("No reference set.")
-            assert item.cycle_data.field_meas is not None
+            assert item.cycle_data.field_pred is not None
             reference = self._reference
-            assert reference.cycle_data.field_meas is not None
+            assert reference.cycle_data.field_pred is not None
 
             y = (
-                reference.cycle_data.field_meas - item.cycle_data.field_pred
-            ) / reference.cycle_data.field_meas
+                (reference.cycle_data.field_pred - item.cycle_data.field_pred)
+                / reference.cycle_data.field_pred
+                * 1e4
+            )
         else:
             raise ValueError(f"Invalid plot mode {self._plot_mode.name}")
 
@@ -376,7 +383,8 @@ class PredictionPlotModel(QtCore.QObject):
                 "Updating existing plot for cycle "
                 f"{item.cycle_data.cycle_time}"
             )
-            item.plot_item.setData(**args)
+            args.pop("pen")
+            item.plot_item.updateData(**args)
             curve = item.plot_item
         else:
             log.debug(
@@ -402,7 +410,7 @@ class PredictionPlotModel(QtCore.QObject):
 
         curve = pg.PlotCurveItem(
             x=self._make_time_axis(item),
-            y=item.cycle_data.dp_p,
+            y=item.cycle_data.dp_p * 1e4,
             pen=pg.mkPen(color=item.color, width=1),
         )
 

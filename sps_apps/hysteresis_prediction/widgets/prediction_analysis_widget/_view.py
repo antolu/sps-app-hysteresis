@@ -29,9 +29,17 @@ class ReferenceSelectorDialog(QtWidgets.QDialog, Ui_ReferenceSelectorDialog):
         super().__init__(parent=parent)
         self.setupUi(self)
 
-        self._model: QtCore.QAbstractProxyModel | None = (
-            QtCore.QIdentityProxyModel(model) if model is not None else None
-        )
+        if model is not None:
+            proxy_model = QtCore.QIdentityProxyModel()
+            proxy_model.setSourceModel(model)
+            self._model = proxy_model
+        else:
+            self._model = None
+
+        self.listView.setModel(self._model)
+
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
 
     def _get_model(self) -> QtCore.QAbstractProxyModel:
         if self._model is None:
@@ -39,7 +47,10 @@ class ReferenceSelectorDialog(QtWidgets.QDialog, Ui_ReferenceSelectorDialog):
         return self._model
 
     def _set_model(self, model: QtCore.QAbstractListModel) -> None:
-        self._model = QtCore.QIdentityProxyModel(model)
+        proxy_model = QtCore.QIdentityProxyModel()
+        proxy_model.setSourceModel(model)
+        self._model = proxy_model
+        self.listView.setModel(self._model)
 
     model = property(_get_model, _set_model)
 
@@ -61,9 +72,13 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.setupUi(self)
         self.plotPredWidget = pg.PlotItem()
         self.plotDiffWidget = pg.PlotItem()
-        self.plotPredWidget.vb.setBackgroundColor("w")  # type: ignore
-        self.plotDiffWidget.vb.setBackgroundColor("w")  # type: ignore
-        self.plotDiffWidget.vb.setFixedHeight(100)  # type: ignore
+        # self.plotPredWidget.setBackgroundColor("w")  # type: ignore
+        # self.plotDiffWidget.setBackgroundColor("w")  # type: ignore
+        self.plotDiffWidget.setLabel("left", "E-4")
+        self.plotDiffWidget.setMinimumHeight(100)
+        self.plotDiffWidget.setMaximumHeight(300)
+        self.plotDiffWidget.vb.setYRange(-10, 10)
+        self.plotPredWidget.vb.setXLink(self.plotDiffWidget.vb)
         self.widget.setBackground("w")
 
         self._model: PredictionAnalysisModel | None = None
@@ -163,14 +178,23 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         def radio_changed(*_: typing.Any) -> None:
             if self.radioPredicted.isChecked():
                 model.plotModeChanged.emit(PlotMode.PredictedOnly)
+                self.buttonReference.setEnabled(False)
+                self.buttonZoomFT.setEnabled(True)
+                self.buttonZoomFB.setEnabled(True)
             elif self.radioMeasured.isChecked():
                 model.plotModeChanged.emit(PlotMode.VsMeasured)
+                self.buttonReference.setEnabled(True)
+                self.buttonZoomFT.setEnabled(False)
+                self.buttonZoomFB.setEnabled(False)
             elif self.radioDpp.isChecked():
                 model.plotModeChanged.emit(PlotMode.dpp)
+                self.buttonReference.setEnabled(True)
+                self.buttonZoomFT.setEnabled(False)
+                self.buttonZoomFB.setEnabled(False)
 
-        self.radioPredicted.toggled.connect(radio_changed)
+        self.radioPredicted.clicked.connect(radio_changed)
         # self.radioMeasured.toggled.connect(radio_changed)
-        self.radioDpp.toggled.connect(radio_changed)
+        self.radioDpp.clicked.connect(radio_changed)
 
         model.plot_model.plotAdded.connect(self.plotPredWidget.addItem)
         model.plot_model.plotRemoved.connect(self.plotPredWidget.removeItem)
