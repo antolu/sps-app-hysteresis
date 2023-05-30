@@ -75,6 +75,7 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
     ) -> None:
         super().__init__(parent=parent)
         self.setupUi(self)
+
         self.plotPredWidget = pg.PlotItem()
         self.plotDiffWidget = pg.PlotItem()
         # self.plotPredWidget.setBackgroundColor("w")  # type: ignore
@@ -223,6 +224,8 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.buttonStartStop.state2Activated.connect(
             self.model.disable_acquisition
         )
+
+        model.userChanged.connect(self.LsaSelector.select_user)
 
     def _disconnect_model(self, model: PredictionAnalysisModel) -> None:
         raise NotImplementedError("Disconnect model not implemented.")

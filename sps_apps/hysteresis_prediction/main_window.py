@@ -1,5 +1,6 @@
 import logging
 from typing import Optional
+from uuid import uuid4
 
 import numpy as np
 from accwidgets.app_frame import ApplicationFrame
@@ -15,6 +16,10 @@ from .inference import Inference
 from .settings import context
 from .widgets import ModelLoadDialog, PlotModel
 from .widgets.plot_settings_widget import AppStatus
+from .widgets.prediction_analysis_widget import (
+    PredictionAnalysisModel,
+    PredictionAnalysisWidget,
+)
 from .widgets.status_tracker import StatusManager
 
 log = logging.getLogger(__name__)
@@ -31,6 +36,8 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         Ui_main_window.__init__(self)
 
         self.setupUi(self)
+
+        self._analysis_widgets: dict[str, PredictionAnalysisWidget] = {}
 
         log_console = LogConsole(self)
         self.log_console = log_console
@@ -84,6 +91,10 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             lambda: QMessageBox.information(
                 self, "Model loaded", "Model successfully loaded."
             )
+        )
+
+        self.actionPrediction_Analysis.triggered.connect(
+            self.show_predicion_analysis
         )
 
         # status messages
@@ -155,6 +166,25 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self.widgetSettings.show()
         else:
             self.widgetSettings.hide()
+
+    def show_predicion_analysis(self) -> None:
+        model = PredictionAnalysisModel()
+        widget = PredictionAnalysisWidget(model=model, parent=self)
+
+        self._acquisition.new_measured_data.connect(model.newData.emit)
+
+        uuid = str(uuid4())
+        self._analysis_widgets[uuid] = widget
+
+        def on_close() -> None:
+            widget = self._analysis_widgets.pop(uuid)
+            widget.deleteLater()
+
+            self._acquisition.new_measured_data.disconnect(model.newData.emit)
+
+        widget.windowClosed.connect(on_close)
+
+        widget.show()
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self._acquisition.stop()
