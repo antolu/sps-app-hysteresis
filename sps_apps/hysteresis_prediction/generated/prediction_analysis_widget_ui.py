@@ -73,7 +73,7 @@ class Ui_PredictionAnalysisWidget(object):
         self.listPredictions.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.listPredictions.setObjectName("listPredictions")
         self.formLayout.setWidget(3, QtWidgets.QFormLayout.SpanningRole, self.listPredictions)
-        self.buttonStartStop = QtWidgets.QPushButton(self.frame_5)
+        self.buttonStartStop = ToggleButton(self.frame_5)
         self.buttonStartStop.setObjectName("buttonStartStop")
         self.formLayout.setWidget(4, QtWidgets.QFormLayout.SpanningRole, self.buttonStartStop)
         self.verticalLayout.addWidget(self.frame_5)
@@ -201,3 +201,4 @@ class Ui_PredictionAnalysisWidget(object):
         self.actionImport_Predictions.setToolTip(_translate("PredictionAnalysisWidget", "Import Predictions from Pandas Dataframe"))
 from accwidgets.lsa_selector import LsaSelector
 from pyqtgraph import GraphicsLayoutWidget
+from sps_apps.hysteresis_prediction.widgets import ToggleButton

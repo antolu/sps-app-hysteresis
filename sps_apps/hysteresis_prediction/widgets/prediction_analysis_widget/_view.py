@@ -104,11 +104,16 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.widget.addItem(self.plotDiffWidget, row=0, col=0)
         self.widget.addItem(self.plotPredWidget, row=1, col=0, rowspan=3)
 
+        self.buttonStartStop.initializeState("Start", "Stop")
+
+        self.spinBoxNumPredictions.setMaximum(20)
+
         # self.plotDiffWidget.addItem(
         #     pg.InfiniteLine(
         #         pos=None, angle=0, pen=pg.mkPen(style=QtCore.Qt.DashLine)
         #     )
         # )
+        self.radioMeasured.hide()
 
         self._connect_slots()
 
@@ -211,6 +216,13 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
             self.plotDiffWidget.removeItem
         )
         self.actionClear_Buffer.triggered.connect(model.clear)
+
+        self.buttonStartStop.state1Activated.connect(
+            self.model.enable_acquisition
+        )
+        self.buttonStartStop.state2Activated.connect(
+            self.model.disable_acquisition
+        )
 
     def _disconnect_model(self, model: PredictionAnalysisModel) -> None:
         raise NotImplementedError("Disconnect model not implemented.")

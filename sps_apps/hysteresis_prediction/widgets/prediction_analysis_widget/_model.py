@@ -441,6 +441,9 @@ class PredictionAnalysisModel(QtCore.QObject):
     maxBufferSizeChanged = QtCore.Signal(int)
     """ Triggered when the buffer size changes """
 
+    userChanged = QtCore.Signal(str)
+    """ Triggered when the user changes """
+
     plotModeChanged = QtCore.Signal(PlotMode)
 
     def __init__(
@@ -458,6 +461,7 @@ class PredictionAnalysisModel(QtCore.QObject):
         # state
         self._watch_supercycle = False
         self._supercycle_patience = 0
+        self._acq_enabled: bool = False
 
         # active flags
         self._count_acq_supercycle: bool = False
@@ -525,6 +529,17 @@ class PredictionAnalysisModel(QtCore.QObject):
 
     selector = property(get_selector, set_selector)
 
+    def enable_acquisition(self, enable: bool = True) -> None:
+        if enable:
+            log.debug("Enabling acquisition.")
+            self._acq_enabled = True
+        else:
+            log.debug("Disabling acquisition.")
+            self._acq_enabled = False
+
+    def disable_acquisition(self) -> None:
+        self.enable_acquisition(False)
+
     def _on_new_data_received(self, cycle_data: SingleCycleData) -> None:
         if self._selector is None:
             log.debug("No selector set. Discarding new data.")
@@ -536,6 +551,10 @@ class PredictionAnalysisModel(QtCore.QObject):
             )
             return
         # else:
+
+        if not self._acq_enabled:
+            log.debug("Acquisition is disabled. Discarding new data.")
+            return
 
         if self._count_acq_supercycle:
             if self._n_acq_since_supercycle >= self._supercycle_patience:
@@ -605,4 +624,7 @@ class PredictionAnalysisModel(QtCore.QObject):
 
         self.clear()
         for pred in predictions:
-            self.newData.emit(pred)
+            self._list_model.append(pred)
+
+        user = predictions[0].user
+        self.userChanged.emit(user)
