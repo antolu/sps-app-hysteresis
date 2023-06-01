@@ -4,7 +4,6 @@ Implementation of a PyQt signal/slot system with asyncio.
 from __future__ import annotations
 
 import asyncio
-import inspect
 import logging
 from dataclasses import dataclass
 from threading import Thread, current_thread
@@ -92,23 +91,6 @@ class Signal:
         if not isinstance(handle, Callable):
             raise TypeError(f"Expected a callable, got {type(handle)}")
 
-        try:
-            signature = inspect.signature(handle)
-            positional_args = [
-                param
-                for param in signature.parameters.values()
-                if param.kind == param.POSITIONAL_OR_KEYWORD
-                and param.default is param.empty
-            ]
-            if len(positional_args) != len(self._types):
-                raise TypeError(
-                    f"Expected {len(self._types)} arguments, got "
-                    f"{positional_args}."
-                )
-            log.debug(f"Connecting {handle.__name__}.")
-        except ValueError:
-            log.debug(f"Exception occurred while handling slot {handle}.")
-
         self._handles.append(Handle(handle, current_thread()))
 
     def disconnect(self, handle: Callable[..., None]) -> None:
@@ -121,7 +103,7 @@ class Signal:
         :raises ValueError: If the slot is not connected to the signal.
         """
         for handler in self._handles:
-            if handler.slot == handle:
+            if handler.slot is handle:
                 log.debug(f"Disconnecting {handle.__name__}.")
                 self._handles.remove(handler)
                 return

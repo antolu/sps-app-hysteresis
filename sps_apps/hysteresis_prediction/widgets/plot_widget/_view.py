@@ -11,7 +11,6 @@ from accwidgets.graph import (
     TimeSpan,
 )
 from accwidgets.graph.widgets.plotwidget import ScrollingPlotWidget
-from qtpy.QtGui import QPainter
 from qtpy.QtWidgets import QVBoxLayout, QWidget
 
 from ._model import PlotModel
@@ -20,7 +19,7 @@ from ._sources import LocalTimerTimingSource
 log = logging.getLogger(__name__)
 
 
-AXES_RANGE_KWARGS = {"field": (-0.1, 2.2), "current": (-0.045 * 7000, 7000)}
+AXES_RANGE_KWARGS = {"field": (0.0, 2.2), "current": (0.0, 6000)}
 
 
 class PlotWidget(QWidget):
@@ -59,6 +58,7 @@ class PlotWidget(QWidget):
         self.plotDiscr.autoRange()
         self.plotCurField.autoRange()
 
+        self.plotDiscr.setRange(dpp_fixed=(-5, 5))  # noqa
         self.plotCurField.setRange(**AXES_RANGE_KWARGS)  # noqa
 
     def set_time_span(self, min: int, max: int) -> None:
@@ -85,9 +85,10 @@ class PlotWidget(QWidget):
         self.plotCurField.add_layer(layer_id="current", unit="A")
         self.plotCurField.add_layer(layer_id="field", unit="T")
         self.plotCurField.hideAxis("left")
-        self.plotCurField.setRenderHint(QPainter.Antialiasing)
 
-        self.plotDiscr.setRenderHint(QPainter.Antialiasing)
+        self.plotDiscr.add_layer(layer_id="dpp_fixed")
+        self.plotDiscr.add_layer(layer_id="dpp_dynamic")
+        self.plotDiscr.hideAxis("left")
 
         self.reset_axes_range()
 
@@ -134,13 +135,25 @@ class PlotWidget(QWidget):
         field_ref_disc = self.plotDiscr.addCurve(
             data_source=model.field_ref_dpp_source,
             pen=pg.mkPen(color="#BFBFBF", width=2),
-            unit="E-4",
+            layer="dpp_fixed",
             name="dp/p w.r.t. Ref.",
         )
         field_meas_discr = self.plotDiscr.addCurve(
             data_source=model.field_meas_dpp_source,
             pen=pg.mkPen(color="#1F5673", width=2),
-            unit="E-4",
+            layer="dpp_fixed",
+            name="dp/p w.r.t. Meas.",
+        )
+        field_ref_disc = self.plotDiscr.addCurve(
+            data_source=model.field_ref_dpp_source,
+            pen=pg.mkPen(color="#BFBFBF", width=2),
+            layer="dpp_dynamic",
+            name="dp/p w.r.t. Ref.",
+        )
+        field_meas_discr = self.plotDiscr.addCurve(
+            data_source=model.field_meas_dpp_source,
+            pen=pg.mkPen(color="#1F5673", width=2),
+            layer="dpp_dynamic",
             name="dp/p w.r.t. Meas.",
         )
 

@@ -24,6 +24,8 @@ class ToggleButton(QtWidgets.QPushButton):
         parent: QtWidgets.QWidget | None = None,
     ):
         super().__init__(parent=parent)
+        self._state = self.State.STATE1
+        self.clicked.connect(self._on_clicked)
 
     def initializeState(
         self,

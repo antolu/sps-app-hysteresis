@@ -48,7 +48,7 @@
        <number>0</number>
       </property>
       <item>
-       <widget class="LsaSelector" name="LsaSelector" native="true">
+       <widget class="LsaSelector" name="LsaSelector">
         <property name="maximumSize">
          <size>
           <width>400</width>
@@ -58,7 +58,22 @@
         <property name="toolTip">
          <string/>
         </property>
+        <property name="accelerator" stdset="0">
+         <enum>LsaSelector::SPS</enum>
+        </property>
         <property name="fetchResidentOnly" stdset="0">
+         <bool>true</bool>
+        </property>
+        <property name="contextCategories" stdset="0">
+         <set>LsaSelector::Md|LsaSelector::Operational</set>
+        </property>
+        <property name="hideHorizontalHeader" stdset="0">
+         <bool>false</bool>
+        </property>
+        <property name="showNameFilter" stdset="0">
+         <bool>false</bool>
+        </property>
+        <property name="showCategoryFilter" stdset="0">
          <bool>true</bool>
         </property>
        </widget>
@@ -230,18 +245,22 @@
       <enum>QFrame::Raised</enum>
      </property>
      <layout class="QGridLayout" name="gridLayout">
-      <item row="0" column="0" colspan="2">
-       <spacer name="verticalSpacer">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
+      <item row="2" column="0" colspan="2">
+       <widget class="QPushButton" name="buttonZoomFT">
+        <property name="enabled">
+         <bool>false</bool>
         </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>221</height>
-         </size>
+        <property name="text">
+         <string>Zoom Flat Top</string>
         </property>
-       </spacer>
+       </widget>
+      </item>
+      <item row="5" column="0" rowspan="2">
+       <widget class="QLabel" name="labelYAxis">
+        <property name="text">
+         <string>Y-axis</string>
+        </property>
+       </widget>
       </item>
       <item row="1" column="0" colspan="2">
        <widget class="QFrame" name="frame_6">
@@ -275,7 +294,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QRadioButton" name="radioMeasured">
+          <widget class="QRadioButton" name="radioPredicted">
            <property name="text">
             <string>Predicted only</string>
            </property>
@@ -285,7 +304,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QRadioButton" name="radioPredicted">
+          <widget class="QRadioButton" name="radioMeasured">
            <property name="text">
             <string>With measured</string>
            </property>
@@ -327,16 +346,6 @@
         </layout>
        </widget>
       </item>
-      <item row="2" column="0" colspan="2">
-       <widget class="QPushButton" name="buttonZoomFT">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Zoom Flat Top</string>
-        </property>
-       </widget>
-      </item>
       <item row="3" column="0" colspan="2">
        <widget class="QPushButton" name="buttonZoomFB">
         <property name="enabled">
@@ -347,24 +356,40 @@
         </property>
        </widget>
       </item>
-      <item row="4" column="1">
-       <widget class="QDoubleSpinBox" name="spinBoxYMax">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="1">
+      <item row="6" column="1">
        <widget class="QDoubleSpinBox" name="spinBoxYMin">
         <property name="enabled">
          <bool>false</bool>
         </property>
        </widget>
       </item>
-      <item row="4" column="0" rowspan="2">
-       <widget class="QLabel" name="labelYAxis">
+      <item row="0" column="0" colspan="2">
+       <spacer name="verticalSpacer">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>221</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item row="5" column="1">
+       <widget class="QDoubleSpinBox" name="spinBoxYMax">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0" colspan="2">
+       <widget class="QPushButton" name="buttonZoomBI">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
         <property name="text">
-         <string>Y-axis</string>
+         <string>Zoom Beam In</string>
         </property>
        </widget>
       </item>

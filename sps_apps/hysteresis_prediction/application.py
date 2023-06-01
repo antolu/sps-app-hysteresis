@@ -43,6 +43,14 @@ def setup_logger(logging_level: int = 0) -> None:
 def main() -> None:
     parser = ArgumentParser()
     parser.add_argument("-v", dest="verbose", action="count", default=0)
+    parser.add_argument(
+        "-b",
+        "--buffer-size",
+        type=int,
+        default=150000,
+        dest="buffer_size",
+        help="Buffer size for acquisition.",
+    )
     args = parser.parse_args()
     setup_logger(args.verbose)
 
@@ -52,7 +60,7 @@ def main() -> None:
     application.setOrganizationDomain("cern.ch")
     application.setApplicationName("SPS Hysteresis Prediction")
 
-    main_window = MainWindow()
+    main_window = MainWindow(buffer_size=args.buffer_size)
     main_window.show()
 
     sys.exit(exec_app_interruptable(application))

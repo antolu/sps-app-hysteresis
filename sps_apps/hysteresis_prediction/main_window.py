@@ -31,7 +31,9 @@ BUFFER_SIZE = 150000
 
 
 class MainWindow(Ui_main_window, ApplicationFrame):
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(
+        self, buffer_size: int = BUFFER_SIZE, parent: Optional[QWidget] = None
+    ):
         ApplicationFrame.__init__(self, parent)
         Ui_main_window.__init__(self)
 
@@ -49,7 +51,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         timing_bar = TimingBar(self, model=timing_model)
         self.timing_bar = timing_bar
 
-        self._acquisition = Acquisition(min_buffer_size=BUFFER_SIZE)
+        self._acquisition = Acquisition(min_buffer_size=buffer_size)
         self._inference = Inference(parent=self)
 
         self._status_manager = StatusManager(self)
@@ -169,7 +171,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
     def show_predicion_analysis(self) -> None:
         model = PredictionAnalysisModel()
-        widget = PredictionAnalysisWidget(model=model, parent=self)
+        widget = PredictionAnalysisWidget(model=model, parent=None)
 
         self._acquisition.new_measured_data.connect(model.newData.emit)
 

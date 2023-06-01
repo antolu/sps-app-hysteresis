@@ -12,12 +12,18 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import pyda
+import pyda_japc
 import pyqtgraph as pg
 from qtpy import QtCore, QtGui
 
 from ...data import SingleCycleData
 
 log = logging.getLogger(__name__)
+
+
+BEAM_IN = "SIX.MC-CTML/ControlValue#controlValue"
+BEAM_OUT = "SX.BEAM-OUT-CTML/ControlValue#controlValue"
 
 
 class PlotMode(Enum):
@@ -124,14 +130,20 @@ class PredictionListModel(QtCore.QAbstractListModel):
     def append(self, data: SingleCycleData) -> None:
         if len(self._data) == self._data.maxlen:
             to_remove = self._data.popleft()
-            self.rowsRemoved.emit(QtCore.QModelIndex(), 0, 0)
+            index = (QtCore.QModelIndex(), 0, 0)
+            self.rowsAboutToBeRemoved.emit(*index)
+            self.rowsRemoved.emit(*index)
             self.itemRemoved.emit(to_remove)
 
         item = PredictionItem(cycle_data=data)
         self._data.append(item)
-        self.rowsInserted.emit(
-            QtCore.QModelIndex(), len(self._data) - 1, len(self._data) - 1
+        index = (
+            QtCore.QModelIndex(),
+            len(self._data) - 1,
+            len(self._data) - 1,
         )
+        self.rowsAboutToBeInserted.emit(*index)
+        self.rowsInserted.emit(*index)
         self.itemAdded.emit(item)
 
     def clear(self) -> None:
@@ -182,6 +194,14 @@ class PredictionPlotModel(QtCore.QObject):
     plotRemoved_dpp = QtCore.Signal(pg.PlotCurveItem)
     """ Triggered when an existing plot is removed """
 
+    zoomFlatTop = QtCore.Signal()
+    zoomFlatBottom = QtCore.Signal()
+    zoomBeamIn = QtCore.Signal()
+    resetAxes = QtCore.Signal()
+
+    setXRange = QtCore.Signal(float, float)
+    setYRange = QtCore.Signal(float, float)
+
     def __init__(self, parent: QtCore.QObject | None = None):
         super().__init__(parent=parent)
 
@@ -190,10 +210,17 @@ class PredictionPlotModel(QtCore.QObject):
         self.addPlot.connect(self.add_item)
         self.removePlot.connect(self.remove_item)
         self.newReference.connect(self.set_reference)
+        self.zoomFlatTop.connect(self._zoom_flat_top)
+        self.zoomFlatBottom.connect(self._zoom_flat_bottom)
+        self.zoomBeamIn.connect(self._zoom_beam_in)
+        self.resetAxes.connect(self._reset_axes)
 
         self._plot_mode = PlotMode.PredictedOnly
         self._reference: PredictionItem | None = None
         self._color_pool = ColorPool()
+
+        self.beam_in: int = 0
+        self.beam_out: int = 0
 
     def add_item(self, item: PredictionItem) -> None:
         """
@@ -421,6 +448,62 @@ class PredictionPlotModel(QtCore.QObject):
     def _make_time_axis(item: PredictionItem) -> np.ndarray:
         return np.arange(0, item.cycle_data.num_samples)
 
+    def _zoom_flat_top(self) -> None:
+        if len(self._plotted_items) == 0:
+            log.debug("No items plotted, cannot zoom flat top.")
+            return
+
+        max_val = max(
+            [
+                item.cycle_data.field_pred.max()
+                for item in self._plotted_items
+                if item.cycle_data.field_pred is not None
+            ]
+        )
+        min_val = min(
+            [
+                item.cycle_data.field_pred.max()
+                for item in self._plotted_items
+                if item.cycle_data.field_pred is not None
+            ]
+        )
+
+        self.setYRange.emit(0.997 * min_val, 1.0005 * max_val)
+
+    def _zoom_flat_bottom(self) -> None:
+        ...
+
+    def _zoom_beam_in(self) -> None:
+        if len(self._plotted_items) == 0:
+            log.debug("No items plotted, cannot zoom beam in.")
+            return
+
+        self.setXRange.emit(self.beam_in, self.beam_out)
+
+    def _reset_axes(self) -> None:
+        if len(self._plotted_items) == 0:
+            return
+
+        max_val = max(
+            [
+                item.cycle_data.field_pred.max()
+                for item in self._plotted_items
+                if item.cycle_data.field_pred is not None
+            ]
+        )
+        min_val = min(
+            [
+                item.cycle_data.field_pred.min()
+                for item in self._plotted_items
+                if item.cycle_data.field_pred is not None
+            ]
+        )
+
+        self.setYRange.emit(min_val - 0.1, max_val + 0.1)
+        self.setXRange.emit(
+            0, next(iter(self._plotted_items)).cycle_data.num_samples
+        )
+
 
 class PredictionAnalysisModel(QtCore.QObject):
     """
@@ -475,6 +558,8 @@ class PredictionAnalysisModel(QtCore.QObject):
         self.list_model.itemRemoved.connect(self.plot_model.removePlot.emit)
         self.list_model.modelReset.connect(self.plot_model.remove_all)
 
+        self._da = pyda.SimpleClient(provider=pyda_japc.JapcProvider())
+
     @property
     def list_model(self) -> PredictionListModel:
         return self._list_model
@@ -523,6 +608,17 @@ class PredictionAnalysisModel(QtCore.QObject):
         if current_selector != selector:
             log.debug(f"Selector changed to {selector}. Clearing model.")
             self._list_model.clear()
+
+            if selector is not None:
+                beam_in = self._da.get(BEAM_IN, context=selector).value[
+                    "value"
+                ]
+                beam_out = self._da.get(BEAM_OUT, context=selector).value[
+                    "value"
+                ]
+
+                self.plot_model.beam_in = beam_in
+                self.plot_model.beam_out = beam_out
 
     def get_selector(self) -> str | None:
         return self._selector
@@ -613,7 +709,10 @@ class PredictionAnalysisModel(QtCore.QObject):
         predictions_out = [o.cycle_data.to_dict() for o in predictions]
 
         df = pd.concat(
-            [pd.DataFrame.from_dict(pred) for pred in predictions_out]
+            [
+                pd.DataFrame.from_dict({k: [v] for k, v in pred.items()})
+                for pred in predictions_out
+            ]
         )
 
         return df
@@ -628,9 +727,9 @@ class PredictionAnalysisModel(QtCore.QObject):
 
         predictions = [SingleCycleData.from_dict(d) for d in dicts]
 
+        user = predictions[0].user
+        self.userChanged.emit(user)
+
         self.clear()
         for pred in predictions:
             self._list_model.append(pred)
-
-        user = predictions[0].user
-        self.userChanged.emit(user)

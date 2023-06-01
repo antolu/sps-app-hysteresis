@@ -87,9 +87,6 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.plotPredWidget.vb.setXLink(self.plotDiffWidget.vb)
         self.widget.setBackground("w")
 
-        self._model: PredictionAnalysisModel | None = None
-        self.model = model or PredictionAnalysisModel()
-
         self.menubar = QtWidgets.QMenuBar(self)
         self.horizontalLayout.setMenuBar(self.menubar)
 
@@ -101,6 +98,11 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
 
         tools_menu = self.menubar.addMenu("&Tools")
         tools_menu.addAction(self.actionClear_Buffer)
+
+        view_menu = self.menubar.addMenu("&View")
+        self.actionResetAxes = QtWidgets.QAction(self)
+        self.actionResetAxes.setText("&Reset Axes")
+        view_menu.addAction(self.actionResetAxes)
 
         self.widget.addItem(self.plotDiffWidget, row=0, col=0)
         self.widget.addItem(self.plotPredWidget, row=1, col=0, rowspan=3)
@@ -115,6 +117,11 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         #     )
         # )
         self.radioMeasured.hide()
+        self.buttonZoomFB.setEnabled(True)
+        self.buttonZoomFT.setEnabled(True)
+
+        self._model: PredictionAnalysisModel | None = None
+        self.model = model or PredictionAnalysisModel()
 
         self._connect_slots()
 
@@ -210,21 +217,23 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         # self.radioMeasured.toggled.connect(radio_changed)
         self.radioDpp.clicked.connect(radio_changed)
 
+        self.actionClear_Buffer.triggered.connect(model.clear)
+
+        self.buttonStartStop.state1Activated.connect(model.disable_acquisition)
+        self.buttonStartStop.state2Activated.connect(model.enable_acquisition)
+        self.buttonZoomFT.clicked.connect(model.plot_model.zoomFlatTop.emit)
+        self.buttonZoomFB.clicked.connect(model.plot_model.zoomFlatBottom.emit)
+        self.buttonZoomBI.clicked.connect(model.plot_model.zoomBeamIn.emit)
+        self.actionResetAxes.triggered.connect(model.plot_model.resetAxes.emit)
+
         model.plot_model.plotAdded.connect(self.plotPredWidget.addItem)
         model.plot_model.plotRemoved.connect(self.plotPredWidget.removeItem)
         model.plot_model.plotAdded_dpp.connect(self.plotDiffWidget.addItem)
         model.plot_model.plotRemoved_dpp.connect(
             self.plotDiffWidget.removeItem
         )
-        self.actionClear_Buffer.triggered.connect(model.clear)
-
-        self.buttonStartStop.state1Activated.connect(
-            self.model.enable_acquisition
-        )
-        self.buttonStartStop.state2Activated.connect(
-            self.model.disable_acquisition
-        )
-
+        model.plot_model.setXRange.connect(self.plotPredWidget.vb.setXRange)
+        model.plot_model.setYRange.connect(self.plotPredWidget.vb.setYRange)
         model.userChanged.connect(self.LsaSelector.select_user)
 
     def _disconnect_model(self, model: PredictionAnalysisModel) -> None:

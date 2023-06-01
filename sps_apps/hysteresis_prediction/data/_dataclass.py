@@ -87,8 +87,8 @@ class SingleCycleData:
             "cycle_time": self.cycle_time,
             "cycle_timestamp": self.cycle_timestamp,
             "cycle_length": self.cycle_length,
-            "current_prog": self.current_prog,
-            "field_prog": self.field_prog,
+            "current_prog": self.current_prog.flatten(),
+            "field_prog": self.field_prog.flatten(),
             "current_input": self.current_input,
             "field_ref": self.field_ref,
             "field_pred": self.field_pred,
@@ -99,12 +99,17 @@ class SingleCycleData:
 
     @classmethod
     def from_dict(cls, d: dict) -> SingleCycleData:  # type: ignore
+        current_prog = d["current_prog"]
+        field_prog = d["field_prog"]
+
+        current_prog = current_prog.reshape(2, current_prog.size // 2)
+        field_prog = field_prog.reshape(2, field_prog.size // 2)
         item = cls(
             d["cycle"],
             d["user"],
             d["cycle_timestamp"],
-            d["current_prog"],
-            d["field_prog"],
+            current_prog,
+            field_prog,
         )
 
         item.current_input = d["current_input"]
