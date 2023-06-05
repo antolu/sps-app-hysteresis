@@ -22,6 +22,8 @@ PARAMETER_TYPE = typing.Literal[
     "function", "scalar_array", "scalar_bool", "scalar_float"
 ]
 
+PART_TYPE = typing.Literal["VALUE", "TARGET", "CORRECTION"]
+
 
 TGM_USER_RE = re.compile(r"\w+\.USER\.\w+")
 
@@ -80,7 +82,7 @@ class TrimManager:
     def get_current_trim(
         self,
         parameter_name: str,
-        part: typing.Literal["VALUE", "TARGET", "CORRECTION"] = "VALUE",
+        part: PART_TYPE = "VALUE",
         parameter_type: PARAMETER_TYPE = "function",
     ) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -143,6 +145,7 @@ class TrimManager:
         values: typing.Any,
         comment: str,
         parameter_type: PARAMETER_TYPE = "function",
+        part: PART_TYPE = "VALUE",
     ):
         ...
 
@@ -153,6 +156,7 @@ class TrimManager:
         values: list[typing.Any],
         comment: str,
         parameter_type: list[PARAMETER_TYPE],
+        part: PART_TYPE = "VALUE",
     ):
         ...
 
@@ -162,6 +166,7 @@ class TrimManager:
         values: typing.Any | list[typing.Any],
         comment: str,
         parameter_type: PARAMETER_TYPE | list[PARAMETER_TYPE] = "function",
+        part: PART_TYPE = "VALUE",
     ):
         """
         Send trims via pjlsa. Function can be called either on lists of
@@ -182,6 +187,17 @@ class TrimManager:
             .setDrive(True)  # True
             .setDescription(comment)
         )
+
+        if part == "CORRECTION":
+            par_enum = (
+                self._lsa._lsa.domain.settings.SettingPartEnum.CORRECTION
+            )
+        elif part == "TARGET":
+            par_enum = self._lsa._lsa.domain.settings.SettingPartEnum.TARGET
+        elif part == "VALUE":
+            par_enum = self._lsa._lsa.domain.settings.SettingPartEnum.VALUE
+        else:
+            raise ValueError(f"Unknown part {part}")
 
         if isinstance(parameter_name, list):
             if not isinstance(values, list):
@@ -215,6 +231,7 @@ class TrimManager:
 
         for param, val, typ in zip(parameter_name, values, parameter_type):
             parameter = self._parameter_service.findParameterByName(param)
+            trim_builder.addCustomSettingPart(parameter, par_enum)
             if typ == "function":
                 func = ValueFactory.createFunction(
                     JArray(JDouble)(val[0]), JArray(JDouble)(val[1])
