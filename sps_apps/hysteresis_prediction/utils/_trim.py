@@ -4,6 +4,7 @@ This module contains functions for trimming LSA functions
 from __future__ import annotations
 
 import logging
+import re
 import typing
 
 import numpy as np
@@ -20,6 +21,9 @@ if typing.TYPE_CHECKING:
 PARAMETER_TYPE = typing.Literal[
     "function", "scalar_array", "scalar_bool", "scalar_float"
 ]
+
+
+TGM_USER_RE = re.compile(r"\w+\.USER\.\w+")
 
 
 # pyright: reportMissingModuleSource=false
@@ -54,7 +58,23 @@ class TrimManager:
         return self._active_context
 
     @active_context.setter
-    def active_context(self, value: StandAloneContext) -> None:
+    def active_context(self, value: str | StandAloneContext) -> None:
+        """
+        Set the active context by name or by object.
+
+        If the value is a string, it is assumed to be an LSA cycle
+        or a TGM user, e.g. SPS.USER.SFTPRO1.
+
+        To use a BeamProcess context, pass the object directly.
+        """
+        if isinstance(value, str):
+            if TGM_USER_RE.match(value):
+                value = self._context_service.findStandAloneContextByUser(
+                    value
+                )
+            else:
+                value = self._context_service.findStandAloneCycle(value)
+
         self._active_context = value
 
     def get_current_trim(
