@@ -32,6 +32,7 @@ class TrimInfoWidget(QtWidgets.QWidget):
 
         self.LastCommentLabel = QtWidgets.QLabel("Last Comment", parent=self)
         self.LastCommentLineValue = QtWidgets.QLabel("N/A", parent=self)
+        self.LastCommentLineValue.setWordWrap(True)
 
         grid_layout = QtWidgets.QGridLayout(self)
         self.setLayout(grid_layout)
