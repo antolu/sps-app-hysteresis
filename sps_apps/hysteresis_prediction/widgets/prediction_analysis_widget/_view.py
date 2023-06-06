@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import logging
 import typing
+from functools import partial
 
 import pandas as pd
 import pyqtgraph as pg
@@ -232,7 +233,9 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         model.plot_model.plotRemoved_dpp.connect(
             self.plotDiffWidget.removeItem
         )
-        model.plot_model.setXRange.connect(self.plotPredWidget.vb.setXRange)
+        model.plot_model.setXRange.connect(
+            partial(self.plotPredWidget.vb.setXRange, padding=0)
+        )
         model.plot_model.setYRange.connect(self.plotPredWidget.vb.setYRange)
         model.userChanged.connect(self.LsaSelector.select_user)
 

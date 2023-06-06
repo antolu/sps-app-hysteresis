@@ -1041,12 +1041,12 @@ class AcquisitionBuffer:
         Reset buffer but keep last cycle in the NEXT buffer.
         """
         log.debug("Resetting buffer except last cycle...")
-        with self._lock:
-            if len(self._buffer_next) > 0:
-                last = self._buffer_next[-1]
+        if len(self._buffer_next) > 0:
+            last = self._buffer_next[-1]
 
-                self._reset_buffer()
+            self._reset_buffer()
 
+            with self._lock:
                 self._buffer_next.append(last)
                 self._cycles_next_index[last.cycle_timestamp] = last
 

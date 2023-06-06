@@ -51,8 +51,19 @@ def main() -> None:
         dest="buffer_size",
         help="Buffer size for acquisition.",
     )
+    parser.add_argument(
+        "--lsa-server",
+        dest="lsa_server",
+        choices=["sps", "next"],
+        default="next",
+        help="LSA server to use.",
+    )
     args = parser.parse_args()
     setup_logger(args.verbose)
+
+    from .core.application_context import context
+
+    context.lsa_server = args.lsa_server
 
     application = QApplication([])
     application.setApplicationVersion(__version__)
