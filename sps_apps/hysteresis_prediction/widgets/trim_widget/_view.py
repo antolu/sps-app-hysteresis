@@ -10,9 +10,10 @@ from accwidgets.lsa_selector import (
     LsaSelectorAccelerator,
     LsaSelectorModel,
 )
-from qtpy import QtWidgets, QtCore
+from qtpy import QtCore, QtWidgets
 
 from ...core.application_context import context
+from ...utils import run_in_main_thread, run_in_thread
 from .._widgets import ToggleButton
 from ._model import TrimModel
 
@@ -52,6 +53,8 @@ class TrimInfoWidget(QtWidgets.QWidget):
 
 class TrimWidgetView(QtWidgets.QWidget):
     windowClosed = QtCore.Signal()
+
+    _thread: QtCore.QThread | None = None
 
     def __init__(
         self, model: TrimModel, parent: QtWidgets.QWidget | None = None
@@ -101,6 +104,10 @@ class TrimWidgetView(QtWidgets.QWidget):
 
         self._plot_source = accgraph.UpdateSource()
 
+        if self._thread is None:
+            self._thread = QtCore.QThread()
+            self._thread.start()
+
     def _setup_plots(self) -> None:
         self.plotWidget.addCurve(data_source=self._plot_source)
 
@@ -141,9 +148,21 @@ class TrimWidgetView(QtWidgets.QWidget):
         self._plot_source.send_data(curve)
 
     def on_user_selected_lsa(self, user: str) -> None:
-        self.model.selector = user
+        if user != self.model.selector:
+            self.toggle_button.setEnabled(False)
 
-        self.toggle_button.setEnabled(True)
+            if self.toggle_button.state == ToggleButton.State.STATE2:
+                self.toggle_button.toggle()
+
+            if self._thread is not None:
+
+                @run_in_thread(lambda: self._thread)
+                def task() -> None:
+                    self.model.selector = user
+
+                    run_in_main_thread(self.toggle_button.setEnabled(True))
+
+                task()
 
 
 if __name__ == "__main__":

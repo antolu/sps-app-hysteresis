@@ -55,3 +55,7 @@ class ToggleButton(QtWidgets.QPushButton):
             self.state1Activated.emit()
 
         self.stateChanged.emit(self._state)
+
+    @property
+    def state(self) -> State:
+        return self._state
