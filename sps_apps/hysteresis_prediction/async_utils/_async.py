@@ -103,8 +103,8 @@ class Signal:
         :raises ValueError: If the slot is not connected to the signal.
         """
         for handler in self._handles:
-            if handler.slot is handle:
-                log.debug(f"Disconnecting {handle.__name__}.")
+            if handler.slot == handle:
+                log.debug(f"Disconnecting {str(handle.__name__)}.")
                 self._handles.remove(handler)
                 return
         raise ValueError(f"Could not find handler {handle}.")

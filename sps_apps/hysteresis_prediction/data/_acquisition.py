@@ -34,7 +34,6 @@ from ._acquisition_buffer import (
     InsufficientDataError,
 )
 from ._cycle_to_tgm import LSAContexts
-from ._dataclass import SingleCycleData
 from ._pyjapc import PyJapc2Pyda, PyJapcEndpoint, SubscriptionCallback
 
 __all__ = ["Acquisition"]
@@ -149,7 +148,7 @@ class Acquisition:
         # set up PyDA and PyJApc
         self._japc_simple = SimpleClient(provider=japc_provider)
         self._japc_async = AsyncIOClient(provider=japc_provider)
-        japc = PyJapc(incaAcceleratorName="SPS", selector="SPS.USER.ALL")
+        japc = PyJapc(incaAcceleratorName=None, selector="SPS.USER.ALL")
         japc.rbacLogin()
         self._japc = PyJapc2Pyda(japc)
 

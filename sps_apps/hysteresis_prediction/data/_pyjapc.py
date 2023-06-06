@@ -90,7 +90,7 @@ class SubscriptionCallback:
 class PyJapc2Pyda:
     def __init__(self, pyjapc: Optional[PyJapc] = None) -> None:
         self._pyjapc = pyjapc or PyJapc(
-            incaAcceleratorName="SPS", selector="SPS.USER.ALL"
+            incaAcceleratorName=None, selector="SPS.USER.ALL"
         )
         self._pyjapc.rbacLogin()
 
