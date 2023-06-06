@@ -10,10 +10,10 @@ from PyQt5.QtWidgets import QWidget
 from qtpy.QtGui import QCloseEvent
 from qtpy.QtWidgets import QDialog, QMessageBox
 
+from .core.application_context import context
 from .data import Acquisition, BufferData, SingleCycleData
 from .generated.main_window_ui import Ui_main_window
 from .inference import Inference
-from .settings import context
 from .widgets import ModelLoadDialog, PlotModel
 from .widgets.plot_settings_widget import AppStatus
 from .widgets.prediction_analysis_widget import (
@@ -21,6 +21,7 @@ from .widgets.prediction_analysis_widget import (
     PredictionAnalysisWidget,
 )
 from .widgets.status_tracker import StatusManager
+from .widgets.trim_widget import TrimModel, TrimWidgetView
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +41,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self.setupUi(self)
 
         self._analysis_widgets: dict[str, PredictionAnalysisWidget] = {}
+        self._trim_wide_widgets: dict[str, TrimWidgetView] = {}
 
         log_console = LogConsole(self)
         self.log_console = log_console
@@ -98,6 +100,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self.actionPrediction_Analysis.triggered.connect(
             self.show_predicion_analysis
         )
+        self.action_Trim_View.triggered.connect(self.show_trim_widget)
 
         # status messages
         self.widgetSettings.toggle_predictions.connect(
@@ -183,6 +186,27 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             widget.deleteLater()
 
             self._acquisition.new_measured_data.disconnect(model.newData.emit)
+
+        widget.windowClosed.connect(on_close)
+
+        widget.show()
+
+    def show_trim_widget(self) -> None:
+        model = TrimModel()
+        widget = TrimWidgetView(model=model, parent=None)
+
+        self._inference.cycle_predicted.connect(model.newPredictedData.emit)
+
+        uuid = str(uuid4())
+        self._trim_wide_widgets[uuid] = widget
+
+        def on_close() -> None:
+            widget = self._trim_wide_widgets.pop(uuid)
+            widget.deleteLater()
+
+            self._inference.cycle_predicted.disconnect(
+                model.newPredictedData.emit
+            )
 
         widget.windowClosed.connect(on_close)
 

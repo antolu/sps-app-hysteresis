@@ -10,7 +10,7 @@ from accwidgets.lsa_selector import (
     LsaSelectorAccelerator,
     LsaSelectorModel,
 )
-from qtpy import QtWidgets
+from qtpy import QtWidgets, QtCore
 
 from ...core.application_context import context
 from .._widgets import ToggleButton
@@ -51,6 +51,8 @@ class TrimInfoWidget(QtWidgets.QWidget):
 
 
 class TrimWidgetView(QtWidgets.QWidget):
+    windowClosed = QtCore.Signal()
+
     def __init__(
         self, model: TrimModel, parent: QtWidgets.QWidget | None = None
     ):

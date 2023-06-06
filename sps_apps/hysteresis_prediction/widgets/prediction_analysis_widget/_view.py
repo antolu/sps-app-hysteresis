@@ -9,8 +9,10 @@ from functools import partial
 
 import pandas as pd
 import pyqtgraph as pg
+from accwidgets import lsa_selector
 from qtpy import QtCore, QtGui, QtWidgets
 
+from ...core.application_context import context
 from ...generated.prediction_analysis_widget_ui import (
     Ui_PredictionAnalysisWidget,
 )
@@ -76,6 +78,20 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
     ) -> None:
         super().__init__(parent=parent)
         self.setupUi(self)
+
+        selector_model = lsa_selector.LsaSelectorModel(
+            accelerator=lsa_selector.LsaSelectorAccelerator.SPS,
+            lsa=context.lsa,
+            categories={
+                lsa_selector.AbstractLsaSelectorContext.Category.MD,
+                lsa_selector.AbstractLsaSelectorContext.Category.OPERATIONAL,
+            },
+        )
+        self.LsaSelector = lsa_selector.LsaSelector(
+            model=selector_model, parent=parent
+        )
+        self.frame.layout().replaceWidget(self._LsaSelector, self.LsaSelector)
+        self._LsaSelector.deleteLater()
 
         self.plotPredWidget = pg.PlotItem()
         self.plotDiffWidget = pg.PlotItem()

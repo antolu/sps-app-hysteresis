@@ -25,17 +25,9 @@ class Ui_PredictionAnalysisWidget(object):
         self.verticalLayout = QtWidgets.QVBoxLayout(self.frame)
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout.setObjectName("verticalLayout")
-        self.LsaSelector = LsaSelector(self.frame)
-        self.LsaSelector.setMaximumSize(QtCore.QSize(400, 16777215))
-        self.LsaSelector.setToolTip("")
-        self.LsaSelector.setProperty("accelerator", LsaSelector.SPS)
-        self.LsaSelector.setProperty("fetchResidentOnly", True)
-        self.LsaSelector.setProperty("contextCategories", LsaSelector.Md|LsaSelector.Operational)
-        self.LsaSelector.setProperty("hideHorizontalHeader", False)
-        self.LsaSelector.setProperty("showNameFilter", False)
-        self.LsaSelector.setProperty("showCategoryFilter", True)
-        self.LsaSelector.setObjectName("LsaSelector")
-        self.verticalLayout.addWidget(self.LsaSelector)
+        self._LsaSelector = QtWidgets.QWidget(self.frame)
+        self._LsaSelector.setObjectName("_LsaSelector")
+        self.verticalLayout.addWidget(self._LsaSelector)
         self.frame_5 = QtWidgets.QFrame(self.frame)
         self.frame_5.setMaximumSize(QtCore.QSize(400, 16777215))
         self.frame_5.setFrameShape(QtWidgets.QFrame.StyledPanel)
@@ -208,6 +200,5 @@ class Ui_PredictionAnalysisWidget(object):
         self.actionExit.setText(_translate("PredictionAnalysisWidget", "&Exit"))
         self.actionImport_Predictions.setText(_translate("PredictionAnalysisWidget", "Import Predictions"))
         self.actionImport_Predictions.setToolTip(_translate("PredictionAnalysisWidget", "Import Predictions from Pandas Dataframe"))
-from accwidgets.lsa_selector import LsaSelector
 from pyqtgraph import GraphicsLayoutWidget
 from sps_apps.hysteresis_prediction.widgets import ToggleButton

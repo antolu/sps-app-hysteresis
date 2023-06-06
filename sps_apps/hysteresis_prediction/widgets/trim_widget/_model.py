@@ -4,7 +4,6 @@ import logging
 from datetime import datetime
 
 import numpy as np
-import numpy.typing as npt
 from pyda import SimpleClient
 from pyda_japc import JapcProvider
 from qtpy import QtCore
@@ -25,9 +24,7 @@ BEAM_OUT = "SX.BEAM-OUT-CTML/ControlValue#controlValue"
 class TrimModel(QtCore.QObject):
     newPredictedData = QtCore.Signal(SingleCycleData)
 
-    trimApplied = QtCore.Signal(
-        tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]], datetime, str
-    )
+    trimApplied = QtCore.Signal(tuple, datetime, str)
 
     def __init__(self, parent: QtCore.QObject | None = None):
         super().__init__(parent=parent)

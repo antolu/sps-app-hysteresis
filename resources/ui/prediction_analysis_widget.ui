@@ -48,35 +48,7 @@
        <number>0</number>
       </property>
       <item>
-       <widget class="LsaSelector" name="LsaSelector">
-        <property name="maximumSize">
-         <size>
-          <width>400</width>
-          <height>16777215</height>
-         </size>
-        </property>
-        <property name="toolTip">
-         <string/>
-        </property>
-        <property name="accelerator" stdset="0">
-         <enum>LsaSelector::SPS</enum>
-        </property>
-        <property name="fetchResidentOnly" stdset="0">
-         <bool>true</bool>
-        </property>
-        <property name="contextCategories" stdset="0">
-         <set>LsaSelector::Md|LsaSelector::Operational</set>
-        </property>
-        <property name="hideHorizontalHeader" stdset="0">
-         <bool>false</bool>
-        </property>
-        <property name="showNameFilter" stdset="0">
-         <bool>false</bool>
-        </property>
-        <property name="showCategoryFilter" stdset="0">
-         <bool>true</bool>
-        </property>
-       </widget>
+       <widget class="QWidget" name="_LsaSelector" native="true"/>
       </item>
       <item>
        <widget class="QFrame" name="frame_5">
@@ -428,11 +400,6 @@
   </action>
  </widget>
  <customwidgets>
-  <customwidget>
-   <class>LsaSelector</class>
-   <extends>QWidget</extends>
-   <header>accwidgets.lsa_selector</header>
-  </customwidget>
   <customwidget>
    <class>GraphicsLayoutWidget</class>
    <extends>QWidget</extends>
