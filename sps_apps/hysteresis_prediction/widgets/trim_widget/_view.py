@@ -60,7 +60,7 @@ class TrimWidgetView(QtWidgets.QWidget):
         self, model: TrimModel, parent: QtWidgets.QWidget | None = None
     ):
         super().__init__(parent=parent)
-        self._model = model
+        self._model = None
 
         selector_model = LsaSelectorModel(
             accelerator=LsaSelectorAccelerator.SPS, lsa=context.lsa
@@ -104,6 +104,8 @@ class TrimWidgetView(QtWidgets.QWidget):
 
         self._plot_source = accgraph.UpdateSource()
 
+        self.model = model
+
         if self._thread is None:
             self._thread = QtCore.QThread()
             self._thread.start()
@@ -112,7 +114,7 @@ class TrimWidgetView(QtWidgets.QWidget):
         self.plotWidget.addCurve(data_source=self._plot_source)
 
     @property
-    def model(self) -> TrimModel:
+    def model(self) -> TrimModel | None:
         return self._model
 
     @model.setter

@@ -84,7 +84,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self.widgetSettings._on_new_cycle
         )
         self._acquisition.buffer.buffer_size_changed.connect(
-            lambda x: self.widgetSettings._set_progressbar(x, BUFFER_SIZE)
+            lambda x: self.widgetSettings._set_progressbar(x, buffer_size)
         )
 
         self.action_Load_Model.triggered.connect(self.on_load_model_triggered)

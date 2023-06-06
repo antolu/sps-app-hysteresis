@@ -22,7 +22,7 @@ BEAM_OUT = "SX.BEAM-OUT-CTML/ControlValue#controlValue"
 
 
 class TrimModel(QtCore.QObject):
-    newPredictedData = QtCore.Signal(SingleCycleData)
+    newPredictedData = QtCore.Signal(SingleCycleData, np.ndarray)
 
     trimApplied = QtCore.Signal(tuple, datetime, str)
 
@@ -39,7 +39,9 @@ class TrimModel(QtCore.QObject):
 
         self._trim_enabled = False
 
-    def on_new_prediction(self, prediction: SingleCycleData) -> None:
+        self.newPredictedData.connect(self.on_new_prediction)
+
+    def on_new_prediction(self, prediction: SingleCycleData, *_) -> None:
         if not self._trim_enabled:
             log.debug("Trim is disabled, skipping trim.")
             return
@@ -66,10 +68,11 @@ class TrimModel(QtCore.QObject):
 
         correction = prediction.field_ref - prediction.field_pred
 
-        if (prediction.cycle_time - datetime.now()).total_seconds() < 1.0:
+        time_margin = (prediction.cycle_time - datetime.now()).total_seconds()
+        if time_margin < 1.0:
             log.warning(
                 f"[{prediction}] Not enough time to send transaction, "
-                "skipping trim."
+                f"skipping trim (margin {time_margin:.02f}s < 1.0s."
             )
             return
 
@@ -104,30 +107,18 @@ class TrimModel(QtCore.QObject):
 
         log.debug(f"[{cycle_data}] Sending trims to LSA.")
         trim_time = datetime.now()
-        self._trim_manager.send_trim(
-            DEV_LSA_B,
-            values=(time_axis, current_value),
-            comment=comment,
-            part="CORRECTION",
-        )
+
+        if False:
+            self._trim_manager.send_trim(
+                DEV_LSA_B,
+                values=(time_axis, current_value),
+                comment=comment,
+                part="CORRECTION",
+            )
+        else:
+            log.info("Debug environment, skipping trim.")
 
         self.trimApplied.emit((time_axis, current_value), trim_time, comment)
-
-    @property
-    def active_context(self) -> str:
-        return self._trim_manager.active_context.getName()
-
-    @active_context.setter
-    def active_context(self, value: str) -> None:
-        self._trim_manager.active_context = value
-
-        cycle = self._trim_manager.active_context.getName()
-        selector = f"SPS.CYCLE.{cycle}"
-
-        self._beam_in = self._da.get(BEAM_IN, context=selector).value["value"]
-        self._beam_out = self._da.get(BEAM_OUT, context=selector).value[
-            "value"
-        ]
 
     @property
     def selector(self) -> str | None:
@@ -135,11 +126,16 @@ class TrimModel(QtCore.QObject):
 
     @selector.setter
     def selector(self, value: str) -> None:
-        self.active_context = value
+        self._trim_manager.active_context = value
+
+        self._beam_in = self._da.get(BEAM_IN, context=value).value["value"]
+        self._beam_out = self._da.get(BEAM_OUT, context=value).value["value"]
         self._selector = value
 
     def enable_trim(self) -> None:
+        log.debug("Enabling trim.")
         self._trim_enabled = True
 
     def disable_trim(self) -> None:
+        log.debug("Disabling trim.")
         self._trim_enabled = False

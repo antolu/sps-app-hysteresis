@@ -51,7 +51,7 @@ class SingleCycleData:
 
     def __post_init__(self) -> None:
         self.cycle_time = from_timestamp(
-            self.cycle_timestamp, from_utc=True, unit="ns"
+            self.cycle_timestamp, from_utc=False, unit="ns"
         )
         self.cycle_length = int(
             self.current_prog[0][-1]
