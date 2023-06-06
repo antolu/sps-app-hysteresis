@@ -9,7 +9,7 @@ The lsa_contexts object is a global object that can be imported in the app.
 import logging
 import typing as t
 
-import pjlsa
+from ..core.application_context import context
 
 __all__ = ["LSAContexts"]
 
@@ -52,7 +52,7 @@ class LSAContexts:
             )
 
         log.debug("Preparing to update LSA cycle to PLS mapping.")
-        with pjlsa.LSAClient(server=self.machine.lower()).java_api():
+        with context.lsa.java_api():
             from cern.accsoft.commons.domain import CernAccelerator
             from cern.lsa.client import ContextService, ServiceLocator
             from cern.lsa.domain.settings import (
