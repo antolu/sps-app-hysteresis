@@ -15,7 +15,7 @@ from sps_projects.hysteresis_compensation.models import PhyLSTM1, PhyLSTMModule
 from sps_projects.hysteresis_compensation.utils import PhyLSTM1Output, ops
 
 from ..data import SingleCycleData
-from ..utils import load_cursor, run_in_thread
+from ..utils import ThreadWorker, load_cursor, run_in_thread
 
 MS = int(1e3)
 NS = int(1e9)
@@ -66,13 +66,28 @@ class Inference(QtCore.QObject):
         self.completed.connect(lambda: self._set_doing_inference(False))
 
     def on_load_model(self, ckpt_path: str, device: str = "cpu") -> None:
-        try:
-            with self._lock and load_cursor():
-                self._load_model(ckpt_path)
+        worker = ThreadWorker(self._on_load_model, ckpt_path, device)
+
+        worker.exception.connect(lambda: log.exception("Error loading model"))
+
+        QtCore.QThreadPool.globalInstance().start(worker)
+
+    def _on_load_model(self, ckpt_path: str, device: str = "cpu") -> None:
+        with load_cursor():
+            data_module, module = self._load_model(ckpt_path)
+
+            with self._lock:
+                old_device = self._device
+
                 self.device = device
-        except:  # noqa: broad-except
-            log.exception("Failed to load model.")
-            return
+
+                self._ckpt_path = ckpt_path
+                self._data_module = data_module
+                self._module = module
+                self._model = module.model
+
+                if old_device != device:
+                    self.configure_model()
 
         self.model_loaded.emit()
 
@@ -206,9 +221,9 @@ class Inference(QtCore.QObject):
 
         return np.stack((time_axis, predictions), axis=0)
 
-    def _load_model(self, ckpt_path: str) -> None:
-        self._ckpt_path = ckpt_path
-
+    def _load_model(
+        self, ckpt_path: str
+    ) -> tuple[PhyLSTMDataModule, PhyLSTMModule]:
         log.debug(f"Loading model and datamodule from {ckpt_path}.")
 
         with warnings.catch_warnings():
@@ -216,9 +231,7 @@ class Inference(QtCore.QObject):
             module = PhyLSTMModule.load_from_checkpoint(
                 ckpt_path, phylstm=1, strict=False
             )
-            self._data_module = PhyLSTMDataModule.load_from_checkpoint(
-                ckpt_path
-            )
+            data_module = PhyLSTMDataModule.load_from_checkpoint(ckpt_path)
 
         model = module.model
         module.eval()
@@ -226,12 +239,12 @@ class Inference(QtCore.QObject):
         assert model is not None
         log.debug("Compiling model.")
         # self._model = torch.compile(model)  # type: ignore
-        self._model = model
-        self._module = module
 
-        self._data_module.hparams["batch_size"] = 1
+        data_module.hparams["batch_size"] = 1
 
         log.info("Model loaded.")
+
+        return data_module, module
 
     def _get_device(self) -> str:
         return self._device
@@ -241,12 +254,6 @@ class Inference(QtCore.QObject):
             log.info(f"Switching inference device to {device}.")
             self._trainer = L.Trainer(accelerator=str(device))
             self._fabric = L.Fabric(accelerator=str(device))
-
-            if self._model is None:
-                log.error("No model loaded. Cannot move to device.")
-            else:
-                log.debug("Setting up model with Fabric.")
-                self._model = self._fabric.setup(self._model)
         self._device = device
 
     device = property(_get_device, _set_device)
@@ -254,6 +261,13 @@ class Inference(QtCore.QObject):
     @property
     def model_is_loaded(self) -> bool:
         return self._module is not None
+
+    def configure_model(self) -> None:
+        if self._model is None:
+            log.error("No model loaded. Cannot configure.")
+            return
+
+        self._model = self._fabric.setup(self._model)
 
     def set_do_inference(self, state: bool) -> None:
         with self._lock:

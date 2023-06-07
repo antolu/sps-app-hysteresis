@@ -4,6 +4,18 @@ from qtpy.QtCore import Qt
 from qtpy.QtGui import QCursor
 from qtpy.QtWidgets import QApplication
 
+from ._threadutil import run_in_main_thread
+
+
+@run_in_main_thread
+def set_cursor_busy() -> None:
+    QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+
+
+@run_in_main_thread
+def set_cursor_normal() -> None:
+    QApplication.restoreOverrideCursor()
+
 
 class load_cursor:
     """
@@ -12,9 +24,9 @@ class load_cursor:
     """
 
     def __enter__(self) -> load_cursor:
-        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+        set_cursor_busy()
 
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:  # type: ignore
-        QApplication.restoreOverrideCursor()
+        set_cursor_normal()

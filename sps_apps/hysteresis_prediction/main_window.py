@@ -6,14 +6,13 @@ import numpy as np
 from accwidgets.app_frame import ApplicationFrame
 from accwidgets.log_console import LogConsole
 from accwidgets.timing_bar import TimingBar, TimingBarDomain, TimingBarModel
-from PyQt5.QtWidgets import QWidget
-from qtpy.QtGui import QCloseEvent
-from qtpy.QtWidgets import QDialog, QMessageBox
+from qtpy import QtCore, QtGui, QtWidgets
 
 from .core.application_context import context
 from .data import Acquisition, BufferData, SingleCycleData
 from .generated.main_window_ui import Ui_main_window
 from .inference import Inference
+from .utils import ThreadWorker, load_cursor
 from .widgets import ModelLoadDialog, PlotModel
 from .widgets.plot_settings_widget import AppStatus
 from .widgets.prediction_analysis_widget import (
@@ -33,7 +32,9 @@ BUFFER_SIZE = 150000
 
 class MainWindow(Ui_main_window, ApplicationFrame):
     def __init__(
-        self, buffer_size: int = BUFFER_SIZE, parent: Optional[QWidget] = None
+        self,
+        buffer_size: int = BUFFER_SIZE,
+        parent: Optional[QtWidgets.QWidget] = None,
     ):
         ApplicationFrame.__init__(self, parent)
         Ui_main_window.__init__(self)
@@ -92,7 +93,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self.widgetSettings.on_model_loaded
         )
         self._inference.model_loaded.connect(
-            lambda: QMessageBox.information(
+            lambda: QtWidgets.QMessageBox.information(
                 self, "Model loaded", "Model successfully loaded."
             )
         )
@@ -143,10 +144,10 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         dialog = ModelLoadDialog(parent=self)
         result = dialog.exec()
 
-        if result == QDialog.Rejected:
+        if result == QtWidgets.QDialog.Rejected:
             log.debug("Model load dialog cancelled.")
             return
-        elif result == QDialog.Accepted:
+        elif result == QtWidgets.QDialog.Accepted:
             ckpt_path = dialog.ckpt_path
             device = dialog.device
 
@@ -173,45 +174,67 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self.widgetSettings.hide()
 
     def show_predicion_analysis(self) -> None:
-        model = PredictionAnalysisModel()
-        widget = PredictionAnalysisWidget(model=model, parent=None)
+        def create_model() -> PredictionAnalysisModel:
+            with load_cursor():
+                return PredictionAnalysisModel()
 
-        self._acquisition.new_measured_data.connect(model.newData.emit)
+        worker = ThreadWorker(create_model)
 
-        uuid = str(uuid4())
-        self._analysis_widgets[uuid] = widget
+        def on_completed(model: PredictionAnalysisModel):
+            widget = PredictionAnalysisWidget(model=model, parent=None)
 
-        def on_close() -> None:
-            widget = self._analysis_widgets.pop(uuid)
-            widget.deleteLater()
+            self._acquisition.new_measured_data.connect(model.newData.emit)
 
-            self._acquisition.new_measured_data.disconnect(model.newData.emit)
+            uuid = str(uuid4())
+            self._analysis_widgets[uuid] = widget
 
-        widget.windowClosed.connect(on_close)
+            def on_close() -> None:
+                widget = self._analysis_widgets.pop(uuid)
+                widget.deleteLater()
 
-        widget.show()
+                self._acquisition.new_measured_data.disconnect(
+                    model.newData.emit
+                )
+
+            widget.windowClosed.connect(on_close)
+            widget.show()
+
+        worker.result.connect(on_completed)
+
+        QtCore.QThreadPool.globalInstance().start(worker)
 
     def show_trim_widget(self) -> None:
-        model = TrimModel()
-        widget = TrimWidgetView(model=model, parent=None)
+        def create_model() -> TrimModel:
+            with load_cursor():
+                return TrimModel()
 
-        self._inference.cycle_predicted.connect(model.newPredictedData.emit)
+        def on_completed(model: TrimModel):
+            widget = TrimWidgetView(model=model, parent=None)
 
-        uuid = str(uuid4())
-        self._trim_wide_widgets[uuid] = widget
-
-        def on_close() -> None:
-            widget = self._trim_wide_widgets.pop(uuid)
-            widget.deleteLater()
-
-            self._inference.cycle_predicted.disconnect(
+            self._inference.cycle_predicted.connect(
                 model.newPredictedData.emit
             )
 
-        widget.windowClosed.connect(on_close)
+            uuid = str(uuid4())
+            self._trim_wide_widgets[uuid] = widget
 
-        widget.show()
+            def on_close() -> None:
+                widget = self._trim_wide_widgets.pop(uuid)
+                widget.deleteLater()
 
-    def closeEvent(self, event: QCloseEvent) -> None:
+                self._inference.cycle_predicted.disconnect(
+                    model.newPredictedData.emit
+                )
+
+            widget.windowClosed.connect(on_close)
+
+            widget.show()
+
+        worker = ThreadWorker(create_model)
+        worker.result.connect(on_completed)
+
+        QtCore.QThreadPool.globalInstance().start(worker)
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         self._acquisition.stop()
         super().closeEvent(event)
