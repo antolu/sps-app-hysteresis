@@ -14,15 +14,43 @@ import typing as t
 from functools import wraps
 from threading import Event, Thread, get_ident
 
-from qtpy.QtCore import QObject, QThread, Signal
+from qtpy import QtCore
 from qtpy.QtWidgets import QApplication
 
 
-class ThreadWorker(QObject):
-    started = Signal()
-    finished = Signal()
-    result = Signal(object)
-    exception = Signal(Exception)
+class Signals(QtCore.QObject):
+    started = QtCore.Signal()
+    finished = QtCore.Signal()
+    result = QtCore.Signal(object)
+    exception = QtCore.Signal(Exception)
+
+
+class ThreadWorker(QtCore.QRunnable):
+    def __init__(self, function: t.Callable, *args: t.Any, **kwargs: t.Any):
+        super().__init__()
+
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
+
+        self.signals = Signals()
+
+        self.started = self.signals.started
+        self.finished = self.signals.finished
+        self.result = self.signals.result
+        self.exception = self.signals.exception
+
+    @QtCore.Slot()
+    def run(self) -> None:
+        self.started.emit()
+
+        try:
+            result = self.function(*self.args, **self.kwargs)
+            self.result.emit(result)
+        except Exception as e:
+            self.exception.emit(e)
+        finally:
+            self.finished.emit()
 
 
 def thread(function: t.Callable, *args: t.Any, **kwargs: t.Any) -> Thread:
@@ -32,7 +60,7 @@ def thread(function: t.Callable, *args: t.Any, **kwargs: t.Any) -> Thread:
     return th
 
 
-def run_in_thread(thread_fn: t.Callable[[], QThread]) -> t.Callable:
+def run_in_thread(thread_fn: t.Callable[[], QtCore.QThread]) -> t.Callable:
     def decorator(f: t.Callable) -> t.Any:
         @wraps(f)
         def result(*args: t.Any, **kwargs: t.Any) -> t.Callable:
@@ -44,13 +72,13 @@ def run_in_thread(thread_fn: t.Callable[[], QThread]) -> t.Callable:
     return decorator
 
 
-def _main_thread() -> QThread:
+def _main_thread() -> QtCore.QThread:
     app = QApplication.instance()
     if app:
         return app.thread()
     # We reach here in tests that don't (want to) create a QApplication.
-    if int(QThread.currentThreadId()) == get_ident():
-        return QThread.currentThread()
+    if int(QtCore.QThread.currentThreadId()) == get_ident():
+        return QtCore.QThread.currentThread()
     raise RuntimeError("Could not determine main thread")
 
 
@@ -58,7 +86,7 @@ run_in_main_thread = run_in_thread(_main_thread)
 
 
 def is_in_main_thread() -> bool:
-    return QThread.currentThread() == _main_thread()
+    return QtCore.QThread.currentThread() == _main_thread()
 
 
 class Executor:
@@ -82,9 +110,13 @@ class Executor:
             task.has_run.set()
 
     def run_in_thread(
-        self, qthread: QThread, f: t.Callable, args: t.Tuple, kwargs: t.Dict
+        self,
+        qthread: QtCore.QThread,
+        f: t.Callable,
+        args: t.Tuple,
+        kwargs: t.Dict,
     ) -> t.Callable:
-        if QThread.currentThread() == qthread:
+        if QtCore.QThread.currentThread() == qthread:
             return f(*args, **kwargs)
         elif self._app_is_about_to_quit:
             # In this case, the target thread's event loop most likely is not
@@ -135,13 +167,13 @@ class Task:
         return self._result
 
 
-class Sender(QObject):
-    signal = Signal()
+class Sender(QtCore.QObject):
+    signal = QtCore.Signal()
 
 
-class Receiver(QObject):
+class Receiver(QtCore.QObject):
     def __init__(
-        self, callback: t.Callable, parent: t.Optional[QObject] = None
+        self, callback: t.Callable, parent: t.Optional[QtCore.QObject] = None
     ):
         super().__init__(parent)
         self.callback = callback

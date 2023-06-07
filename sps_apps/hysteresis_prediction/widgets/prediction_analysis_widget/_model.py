@@ -505,14 +505,14 @@ class PredictionPlotModel(QtCore.QObject):
 
         max_val = max(
             [
-                item.cycle_data.field_pred.max()
+                item.cycle_data.field_pred[1, :].max()
                 for item in self._plotted_items
                 if item.cycle_data.field_pred is not None
             ]
         )
         min_val = min(
             [
-                item.cycle_data.field_pred.min()
+                item.cycle_data.field_pred[1, :].min()
                 for item in self._plotted_items
                 if item.cycle_data.field_pred is not None
             ]
