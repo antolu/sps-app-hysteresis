@@ -392,12 +392,14 @@ class PredictionPlotModel(QtCore.QObject):
         elif self._plot_mode == PlotMode.VsMeasured:
             assert cycle_data.field_meas is not None
 
-            x = cycle_data.field_pred[0, :]
-            downsample = cycle_data.num_samples // len(x)
+            downsample = cycle_data.num_samples // len(
+                cycle_data.field_pred[0, :]
+            )
             y = (
                 cycle_data.field_meas[::downsample]
                 - cycle_data.field_pred[1, :]
             )
+            x = x[:: len(x) // len(y)]
         elif self._plot_mode == PlotMode.dpp:
             if self._reference is None:
                 raise ValueError("No reference set.")
@@ -405,12 +407,12 @@ class PredictionPlotModel(QtCore.QObject):
 
             assert reference.cycle_data.field_pred is not None
 
-            x = cycle_data.field_pred[0, :]
             y = (
                 (reference.cycle_data.field_pred - cycle_data.field_pred)
                 / reference.cycle_data.field_pred
                 * 1e4
             )[1, :]
+            x = x[:: len(x) // len(y)]
         else:
             raise ValueError(f"Invalid plot mode {self._plot_mode.name}")
 

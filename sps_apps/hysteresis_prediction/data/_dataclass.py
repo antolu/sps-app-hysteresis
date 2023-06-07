@@ -94,7 +94,9 @@ class SingleCycleData:
             "field_prog": self.field_prog.flatten(),
             "current_input": self.current_input,
             "field_ref": self.field_ref,
-            "field_pred": self.field_pred,
+            "field_pred": self.field_pred.flatten()
+            if self.field_pred
+            else None,
             "current_meas": self.current_meas,
             "field_meas": self.field_meas,
             "num_samples": self.num_samples,
@@ -117,6 +119,7 @@ class SingleCycleData:
 
         item.current_input = d["current_input"]
         item.field_ref = d["field_ref"]
+        item.field_pred = d["field_pred"].reshape(2, d["field_pred"].size // 2)
         item.field_pred = d["field_pred"]
         item.current_meas = d["current_meas"]
         item.field_meas = d["field_meas"]
