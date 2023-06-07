@@ -6,13 +6,13 @@ import numpy as np
 from accwidgets.app_frame import ApplicationFrame
 from accwidgets.log_console import LogConsole
 from accwidgets.timing_bar import TimingBar, TimingBarDomain, TimingBarModel
-from qtpy import QtCore, QtGui, QtWidgets
+from qtpy import QtGui, QtWidgets
 
 from .core.application_context import context
 from .data import Acquisition, BufferData, SingleCycleData
 from .generated.main_window_ui import Ui_main_window
 from .inference import Inference
-from .utils import ThreadWorker, load_cursor
+from .utils import load_cursor
 from .widgets import ModelLoadDialog, PlotModel
 from .widgets.plot_settings_widget import AppStatus
 from .widgets.prediction_analysis_widget import (
@@ -174,13 +174,8 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self.widgetSettings.hide()
 
     def show_predicion_analysis(self) -> None:
-        def create_model() -> PredictionAnalysisModel:
-            with load_cursor():
-                return PredictionAnalysisModel()
-
-        worker = ThreadWorker(create_model)
-
-        def on_completed(model: PredictionAnalysisModel):
+        with load_cursor():
+            model = PredictionAnalysisModel()
             widget = PredictionAnalysisWidget(model=model, parent=None)
 
             self._acquisition.new_measured_data.connect(model.newData.emit)
@@ -197,18 +192,11 @@ class MainWindow(Ui_main_window, ApplicationFrame):
                 )
 
             widget.windowClosed.connect(on_close)
-            widget.show()
-
-        worker.result.connect(on_completed)
-
-        QtCore.QThreadPool.globalInstance().start(worker)
+        widget.show()
 
     def show_trim_widget(self) -> None:
-        def create_model() -> TrimModel:
-            with load_cursor():
-                return TrimModel()
-
-        def on_completed(model: TrimModel):
+        with load_cursor():
+            model = TrimModel()
             widget = TrimWidgetView(model=model, parent=None)
 
             self._inference.cycle_predicted.connect(
@@ -227,13 +215,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
                 )
 
             widget.windowClosed.connect(on_close)
-
-            widget.show()
-
-        worker = ThreadWorker(create_model)
-        worker.result.connect(on_completed)
-
-        QtCore.QThreadPool.globalInstance().start(worker)
+        widget.show()
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         self._acquisition.stop()

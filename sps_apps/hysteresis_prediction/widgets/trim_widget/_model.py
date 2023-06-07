@@ -129,6 +129,7 @@ class TrimModel(QtCore.QObject):
         else:
             log.info("Debug environment, skipping trim.")
 
+        print(f"Shape: {time_axis.shape}, {new_correction.shape}")
         self.trimApplied.emit((time_axis, new_correction), trim_time, comment)
 
     @property
