@@ -128,14 +128,14 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
 
         self.spinBoxNumPredictions.setMaximum(20)
 
-        # self.plotDiffWidget.addItem(
-        #     pg.InfiniteLine(
-        #         pos=None, angle=0, pen=pg.mkPen(style=QtCore.Qt.DashLine)
-        #     )
-        # )
-        self.radioMeasured.hide()
+        self.plotDiffWidget.addItem(
+            pg.InfiniteLine(
+                pos=None, angle=0, pen=pg.mkPen(style=QtCore.Qt.DashLine)
+            )
+        )
         self.buttonZoomFB.setEnabled(True)
         self.buttonZoomFT.setEnabled(True)
+        self.buttonReference.hide()
 
         self._model: PredictionAnalysisModel | None = None
         self.model = model or PredictionAnalysisModel()
@@ -216,22 +216,34 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         def radio_changed(*_: typing.Any) -> None:
             if self.radioPredicted.isChecked():
                 model.plotModeChanged.emit(PlotMode.PredictedOnly)
+
                 self.buttonReference.setEnabled(False)
+                self.buttonReference.hide()
                 self.buttonZoomFT.setEnabled(True)
                 self.buttonZoomFB.setEnabled(True)
+                self.buttonZoomFT.show()
+                self.buttonZoomFB.show()
             elif self.radioMeasured.isChecked():
                 model.plotModeChanged.emit(PlotMode.VsMeasured)
-                self.buttonReference.setEnabled(True)
+
+                self.buttonReference.setEnabled(False)
                 self.buttonZoomFT.setEnabled(False)
                 self.buttonZoomFB.setEnabled(False)
+                self.buttonReference.hide()
+                self.buttonZoomFT.hide()
+                self.buttonZoomFB.hide()
             elif self.radioDpp.isChecked():
                 model.plotModeChanged.emit(PlotMode.dpp)
+
                 self.buttonReference.setEnabled(True)
                 self.buttonZoomFT.setEnabled(False)
                 self.buttonZoomFB.setEnabled(False)
+                self.buttonReference.show()
+                self.buttonZoomFT.hide()
+                self.buttonZoomFB.hide()
 
         self.radioPredicted.clicked.connect(radio_changed)
-        # self.radioMeasured.toggled.connect(radio_changed)
+        self.radioMeasured.toggled.connect(radio_changed)
         self.radioDpp.clicked.connect(radio_changed)
 
         self.actionClear_Buffer.triggered.connect(model.clear)

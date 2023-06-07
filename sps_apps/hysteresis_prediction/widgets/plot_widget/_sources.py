@@ -127,10 +127,8 @@ class CurrentFieldSource(UpdateSource):
         :param cycle_timestamp: timestamp of the cycle.
         :param value: value of the cycle.
         """
-        time_range = np.arange(len(value)) / MS + cycle_timestamp / NS
-        value = value.flatten()
+        time_range = value[0, :]
+        value = value[1, :]
 
-        data = CurveData(
-            x=time_range[:: self.downsample], y=value[:: self.downsample]
-        )
+        data = CurveData(time_range, value)
         self.send_data(data)

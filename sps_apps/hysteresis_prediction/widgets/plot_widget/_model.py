@@ -75,14 +75,24 @@ class PlotModel(QObject):
             )
 
             if cycle_data.field_pred is not None:
+                field_pred = cycle_data.field_pred
+                downsample_factor = (
+                    cycle_data.field_meas.size // field_pred.shape[-1]
+                )
                 dpp = (
-                    (cycle_data.field_meas - cycle_data.field_pred)
-                    / cycle_data.field_meas
+                    (
+                        cycle_data.field_meas[::downsample_factor]
+                        - cycle_data.field_pred[1, :]
+                    )
+                    / cycle_data.field_meas[::downsample_factor]
                     * 1e4
                 )
                 self._field_meas_dpp_source.new_value(
                     cycle_data.cycle_timestamp,
-                    dpp,
+                    np.stack(
+                        (field_pred[0, :], dpp),
+                        axis=0,
+                    ),
                 )
 
         except Exception:  # noqa: broad-except
@@ -117,12 +127,13 @@ class PlotModel(QObject):
             if cycle_data.field_ref is not None:
                 log.debug(f"Plotting field diff for cycle {cycle_data.cycle}")
                 dpp = (
-                    (cycle_data.field_ref - predicted)
-                    / cycle_data.field_ref
+                    (cycle_data.field_ref[1, :] - predicted[1, :])
+                    / cycle_data.field_ref[1, :]
                     * 1e4
                 )
                 self._field_ref_dpp_source.new_value(
-                    cycle_data.cycle_timestamp, dpp
+                    cycle_data.cycle_timestamp,
+                    np.stack([predicted[0, :], dpp], axis=0),
                 )
         except Exception:  # noqa: broad-except
             log.exception(

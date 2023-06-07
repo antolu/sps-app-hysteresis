@@ -4,6 +4,7 @@ import datetime
 
 import numpy as np
 import numpy.typing as npt
+import pyqtgraph as pg
 from accwidgets import graph as accgraph
 from accwidgets.lsa_selector import (
     LsaSelector,
@@ -13,7 +14,6 @@ from accwidgets.lsa_selector import (
 from qtpy import QtCore, QtWidgets
 
 from ...core.application_context import context
-from ...utils import run_in_main_thread, run_in_thread
 from .._widgets import ToggleButton
 from ._model import TrimModel
 
@@ -107,12 +107,16 @@ class TrimWidgetView(QtWidgets.QWidget):
 
         self.model = model
 
+        self._setup_plots()
+
         if self._thread is None:
             self._thread = QtCore.QThread()
             self._thread.start()
 
     def _setup_plots(self) -> None:
-        self.plotWidget.addCurve(data_source=self._plot_source)
+        self.plotWidget.addCurve(
+            data_source=self._plot_source, pen=pg.mkPen(color="k")
+        )
 
     @property
     def model(self) -> TrimModel | None:
@@ -158,14 +162,9 @@ class TrimWidgetView(QtWidgets.QWidget):
                 self.toggle_button.toggle()
 
             if self._thread is not None:
+                self.model.selector = user
 
-                @run_in_thread(lambda: self._thread)
-                def task() -> None:
-                    self.model.selector = user
-
-                    run_in_main_thread(self.toggle_button.setEnabled(True))
-
-                task()
+                self.toggle_button.setEnabled(True)
 
 
 if __name__ == "__main__":

@@ -76,7 +76,10 @@ class SingleCycleData:
         if self.field_pred is None:
             raise ValueError("Predicted field is not set")
 
-        return (self.field_meas - self.field_pred) / self.field_meas
+        downsample = self.field_meas.size // self.field_pred.shape[-1]
+        return (
+            self.field_meas[::downsample] - self.field_pred[1, :]
+        ) / self.field_meas[::downsample]
 
     def to_dict(
         self,

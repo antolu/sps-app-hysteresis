@@ -9,13 +9,13 @@ from typing import Optional
 import lightning as L
 import numpy as np
 import torch
-from qtpy.QtCore import QObject, Signal
+from qtpy import QtCore
 from sps_projects.hysteresis_compensation.data import PhyLSTMDataModule
 from sps_projects.hysteresis_compensation.models import PhyLSTM1, PhyLSTMModule
 from sps_projects.hysteresis_compensation.utils import PhyLSTM1Output, ops
 
 from ..data import SingleCycleData
-from ..utils import load_cursor
+from ..utils import load_cursor, run_in_thread
 
 MS = int(1e3)
 NS = int(1e9)
@@ -23,16 +23,26 @@ NS = int(1e9)
 log = logging.getLogger(__name__)
 
 
-class Inference(QObject):
-    load_model = Signal(str, str)  # ckpt path, device
-    cycle_predicted = Signal(SingleCycleData, np.ndarray)
-    model_loaded = Signal()
+_thread: QtCore.QThread | None = None
 
-    started = Signal()
-    completed = Signal()
+
+def inference_thread() -> QtCore.QThread:
+    global _thread
+    if _thread is None:
+        _thread = QtCore.QThread()
+    return _thread
+
+
+class Inference(QtCore.QObject):
+    load_model = QtCore.Signal(str, str)  # ckpt path, device
+    cycle_predicted = QtCore.Signal(SingleCycleData, np.ndarray)
+    model_loaded = QtCore.Signal()
+
+    started = QtCore.Signal()
+    completed = QtCore.Signal()
 
     def __init__(
-        self, device: str = "cpu", parent: Optional[QObject] = None
+        self, device: str = "cpu", parent: Optional[QtCore.QObject] = None
     ) -> None:
         super().__init__(parent=parent)
 
@@ -66,6 +76,7 @@ class Inference(QObject):
 
         self.model_loaded.emit()
 
+    @run_in_thread(inference_thread)
     def predict_last_cycle(
         self, cycle_data: list[SingleCycleData]
     ) -> Optional[Thread]:
@@ -79,27 +90,19 @@ class Inference(QObject):
             )
             return None
 
-        def wrapper() -> None:
-            self.started.emit()
-            # first check if all data has current set
-            assert self._data_module is not None
-            try:
-                predictions = self._predict_last_cycle(cycle_data)
-                last_cycle = cycle_data[-1]
+        self.started.emit()
+        # first check if all data has current set
+        assert self._data_module is not None
+        try:
+            predictions = self._predict_last_cycle(cycle_data)
+            last_cycle = cycle_data[-1]
 
-                last_cycle.field_pred = predictions
-                self.cycle_predicted.emit(last_cycle, predictions)
-            except:  # noqa: broad-except
-                log.exception("Inference failed.")
-            finally:
-                self.completed.emit()
-
-            log.debug("Inference completed. Closing thread.")
-
-        log.debug("Starting inference inference in new thread.")
-        th = Thread(target=wrapper)
-        th.start()
-        return th
+            last_cycle.field_pred = predictions
+            self.cycle_predicted.emit(last_cycle, predictions)
+        except:  # noqa: broad-except
+            log.exception("Inference failed.")
+        finally:
+            self.completed.emit()
 
     def predict(
         self, input_current: np.ndarray, last_n_samples: Optional[int] = None
@@ -160,10 +163,12 @@ class Inference(QObject):
 
         if last_n_samples is not None:
             last_n_samples //= self._data_module.hparams["downsample"]
-            pred_field = pred_field[-last_n_samples:]
+            pred_field = (
+                pred_field[-last_n_samples:] if last_n_samples else pred_field
+            )
             log.debug(f"Truncated predictions to {len(pred_field)} samples.")
 
-        return pred_field
+        return np.array(pred_field)
 
     def _predict_last_cycle(self, cycle_data: list[SingleCycleData]):
         """
@@ -193,22 +198,13 @@ class Inference(QObject):
         stop = time.time()
         log.info("Inference took: %f s", stop - start)
 
-        # upsample predictions to match the number of samples
         time_axis = (
             np.arange(last_cycle.num_samples) / MS
             + last_cycle.cycle_timestamp / NS
         )
-        predictions_upsampled = np.interp(
-            time_axis,
-            time_axis[:: self._data_module.hparams["downsample"]],  # noqa
-            predictions,
-        )
-        log.debug(
-            f"Upsampled predictions to {len(predictions_upsampled)} "
-            "samples."
-        )
+        time_axis = time_axis[:: self._data_module.hparams["downsample"]]
 
-        return predictions_upsampled
+        return np.stack((time_axis, predictions), axis=0)
 
     def _load_model(self, ckpt_path: str) -> None:
         self._ckpt_path = ckpt_path

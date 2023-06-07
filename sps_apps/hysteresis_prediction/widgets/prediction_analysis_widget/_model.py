@@ -382,25 +382,35 @@ class PredictionPlotModel(QtCore.QObject):
         if item.color is None:
             item.color = self._color_pool.get_color()
 
+        cycle_data = item.cycle_data
+        assert cycle_data.field_pred is not None
+
         x = self._make_time_axis(item)
         if self._plot_mode == PlotMode.PredictedOnly:
-            y = item.cycle_data.field_pred
+            y = cycle_data.field_pred[1, :]
+            x = x[:: len(x) // len(y)]
         elif self._plot_mode == PlotMode.VsMeasured:
-            if self._reference is None:
-                raise ValueError("No reference set.")
-            raise NotImplementedError
+            assert cycle_data.field_meas is not None
+
+            x = cycle_data.field_pred[0, :]
+            downsample = cycle_data.num_samples // len(x)
+            y = (
+                cycle_data.field_meas[::downsample]
+                - cycle_data.field_pred[1, :]
+            )
         elif self._plot_mode == PlotMode.dpp:
             if self._reference is None:
                 raise ValueError("No reference set.")
-            assert item.cycle_data.field_pred is not None
             reference = self._reference
+
             assert reference.cycle_data.field_pred is not None
 
+            x = cycle_data.field_pred[0, :]
             y = (
-                (reference.cycle_data.field_pred - item.cycle_data.field_pred)
+                (reference.cycle_data.field_pred - cycle_data.field_pred)
                 / reference.cycle_data.field_pred
                 * 1e4
-            )
+            )[1, :]
         else:
             raise ValueError(f"Invalid plot mode {self._plot_mode.name}")
 
@@ -436,9 +446,16 @@ class PredictionPlotModel(QtCore.QObject):
         assert data.field_meas is not None
         assert data.field_pred is not None
 
+        time_axis = self._make_time_axis(item)
+        dp_p = item.cycle_data.dp_p * 1e4
+
+        downsample = time_axis.size // dp_p.size
+
+        x = time_axis[::downsample]
+
         curve = pg.PlotCurveItem(
-            x=self._make_time_axis(item),
-            y=item.cycle_data.dp_p * 1e4,
+            x=x,
+            y=dp_p,
             pen=pg.mkPen(color=item.color, width=1),
         )
 

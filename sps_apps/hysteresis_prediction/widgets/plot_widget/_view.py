@@ -87,8 +87,9 @@ class PlotWidget(QWidget):
         self.plotCurField.hideAxis("left")
 
         self.plotDiscr.add_layer(layer_id="dpp_fixed")
-        self.plotDiscr.add_layer(layer_id="dpp_dynamic")
+        # self.plotDiscr.add_layer(layer_id="dpp_dynamic")
         self.plotDiscr.hideAxis("left")
+        self.plotCurField.setXLink(self.plotDiscr)
 
         self.reset_axes_range()
 
@@ -137,25 +138,27 @@ class PlotWidget(QWidget):
             pen=pg.mkPen(color="#BFBFBF", width=2),
             layer="dpp_fixed",
             name="dp/p w.r.t. Ref.",
+            unit="E-4",
         )
         field_meas_discr = self.plotDiscr.addCurve(
             data_source=model.field_meas_dpp_source,
             pen=pg.mkPen(color="#1F5673", width=2),
             layer="dpp_fixed",
             name="dp/p w.r.t. Meas.",
+            unit="E-4",
         )
-        field_ref_disc = self.plotDiscr.addCurve(
-            data_source=model.field_ref_dpp_source,
-            pen=pg.mkPen(color="#BFBFBF", width=2),
-            layer="dpp_dynamic",
-            name="dp/p w.r.t. Ref.",
-        )
-        field_meas_discr = self.plotDiscr.addCurve(
-            data_source=model.field_meas_dpp_source,
-            pen=pg.mkPen(color="#1F5673", width=2),
-            layer="dpp_dynamic",
-            name="dp/p w.r.t. Meas.",
-        )
+        # field_ref_disc = self.plotDiscr.addCurve(
+        #     data_source=model.field_ref_dpp_source,
+        #     pen=pg.mkPen(color="#BFBFBF", width=2),
+        #     layer="dpp_dynamic",
+        #     name="dp/p w.r.t. Ref.",
+        # )
+        # field_meas_discr = self.plotDiscr.addCurve(
+        #     data_source=model.field_meas_dpp_source,
+        #     pen=pg.mkPen(color="#1F5673", width=2),
+        #     layer="dpp_dynamic",
+        #     name="dp/p w.r.t. Meas.",
+        # )
 
         for curve in (current_meas, field_meas, current_prog, field_pred):
             self._curves[1].add(curve)

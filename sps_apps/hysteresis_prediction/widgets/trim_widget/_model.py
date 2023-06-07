@@ -76,7 +76,7 @@ class TrimModel(QtCore.QObject):
             )
             return
 
-        self.apply_correction(correction, prediction)
+        self.apply_correction(correction[1, :], prediction)
 
     def apply_correction(
         self, correction: np.ndarray, cycle_data: SingleCycleData
@@ -93,17 +93,28 @@ class TrimModel(QtCore.QObject):
             return
 
         current_currection = self._trim_manager.get_current_trim(
-            DEV_LSA_B, part="VALUE"
+            DEV_LSA_B, part="CORRECTION"
         )
 
         lsa_time_axis = current_currection[0]
         current_value = current_currection[1]
 
-        time_axis = np.arange(cycle_data.num_samples)[self._beam_out + 1]
-        correction = correction[self._beam_out + 1]
+        downsample = cycle_data.num_samples // len(correction)
+
+        time_axis = np.arange(cycle_data.num_samples)[: self._beam_out + 1][
+            ::downsample
+        ]
+        correction = correction[round(self._beam_out / downsample) + 1]
 
         if lsa_time_axis.size < time_axis.size:
+            # upsample LSA trim to match prediction
             current_value = np.interp(time_axis, lsa_time_axis, current_value)
+        elif lsa_time_axis.size > time_axis.size:
+            # upsample prediction to match LSA trim
+            correction = np.interp(lsa_time_axis, time_axis, correction)
+            time_axis = np.interp(lsa_time_axis, time_axis, time_axis)
+
+        new_correction = current_value + correction
 
         log.debug(f"[{cycle_data}] Sending trims to LSA.")
         trim_time = datetime.now()
@@ -111,14 +122,14 @@ class TrimModel(QtCore.QObject):
         if False:
             self._trim_manager.send_trim(
                 DEV_LSA_B,
-                values=(time_axis, current_value),
+                values=(time_axis, new_correction),
                 comment=comment,
                 part="CORRECTION",
             )
         else:
             log.info("Debug environment, skipping trim.")
 
-        self.trimApplied.emit((time_axis, current_value), trim_time, comment)
+        self.trimApplied.emit((time_axis, new_correction), trim_time, comment)
 
     @property
     def selector(self) -> str | None:
@@ -131,6 +142,8 @@ class TrimModel(QtCore.QObject):
         self._beam_in = self._da.get(BEAM_IN, context=value).value["value"]
         self._beam_out = self._da.get(BEAM_OUT, context=value).value["value"]
         self._selector = value
+
+        log.info(f"Setting beam in/out to C{self._beam_in}/C{self._beam_out}.")
 
     def enable_trim(self) -> None:
         log.debug("Enabling trim.")

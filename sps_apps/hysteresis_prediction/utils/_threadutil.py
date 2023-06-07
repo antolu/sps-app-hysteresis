@@ -18,6 +18,13 @@ from qtpy.QtCore import QObject, QThread, Signal
 from qtpy.QtWidgets import QApplication
 
 
+class ThreadWorker(QObject):
+    started = Signal()
+    finished = Signal()
+    result = Signal(object)
+    exception = Signal(Exception)
+
+
 def thread(function: t.Callable, *args: t.Any, **kwargs: t.Any) -> Thread:
     th = Thread(target=function, args=args, kwargs=kwargs)
     th.start()
@@ -25,7 +32,7 @@ def thread(function: t.Callable, *args: t.Any, **kwargs: t.Any) -> Thread:
     return th
 
 
-def run_in_thread(thread_fn: t.Callable) -> t.Callable:
+def run_in_thread(thread_fn: t.Callable[[], QThread]) -> t.Callable:
     def decorator(f: t.Callable) -> t.Any:
         @wraps(f)
         def result(*args: t.Any, **kwargs: t.Any) -> t.Callable:
