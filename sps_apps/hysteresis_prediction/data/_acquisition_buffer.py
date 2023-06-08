@@ -482,31 +482,6 @@ class AcquisitionBuffer:
             self._reset_except_last()
             return
 
-        if cycle not in self._i_ref or self._i_ref[cycle] is None:
-            log_cycle("Measured current has not yet been set.", cycle)
-            log_cycle("Setting new measured current for cycle.", cycle)
-
-            cycle_data = self._cycles_next_index[cycle_timestamp]
-            if cycle_data.cycle != cycle:
-                if not cycle_data.cycle.endswith("_DYNECO"):
-                    log_cycle(
-                        "Cycle name does not match. "
-                        f"Expected {cycle_data.cycle}, got {cycle}.",
-                        cycle,
-                        cycle_timestamp,
-                    )
-                    return
-                else:
-                    log_cycle(
-                        "Cycle is DYNECO. Saving current to cycle "
-                        f"{cycle_data.cycle}.",
-                        cycle,
-                        cycle_timestamp,
-                    )
-
-            with self._lock:
-                self._i_ref[cycle_data.cycle] = value
-
         if cycle_timestamp not in self._cycles_next_index:
             log_cycle(
                 "NEXT buffered cycle data not found. "
@@ -515,6 +490,34 @@ class AcquisitionBuffer:
                 cycle_timestamp,
             )
             return
+
+        cycle_data = self._cycles_next_index[cycle_timestamp]
+
+        if cycle_data.cycle != cycle:
+            if not cycle_data.cycle.endswith("_DYNECO"):
+                log_cycle(
+                    "Cycle name does not match. "
+                    f"Expected {cycle_data.cycle}, got {cycle}.",
+                    cycle,
+                    cycle_timestamp,
+                )
+                return
+            else:
+                log_cycle(
+                    "Cycle is DYNECO. Saving current to cycle "
+                    f"{cycle_data.cycle}.",
+                    cycle,
+                    cycle_timestamp,
+                )
+                cycle = cycle_data.cycle
+
+        if cycle not in self._i_ref or self._i_ref[cycle] is None:
+            log_cycle("Setting new measured current for cycle.", cycle)
+        else:
+            log_cycle("Updating measured current for cycle.", cycle)
+
+        with self._lock:
+            self._i_ref[cycle_data.cycle] = value
 
         value = value.flatten()
 
@@ -560,31 +563,6 @@ class AcquisitionBuffer:
             self._reset_except_last()
             return
 
-        if cycle not in self._b_meas or self._b_meas[cycle] is None:
-            log_cycle("Measured magnetic field has not yet been set.", cycle)
-            log_cycle("Setting new measured magnetic field.", cycle)
-
-            cycle_data = self._cycles_next_index[cycle_timestamp]
-            if cycle_data.cycle != cycle:
-                if not cycle_data.cycle.endswith("_DYNECO"):
-                    log_cycle(
-                        "Cycle name does not match. "
-                        f"Expected {cycle_data.cycle}, got {cycle}.",
-                        cycle,
-                        cycle_timestamp,
-                    )
-                    return
-                else:
-                    log_cycle(
-                        "Cycle is DYNECO. Saving current to cycle "
-                        f"{cycle_data.cycle}.",
-                        cycle,
-                        cycle_timestamp,
-                    )
-
-            with self._lock:
-                self._b_meas[cycle_data.cycle] = value
-
         if cycle_timestamp not in self._cycles_next_index:
             log_cycle(
                 "NEXT buffered cycle data not found. "
@@ -593,6 +571,34 @@ class AcquisitionBuffer:
                 cycle_timestamp,
             )
             return
+
+        cycle_data = self._cycles_next_index[cycle_timestamp]
+
+        if cycle_data.cycle != cycle:
+            if not cycle_data.cycle.endswith("_DYNECO"):
+                log_cycle(
+                    "Cycle name does not match. "
+                    f"Expected {cycle_data.cycle}, got {cycle}.",
+                    cycle,
+                    cycle_timestamp,
+                )
+                return
+            else:
+                log_cycle(
+                    "Cycle is DYNECO. Saving current to cycle "
+                    f"{cycle_data.cycle}.",
+                    cycle,
+                    cycle_timestamp,
+                )
+                cycle = cycle_data.cycle
+
+        if cycle not in self._b_meas or self._b_meas[cycle] is None:
+            log_cycle("Setting new measured magnetic field.", cycle)
+        else:
+            log_cycle("Updating measured magnetic field.", cycle)
+
+        with self._lock:
+            self._b_meas[cycle_data.cycle] = value
 
         value = value.flatten() / 1e4  # G to T
 
