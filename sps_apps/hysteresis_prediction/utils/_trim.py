@@ -38,6 +38,7 @@ class TrimManager:
         self.logger = logging.getLogger(__name__)
 
         with self._lsa.java_api():
+            from cern.accsoft.commons.value import ValueFactory
             from cern.lsa.client import ContextService
             from cern.lsa.client import ParameterService as LSAParameterService
             from cern.lsa.client import (
@@ -45,6 +46,13 @@ class TrimManager:
                 SettingService,
                 TrimService,
             )
+            from cern.lsa.domain.settings.factory import TrimRequestBuilder
+            from jpype import JArray, JDouble
+
+            self.ValueFactory = ValueFactory
+            self.JArray = JArray
+            self.JDouble = JDouble
+            self.TrimRequestBuilder = TrimRequestBuilder
 
         self._trim_service = ServiceLocator.getService(TrimService)
         self._parameter_service = ServiceLocator.getService(
@@ -174,14 +182,10 @@ class TrimManager:
         If passed as list, will be all part of the same trim.
         """
         # TODO: to be improved -- make more readable and more generic.
-        with self._lsa.java_api():
-            from cern.accsoft.commons.value import ValueFactory
-            from cern.lsa.domain.settings.factory import TrimRequestBuilder
-            from jpype import JArray, JDouble
 
         assert self._active_context is not None
         trim_builder = (
-            TrimRequestBuilder()
+            self.TrimRequestBuilder()
             .setContext(self._active_context)
             .setPropagateToChildren(True)  # True
             .setDrive(True)  # True
@@ -233,20 +237,21 @@ class TrimManager:
             parameter = self._parameter_service.findParameterByName(param)
             trim_builder.addCustomSettingPart(parameter, par_enum)
             if typ == "function":
-                func = ValueFactory.createFunction(
-                    JArray(JDouble)(val[0]), JArray(JDouble)(val[1])
+                func = self.ValueFactory.createFunction(
+                    self.JArray(self.JDouble)(val[0]),
+                    self.JArray(self.JDouble)(val[1]),
                 )
                 trim_builder.addFunction(parameter, func)
             elif typ == "scalar_array":
-                scalar_array = ValueFactory.createScalarArray(
-                    JArray(JDouble)(val)
+                scalar_array = self.ValueFactory.createScalarArray(
+                    self.JArray(self.JDouble)(val)
                 )
                 trim_builder.addScalar(parameter, scalar_array)
             elif typ == "scalar_bool":
-                scalar = ValueFactory.createScalar(val)
+                scalar = self.ValueFactory.createScalar(val)
                 trim_builder.addScalar(parameter, scalar)
             elif typ == "scalar_float":
-                scalar = ValueFactory.createScalar(
+                scalar = self.ValueFactory.createScalar(
                     JFloat(np.array(val, dtype="float"))
                 )
                 trim_builder.addScalar(parameter, scalar)

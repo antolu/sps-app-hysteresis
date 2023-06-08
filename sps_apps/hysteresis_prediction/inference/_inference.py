@@ -77,8 +77,6 @@ class Inference(QtCore.QObject):
             data_module, module = self._load_model(ckpt_path)
 
             with self._lock:
-                old_device = self._device
-
                 self.device = device
 
                 self._ckpt_path = ckpt_path
@@ -86,8 +84,7 @@ class Inference(QtCore.QObject):
                 self._module = module
                 self._model = module.model
 
-                if old_device != device:
-                    self.configure_model()
+                self.configure_model()
 
         self.model_loaded.emit()
 

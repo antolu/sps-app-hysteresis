@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime
 
 import numpy as np
@@ -16,9 +17,33 @@ log = logging.getLogger(__name__)
 
 
 DEV_LSA_B = "SPSBEAM/B"
+DEV_LSA_I = "MBI/IREF"
 
 BEAM_IN = "SIX.MC-CTML/ControlValue#controlValue"
 BEAM_OUT = "SX.BEAM-OUT-CTML/ControlValue#controlValue"
+
+
+class time_execution:
+    """
+    Convenience class for timing execution. Used simply as
+    >>> with time_execution() as t:
+    >>>     # some code to time
+    >>> print(t.duration)
+    """
+
+    def __init__(self):
+        self.start = 0
+        self.end = 0
+        self.duration = 0
+
+    def __enter__(self):
+        self.start = time.time()
+
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.end = time.time()
+        self.duration = self.end - self.start
 
 
 class TrimModel(QtCore.QObject):
@@ -90,7 +115,7 @@ class TrimModel(QtCore.QObject):
     def apply_correction(
         self, correction: np.ndarray, cycle_data: SingleCycleData
     ) -> None:
-        if self._trim_lock.tryLock():
+        if not self._trim_lock.tryLock():
             log.warning("Already applying trim, skipping.")
             return
 
@@ -106,9 +131,11 @@ class TrimModel(QtCore.QObject):
                 log.warning("No active context, skipping trim.")
                 return
 
-            current_currection = self._trim_manager.get_current_trim(
-                DEV_LSA_B, part="CORRECTION"
-            )
+            with time_execution() as t:
+                current_currection = self._trim_manager.get_current_trim(
+                    DEV_LSA_B, part="CORRECTION"
+                )
+            log.info(f"Got current trim in {t.duration:.02f}s.")
 
             lsa_time_axis = current_currection[0]
             current_correction = current_currection[1]
@@ -135,7 +162,7 @@ class TrimModel(QtCore.QObject):
 
             new_correction = current_correction + correction
 
-            log.debug(f"[{cycle_data}] Sending trims to LSA.")
+            log.info(f"[{cycle_data}] Sending trims to LSA.")
             trim_time = datetime.now()
 
             self._trim_manager.send_trim(
