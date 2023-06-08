@@ -10,7 +10,7 @@ from qtpy import QtCore
 
 from ...core.application_context import context
 from ...data import SingleCycleData
-from ...utils import TrimManager
+from ...utils import ThreadWorker, TrimManager
 
 log = logging.getLogger(__name__)
 
@@ -38,6 +38,8 @@ class TrimModel(QtCore.QObject):
         self._selector: str | None = None
 
         self._trim_enabled = False
+
+        self._trim_lock = QtCore.QMutex()
 
         self.newPredictedData.connect(self.on_new_prediction)
 
@@ -76,61 +78,84 @@ class TrimModel(QtCore.QObject):
             )
             return
 
-        self.apply_correction(correction[1, :], prediction)
+        worker = ThreadWorker(
+            self.apply_correction, correction[1, :], prediction
+        )
+        worker.exception.connect(
+            lambda e: log.exception("Failed to apply trim to LSA.")
+        )
+
+        QtCore.QThreadPool.globalInstance().start(worker)
 
     def apply_correction(
         self, correction: np.ndarray, cycle_data: SingleCycleData
     ) -> None:
+        if self._trim_lock.tryLock():
+            log.warning("Already applying trim, skipping.")
+            return
+
         comment = (
             "Hysteresis prediction correction "
             f"{str(cycle_data.cycle_time)[:-7]}"
         )
 
         try:
-            self._trim_manager.active_context
-        except ValueError:
-            log.warning("No active context, skipping trim.")
-            return
+            try:
+                self._trim_manager.active_context
+            except ValueError:
+                log.warning("No active context, skipping trim.")
+                return
 
-        current_currection = self._trim_manager.get_current_trim(
-            DEV_LSA_B, part="CORRECTION"
-        )
+            current_currection = self._trim_manager.get_current_trim(
+                DEV_LSA_B, part="CORRECTION"
+            )
 
-        lsa_time_axis = current_currection[0]
-        current_value = current_currection[1]
+            lsa_time_axis = current_currection[0]
+            current_correction = current_currection[1]
 
-        downsample = cycle_data.num_samples // len(correction)
+            # downsample to match prediction
+            downsample = cycle_data.num_samples // len(correction)
+            time_axis = np.arange(cycle_data.num_samples)[::downsample]
 
-        time_axis = np.arange(cycle_data.num_samples)[: self._beam_out + 1][
-            ::downsample
-        ]
-        correction = correction[round(self._beam_out / downsample) + 1]
+            # trim only part of beam that is before bema out
+            lsa_time_axis = lsa_time_axis[lsa_time_axis <= self._beam_out]
+            current_correction = current_correction[: lsa_time_axis.size]
+            time_axis = time_axis[time_axis <= self._beam_out]
+            correction = correction[: time_axis.size]
 
-        if lsa_time_axis.size < time_axis.size:
-            # upsample LSA trim to match prediction
-            current_value = np.interp(time_axis, lsa_time_axis, current_value)
-        elif lsa_time_axis.size > time_axis.size:
-            # upsample prediction to match LSA trim
-            correction = np.interp(lsa_time_axis, time_axis, correction)
-            time_axis = np.interp(lsa_time_axis, time_axis, time_axis)
+            if lsa_time_axis.size < time_axis.size:
+                # upsample LSA trim to match prediction
+                current_correction = np.interp(
+                    time_axis, lsa_time_axis, current_correction
+                )
+                lsa_time_axis = time_axis
+            elif lsa_time_axis.size > time_axis.size:
+                # upsample prediction to match LSA trim
+                correction = np.interp(lsa_time_axis, time_axis, correction)
 
-        new_correction = current_value + correction
+            new_correction = current_correction + correction
 
-        log.debug(f"[{cycle_data}] Sending trims to LSA.")
-        trim_time = datetime.now()
+            log.debug(f"[{cycle_data}] Sending trims to LSA.")
+            trim_time = datetime.now()
 
-        if False:
             self._trim_manager.send_trim(
                 DEV_LSA_B,
-                values=(time_axis, new_correction),
+                values=(lsa_time_axis, new_correction),
                 comment=comment,
                 part="CORRECTION",
             )
-        else:
-            log.info("Debug environment, skipping trim.")
 
-        print(f"Shape: {time_axis.shape}, {new_correction.shape}")
-        self.trimApplied.emit((time_axis, new_correction), trim_time, comment)
+            trim_time_diff = (datetime.now() - trim_time).total_seconds()
+            log.info(f"Trim applied in {trim_time_diff:.02f}s.")
+
+            print(f"Shape: {time_axis.shape}, {new_correction.shape}")
+            self.trimApplied.emit(
+                (lsa_time_axis, new_correction), trim_time, comment
+            )
+        except:  # noqa E722
+            raise
+        finally:
+            self._trim_lock.unlock()
 
     @property
     def selector(self) -> str | None:

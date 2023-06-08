@@ -104,7 +104,10 @@ class Signal:
         """
         for handler in self._handles:
             if handler.slot == handle:
-                log.debug(f"Disconnecting {str(handle.__name__)}.")
+                try:
+                    log.debug(f"Disconnecting {str(handle.__name__)}.")
+                except:  # noqa E722
+                    pass
                 self._handles.remove(handler)
                 return
         raise ValueError(f"Could not find handler {handle}.")

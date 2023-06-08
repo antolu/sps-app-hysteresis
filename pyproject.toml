@@ -40,6 +40,7 @@ dependencies = [
     'pyda-japc ~= 0.1',
     'pyda-rda3 ~= 0.1',
     'PyQt5 ~= 5.12',
+    'rich',
     'QtPy ~= 2.3',
     'scipy ~= 1.10.1',
     'scikit-learn ~= 1.2',

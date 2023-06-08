@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
+from rich.logging import RichHandler
 
 from sps_apps.hysteresis_prediction.data import SingleCycleData
 from sps_apps.hysteresis_prediction.inference import Inference
@@ -48,7 +49,7 @@ def save_buffers(buffers: list[list[SingleCycleData]]) -> None:
 def setup_logging() -> None:
     log = logging.getLogger()
     log.setLevel(logging.DEBUG)
-    ch = logging.StreamHandler()
+    ch = RichHandler()
     ch.setLevel(logging.DEBUG)
     ch.setFormatter(
         logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
