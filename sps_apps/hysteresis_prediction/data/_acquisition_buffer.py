@@ -14,7 +14,7 @@ import numpy as np
 
 from ..async_utils import Signal
 from ..utils import from_timestamp
-from ._dataclass import SingleCycleData
+from ._dataclass import CycleData
 
 __all__ = [
     "AcquisitionBuffer",
@@ -41,7 +41,7 @@ def log_cycle(
     log.log(log_level, f"[{cycle}{timestamp_s}] " + msg)
 
 
-def _cycle_buffer_str(buffer: Iterable[SingleCycleData]) -> str:
+def _cycle_buffer_str(buffer: Iterable[CycleData]) -> str:
     return ", ".join(
         [cycle.cycle + "@" + str(cycle.cycle_time) for cycle in buffer]
     )
@@ -87,18 +87,18 @@ class AcquisitionBuffer:
         self._i_prog: dict[str, np.ndarray] = {}
         self._b_prog: dict[str, np.ndarray] = {}
 
-        self._buffer: deque[SingleCycleData] = deque()
-        self._buffer_next: deque[SingleCycleData] = deque()
+        self._buffer: deque[CycleData] = deque()
+        self._buffer_next: deque[CycleData] = deque()
 
         self._known_cycles: set[str] = set()  # LSA cycles the buffer has seen
 
         # maps cycle time(stamp) to data
-        self._cycles_index: dict[Union[int, float], SingleCycleData] = {}
-        self._cycles_next_index: dict[Union[int, float], SingleCycleData] = {}
+        self._cycles_index: dict[Union[int, float], CycleData] = {}
+        self._cycles_next_index: dict[Union[int, float], CycleData] = {}
 
-        self.new_buffered_data = Signal(list[SingleCycleData])
-        self.new_measured_data = Signal(SingleCycleData)
-        self.new_programmed_cycle = Signal(SingleCycleData)
+        self.new_buffered_data = Signal(list[CycleData])
+        self.new_measured_data = Signal(CycleData)
+        self.new_programmed_cycle = Signal(CycleData)
         self.buffer_size_changed = Signal(int)
 
         self._lock = Lock()
@@ -253,7 +253,7 @@ class AcquisitionBuffer:
                 log_level=logging.WARNING,
             )
 
-        cycle_data = SingleCycleData(
+        cycle_data = CycleData(
             cycle,
             user,
             cycle_timestamp,
@@ -390,7 +390,7 @@ class AcquisitionBuffer:
         with self._lock:
             cycle_data.cycle = dyneco_cycle
 
-    def collate_samples(self) -> list[SingleCycleData]:
+    def collate_samples(self) -> list[CycleData]:
         """
         Collates samples from the buffered data. This requires the minimum
         number of samples to be above the threshold, otherwise an
@@ -747,7 +747,7 @@ class AcquisitionBuffer:
             )
             return
 
-        def check_integrity(buffer: deque[SingleCycleData]) -> list[int]:
+        def check_integrity(buffer: deque[CycleData]) -> list[int]:
             to_remove: list[int] = []
             with self._lock:
                 buffer = buffer.copy()
@@ -898,8 +898,8 @@ class AcquisitionBuffer:
             return
 
         def buffer_too_large(
-            buffer: Iterable[SingleCycleData],
-            buffer_next: Iterable[SingleCycleData],
+            buffer: Iterable[CycleData],
+            buffer_next: Iterable[CycleData],
         ) -> bool:
             num_samples_buffer = [o.num_samples for o in buffer]
             num_samples_next = [o.num_samples for o in buffer_next]
@@ -910,8 +910,8 @@ class AcquisitionBuffer:
             )
 
         def logger_msg(
-            buffer: Iterable[SingleCycleData],
-            buffer_next: Iterable[SingleCycleData],
+            buffer: Iterable[CycleData],
+            buffer_next: Iterable[CycleData],
         ) -> str:
             buf_size = buffer_size(buffer)
             buf_next_size = buffer_size(buffer_next)
@@ -963,7 +963,7 @@ class AcquisitionBuffer:
 
         self.buffer_size_changed.emit(len(self))
 
-    def _check_move_to_buffer(self, cycle_data: SingleCycleData) -> None:
+    def _check_move_to_buffer(self, cycle_data: CycleData) -> None:
         """
         Checks if the buffered cycle data is complete, and if so moves it
         to the buffer queue.
@@ -1063,7 +1063,7 @@ class AcquisitionBuffer:
             return buffer_size(self._buffer) + buffer_size(self._buffer_next)
 
 
-def buffer_size(buffer: Iterable[SingleCycleData]) -> int:
+def buffer_size(buffer: Iterable[CycleData]) -> int:
     return sum([o.num_samples for o in buffer])
 
 
@@ -1071,7 +1071,7 @@ def meas_is_zero(value: np.ndarray, tol: float = 10) -> bool:
     return value.max() < tol
 
 
-def debug_msg(buffer: Iterable[SingleCycleData]) -> str:
+def debug_msg(buffer: Iterable[CycleData]) -> str:
     msg = []
     for cycle in buffer:
         msg.append(f"{cycle.cycle}@{str(cycle.cycle_time)[:-4]}")

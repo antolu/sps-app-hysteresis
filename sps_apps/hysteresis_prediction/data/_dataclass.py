@@ -10,13 +10,13 @@ import pandas as pd
 
 from ..utils import from_timestamp
 
-__all__ = ["SingleCycleData"]
+__all__ = ["CycleData"]
 
 log = logging.getLogger(__name__)
 
 
 @dataclass
-class SingleCycleData:
+class CycleData:
     cycle: str
     """LSA cycle name"""
 
@@ -60,7 +60,7 @@ class SingleCycleData:
         self.num_samples = self.cycle_length
 
     def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, SingleCycleData):
+        if not isinstance(other, CycleData):
             return False
 
         return (
@@ -104,7 +104,7 @@ class SingleCycleData:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> SingleCycleData:  # type: ignore
+    def from_dict(cls, d: dict) -> CycleData:  # type: ignore
         current_prog = d["current_prog"]
         field_prog = d["field_prog"]
 
@@ -134,7 +134,7 @@ class SingleCycleData:
         return pd.DataFrame.from_dict(self.to_dict())
 
     @classmethod
-    def from_pandas(cls, df: pd.DataFrame) -> SingleCycleData:
+    def from_pandas(cls, df: pd.DataFrame) -> CycleData:
         """
         Load predictions from a Pandas DataFrame.
         """

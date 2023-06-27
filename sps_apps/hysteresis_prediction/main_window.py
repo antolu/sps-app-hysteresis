@@ -9,7 +9,7 @@ from accwidgets.timing_bar import TimingBar, TimingBarDomain, TimingBarModel
 from qtpy import QtGui, QtWidgets
 
 from .core.application_context import context
-from .data import Acquisition, BufferData, SingleCycleData
+from .data import Acquisition, BufferData, CycleData
 from .generated.main_window_ui import Ui_main_window
 from .inference import Inference
 from .utils import load_cursor
@@ -153,9 +153,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
             self._inference.load_model.emit(ckpt_path, device)
 
-    def on_new_prediction(
-        self, cycle_data: SingleCycleData, prediction: np.ndarray
-    ):
+    def on_new_prediction(self, cycle_data: CycleData, prediction: np.ndarray):
         try:
             self._acquisition.buffer.dispatch_data(
                 BufferData.REF_B,
