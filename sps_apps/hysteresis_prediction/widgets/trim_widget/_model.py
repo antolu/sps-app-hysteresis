@@ -2,21 +2,25 @@ from __future__ import annotations
 
 import logging
 import time
+import typing
 from datetime import datetime
 
 import numpy as np
 from pyda import SimpleClient
+from pyda.data import DiscreteFunction
 from pyda_japc import JapcProvider
+from pyda_lsa import LsaCycleContext, LsaEndpoint, LsaProvider
 from qtpy import QtCore
 
 from ...core.application_context import context
 from ...data import SingleCycleData
-from ...utils import ThreadWorker, TrimManager
+from ...utils import ThreadWorker
 
 log = logging.getLogger(__name__)
 
 
-DEV_LSA_B = "SPSBEAM/B"
+DEV_LSA_B = "SPSBEAM"
+PROP_LSA_B = "B"
 DEV_LSA_I = "MBI/IREF"
 
 BEAM_IN = "SIX.MC-CTML/ControlValue#controlValue"
@@ -54,9 +58,13 @@ class TrimModel(QtCore.QObject):
     def __init__(self, parent: QtCore.QObject | None = None):
         super().__init__(parent=parent)
 
-        self._trim_manager = TrimManager(context.lsa)
-
+        # to get beam in/out
         self._da = SimpleClient(provider=JapcProvider())
+
+        # to send trims
+        self._lsa = SimpleClient(
+            provider=LsaProvider(server=context.lsa_server)
+        )
 
         self._beam_in: int = 0
         self._beam_out: int = 0
@@ -124,18 +132,24 @@ class TrimModel(QtCore.QObject):
             f"{str(cycle_data.cycle_time)[:-7]}"
         )
 
-        try:
-            try:
-                self._trim_manager.active_context
-            except ValueError:
-                log.warning("No active context, skipping trim.")
-                return
+        if self.selector is None:
+            return
 
+        try:
             with time_execution() as t:
-                current_currection = self._trim_manager.get_current_trim(
-                    DEV_LSA_B, part="CORRECTION"
+                resp_get = self._lsa.get(
+                    LsaEndpoint(
+                        device_name=DEV_LSA_B,
+                        property_name=PROP_LSA_B,
+                        setting_part="CORRECTION",
+                    ),
+                    context=LsaCycleContext(cycle=self.selector),
                 )
             log.info(f"Got current trim in {t.duration:.02f}s.")
+            if resp_get.exception is not None:
+                raise resp_get.exception
+
+            current_currection = resp_get.value["correction"]
 
             lsa_time_axis = current_currection[0]
             current_correction = current_currection[1]
@@ -165,12 +179,22 @@ class TrimModel(QtCore.QObject):
             log.info(f"[{cycle_data}] Sending trims to LSA.")
             trim_time = datetime.now()
 
-            self._trim_manager.send_trim(
-                DEV_LSA_B,
-                values=(lsa_time_axis, new_correction),
-                comment=comment,
-                part="CORRECTION",
+            lsa_time_axis = typing.cast(np.ndarray, lsa_time_axis)
+            func = DiscreteFunction(lsa_time_axis, new_correction)
+            resp_set = self._lsa.set(
+                endpoint=LsaEndpoint(
+                    device_name=DEV_LSA_B,
+                    property_name=PROP_LSA_B,
+                    setting_part="CORRECTION",
+                ),
+                value={"correction": func},
+                context=LsaCycleContext(
+                    cycle=self.selector, comment=comment, transient=True
+                ),
             )
+
+            if resp_set.exception is not None:
+                raise resp_set.exception
 
             trim_time_diff = (datetime.now() - trim_time).total_seconds()
             log.info(f"Trim applied in {trim_time_diff:.02f}s.")
@@ -190,7 +214,9 @@ class TrimModel(QtCore.QObject):
 
     @selector.setter
     def selector(self, value: str) -> None:
-        self._trim_manager.active_context = value
+        if value == self._selector:
+            log.debug(f"Selector already set to {value}, skipping.")
+            return
 
         self._beam_in = self._da.get(BEAM_IN, context=value).value["value"]
         self._beam_out = self._da.get(BEAM_OUT, context=value).value["value"]
