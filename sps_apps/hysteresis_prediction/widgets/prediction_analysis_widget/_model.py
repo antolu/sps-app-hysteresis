@@ -727,13 +727,8 @@ class PredictionAnalysisModel(QtCore.QObject):
         """
         predictions = self.list_model.buffered_data
 
-        predictions_out = [o.cycle_data.to_dict() for o in predictions]
-
         df = pd.concat(
-            [
-                pd.DataFrame.from_dict({k: [v] for k, v in pred.items()})
-                for pred in predictions_out
-            ]
+            [o.cycle_data.to_pandas() for o in predictions],
         )
 
         return df
@@ -744,9 +739,10 @@ class PredictionAnalysisModel(QtCore.QObject):
         """
         log.debug("Loading predictions from Pandas DataFrame.")
 
-        dicts = [row.to_dict() for _, row in df.iterrows()]
-
-        predictions = [SingleCycleData.from_dict(d) for d in dicts]
+        predictions = [
+            SingleCycleData.from_pandas(row.to_frame())
+            for _, row in df.iterrows()
+        ]
 
         user = predictions[0].user
         self.userChanged.emit(user)

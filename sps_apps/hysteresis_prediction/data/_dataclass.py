@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 import numpy as np
+import pandas as pd
 
 from ..utils import from_timestamp
 
@@ -95,7 +96,7 @@ class SingleCycleData:
             "current_input": self.current_input,
             "field_ref": self.field_ref,
             "field_pred": self.field_pred.flatten()
-            if self.field_pred
+            if self.field_pred is not None
             else None,
             "current_meas": self.current_meas,
             "field_meas": self.field_meas,
@@ -125,6 +126,22 @@ class SingleCycleData:
         item.field_meas = d["field_meas"]
 
         return item
+
+    def to_pandas(self) -> pd.DataFrame:
+        """
+        Export cycle data to a Pandas DataFrame.
+        """
+        return pd.DataFrame.from_dict(self.to_dict())
+
+    @classmethod
+    def from_pandas(cls, df: pd.DataFrame) -> SingleCycleData:
+        """
+        Load predictions from a Pandas DataFrame.
+        """
+        if len(df) != 1:
+            raise ValueError("DataFrame must have only one row")
+
+        return cls.from_dict(df.to_dict())
 
     def __str__(self) -> str:
         return f"{self.cycle}@{self.cycle_time}"
