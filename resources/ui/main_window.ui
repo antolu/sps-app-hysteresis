@@ -65,6 +65,7 @@
      <string>&amp;Tools</string>
     </property>
     <addaction name="actionShow_Plot_Settings"/>
+    <addaction name="actionContinuous_Data_Export"/>
    </widget>
    <addaction name="menu_file"/>
    <addaction name="menu_view"/>
@@ -136,6 +137,17 @@
   <action name="action_Trim_View">
    <property name="text">
     <string>&amp;Trim View</string>
+   </property>
+  </action>
+  <action name="actionContinuous_Data_Export">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Continuous Data Export</string>
+   </property>
+   <property name="toolTip">
+    <string>Enable / Disable continuous data export. This will write cycle data to disk when new measured data arrives.</string>
    </property>
   </action>
  </widget>

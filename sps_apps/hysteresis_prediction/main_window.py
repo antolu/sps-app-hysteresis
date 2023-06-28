@@ -12,6 +12,7 @@ from .core.application_context import context
 from .data import Acquisition, BufferData, CycleData
 from .generated.main_window_ui import Ui_main_window
 from .inference import Inference
+from .io import IO
 from .utils import load_cursor
 from .widgets import ModelLoadDialog, PlotModel
 from .widgets.plot_settings_widget import AppStatus
@@ -62,9 +63,12 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         plot_model = PlotModel(self._acquisition, parent=self)
         self.widgetPlot.model = plot_model
 
+        self._io = IO()
+
         self.actionShow_Plot_Settings.triggered.connect(
             self.toggle_plot_settings
         )
+        self.actionContinuous_Data_Export.toggled.connect(self._io.set_enabled)
 
         self.widgetSettings.timespan_changed.connect(
             self.widgetPlot.set_time_span

@@ -21,8 +21,9 @@ log = logging.getLogger(__name__)
 
 
 class ApplicationContext:
-    def __init__(self):
+    def __init__(self) -> None:
         self.lsa_server: typing.Literal["sps", "next"] = "sps"
+        self.save_dir = "output"
 
     @property
     def lsa(self) -> LSAClient:
