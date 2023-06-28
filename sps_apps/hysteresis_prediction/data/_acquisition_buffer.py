@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 from collections import deque
+from datetime import datetime
 from enum import Enum
 from threading import Lock
 from typing import Callable, Iterable, Optional, Union
@@ -643,13 +644,27 @@ class AcquisitionBuffer:
             with self._lock:
                 self._i_prog[cycle] = value
 
-            log_cycle("Removing buffered reference data.", cycle)
-            if cycle not in self._i_ref:
-                log_cycle("No buffered reference data.", cycle)
-                return
+            if len(self._buffer_next) > 0:
+                last_cycle = self._buffer_next[-1]
+                if last_cycle.cycle != cycle:
+                    return
 
-            with self._lock:
-                self._i_ref.pop(cycle)
+                if last_cycle.cycle_time < datetime.now():
+                    log_cycle(
+                        "Next cycle has not started yet, changing I.",
+                        cycle,
+                        last_cycle.cycle_timestamp,
+                    )
+
+                    last_cycle.current_prog = value
+
+            # log_cycle("Removing buffered reference data.", cycle)
+            # if cycle not in self._i_ref:
+            #     log_cycle("No buffered reference data.", cycle)
+            #     return
+
+            # with self._lock:
+            #     self._i_ref.pop(cycle)
 
             return
 
