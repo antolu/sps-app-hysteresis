@@ -70,6 +70,8 @@ class Ui_main_window(object):
         self.actionContinuous_Data_Export.setObjectName("actionContinuous_Data_Export")
         self.action_Clear_Buffer = QtWidgets.QAction(main_window)
         self.action_Clear_Buffer.setObjectName("action_Clear_Buffer")
+        self.action_Clear_Reference = QtWidgets.QAction(main_window)
+        self.action_Clear_Reference.setObjectName("action_Clear_Reference")
         self.menu_file.addAction(self.action_Load_Model)
         self.menu_file.addSeparator()
         self.menu_file.addAction(self.action_exit)
@@ -83,6 +85,8 @@ class Ui_main_window(object):
         self.menuTools.addAction(self.actionShow_Plot_Settings)
         self.menuTools.addAction(self.actionContinuous_Data_Export)
         self.menuTools.addAction(self.action_Clear_Buffer)
+        self.menuTools.addSeparator()
+        self.menuTools.addAction(self.action_Clear_Reference)
         self.menu_bar.addAction(self.menu_file.menuAction())
         self.menu_bar.addAction(self.menu_view.menuAction())
         self.menu_bar.addAction(self.menuTools.menuAction())
@@ -117,6 +121,7 @@ class Ui_main_window(object):
         self.actionContinuous_Data_Export.setText(_translate("main_window", "Continuous Data Export"))
         self.actionContinuous_Data_Export.setToolTip(_translate("main_window", "Enable / Disable continuous data export. This will write cycle data to disk when new measured data arrives."))
         self.action_Clear_Buffer.setText(_translate("main_window", "&Clear Buffer"))
+        self.action_Clear_Reference.setText(_translate("main_window", "&Clear Reference"))
 from accwidgets.app_frame import ApplicationFrame
 from sps_apps.hysteresis_prediction.widgets.plot_settings_widget import PlotSettingsWidget
 from sps_apps.hysteresis_prediction.widgets.plot_widget import PlotWidget

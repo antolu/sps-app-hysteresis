@@ -44,7 +44,7 @@ class IO:
         user = cycle_data.user.split(".")[-1]
         cycle = cycle_data.cycle
         cycle_time = cycle_data.cycle_time.strftime("%Y%m%d_%H%M%S")
-        filename = "{}_{}_{}.csv".format(cycle_time, user, cycle)
+        filename = "{}_{}_{}.parquet".format(cycle_time, user, cycle)
 
         log.debug(
             "Saving {} data to {}".format(str(cycle_data), out_dir / filename)

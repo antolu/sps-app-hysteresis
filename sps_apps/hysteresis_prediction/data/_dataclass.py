@@ -93,8 +93,12 @@ class CycleData:
             "cycle_length": self.cycle_length,
             "current_prog": self.current_prog.flatten(),
             "field_prog": self.field_prog.flatten(),
-            "current_input": self.current_input,
-            "field_ref": self.field_ref,
+            "current_input": self.current_input
+            if hasattr(self, "current_input")
+            else None,
+            "field_ref": self.field_ref.flatten()
+            if self.field_ref is not None
+            else None,
             "field_pred": self.field_pred.flatten()
             if self.field_pred is not None
             else None,
@@ -131,7 +135,9 @@ class CycleData:
         """
         Export cycle data to a Pandas DataFrame.
         """
-        return pd.DataFrame.from_dict(self.to_dict())
+        return pd.DataFrame.from_dict(
+            {k: [v] for k, v in self.to_dict().items()}
+        )
 
     @classmethod
     def from_pandas(cls, df: pd.DataFrame) -> CycleData:

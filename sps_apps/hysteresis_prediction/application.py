@@ -19,7 +19,7 @@ def setup_logger(logging_level: int = 0) -> None:
     ch = RichHandler()
 
     formatter = logging.Formatter(
-        "%(asctime)s - %(message)s",
+        "%(message)s",
         "%Y-%m-%d %H:%M:%S",
     )
     ch.setFormatter(formatter)

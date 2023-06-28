@@ -67,6 +67,8 @@
     <addaction name="actionShow_Plot_Settings"/>
     <addaction name="actionContinuous_Data_Export"/>
     <addaction name="action_Clear_Buffer"/>
+    <addaction name="separator"/>
+    <addaction name="action_Clear_Reference"/>
    </widget>
    <addaction name="menu_file"/>
    <addaction name="menu_view"/>
@@ -154,6 +156,11 @@
   <action name="action_Clear_Buffer">
    <property name="text">
     <string>&amp;Clear Buffer</string>
+   </property>
+  </action>
+  <action name="action_Clear_Reference">
+   <property name="text">
+    <string>&amp;Clear Reference</string>
    </property>
   </action>
  </widget>

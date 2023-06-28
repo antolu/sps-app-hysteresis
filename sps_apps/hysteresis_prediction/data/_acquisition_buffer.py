@@ -279,8 +279,12 @@ class AcquisitionBuffer:
             self._cycles_next_index[cycle_timestamp] = cycle_data
             self._buffer_next.append(cycle_data)
 
-        self._check_buffer_integrity()
-        self._check_buffer_size()
+        try:
+            self._check_buffer_integrity()
+            self._check_buffer_size()
+        except KeyError:
+            log.exception("Buffer check failed. Resetting buffer.")
+            self.reset_buffer()
 
         self.new_programmed_cycle.emit(cycle_data)
 
@@ -317,7 +321,8 @@ class AcquisitionBuffer:
 
         time_descr = abs(last_cycle.cycle_timestamp - cycle_timestamp) / 1e6
 
-        if time_descr < 5:  # diff less than 5 ms
+        # if time_descr < 5:  # diff less than 5 ms
+        if True:
             log_cycle(
                 "Diff in cycle timestamp between last cycle in NEXT buffer"
                 "and started cycle is not the same, but less than 5 ms. "
@@ -677,7 +682,7 @@ class AcquisitionBuffer:
         else:
             old_value = self._i_prog[cycle]
 
-            if len(old_value) != len(value):
+            if old_value.shape != value.shape:
                 log_cycle("Programmed current length has changed.", cycle)
                 set_new_programmed_current()
 
@@ -714,8 +719,8 @@ class AcquisitionBuffer:
                 log_cycle("No buffered reference data.", cycle)
                 return
 
-            with self._lock:
-                self._b_ref.pop(cycle)
+            # with self._lock:
+            #     self._b_ref.pop(cycle)
 
             return
 
@@ -1057,6 +1062,8 @@ class AcquisitionBuffer:
             self._cycles_index.clear()
             self._cycles_next_index.clear()
 
+        self.buffer_size_changed.emit(len(self))
+
     def _reset_except_last(self) -> None:
         """
         Reset buffer but keep last cycle in the NEXT buffer.
@@ -1070,6 +1077,13 @@ class AcquisitionBuffer:
             with self._lock:
                 self._buffer_next.append(last)
                 self._cycles_next_index[last.cycle_timestamp] = last
+
+        self.buffer_size_changed.emit(len(self))
+
+    def reset_reference_field(self) -> None:
+        log.debug("Resetting reference fields")
+        with self._lock:
+            self._b_ref.clear()
 
     def __len__(self) -> int:
         if self._buffer_only_measured:

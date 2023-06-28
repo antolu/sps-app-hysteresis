@@ -89,6 +89,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self.widgetPlot.model.new_predicted_cycle
         )
         self._inference.cycle_predicted.connect(self.on_new_prediction)
+        self._acquisition.buffer.new_measured_data.connect(self._io.save_data)
         self._acquisition.new_buffer_data.connect(
             self._inference.predict_last_cycle
         )
@@ -117,6 +118,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self.actionContinuous_Data_Export.toggled.connect(self._io.set_enabled)
         self.action_Clear_Buffer.triggered.connect(
             self._acquisition.buffer.reset_buffer
+        )
+        self.action_Clear_Reference.triggered.connect(
+            self._acquisition.buffer.reset_reference_field
         )
 
         self.action_Load_Model.triggered.connect(self.on_load_model_triggered)

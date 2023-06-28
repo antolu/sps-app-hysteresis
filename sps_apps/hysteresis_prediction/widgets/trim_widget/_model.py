@@ -6,6 +6,7 @@ import typing
 from datetime import datetime
 
 import numpy as np
+import numpy.typing as npt
 from pyda import SimpleClient
 from pyda.data import DiscreteFunction
 from pyda_japc import JapcProvider
@@ -21,8 +22,11 @@ log = logging.getLogger(__name__)
 
 
 DEV_LSA_B = "SPSBEAM"
-PROP_LSA_B = "B"
+PROP_LSA_B = "BHYS"
 DEV_LSA_I = "MBI/IREF"
+
+TRIM_THRESHOLD = 0.1
+TRIM_SOFT_THRESHOLD = 0.01
 
 BEAM_IN = "SIX.MC-CTML/ControlValue#controlValue"
 BEAM_OUT = "SX.BEAM-OUT-CTML/ControlValue#controlValue"
@@ -104,7 +108,7 @@ class TrimModel(QtCore.QObject):
 
         correction = prediction.field_ref - prediction.field_pred
 
-        correction = signal.perona_malik_smooth(correction, 10, 5e-2, 2.0)
+        correction = signal.perona_malik_smooth(correction, 10.0, 5e-2, 5.0)
 
         time_margin = (prediction.cycle_time - datetime.now()).total_seconds()
         if time_margin < 1.0:
@@ -152,20 +156,31 @@ class TrimModel(QtCore.QObject):
             if resp_get.exception is not None:
                 raise resp_get.exception
 
-            current_currection = resp_get.value["correction"]
+            current_currection: DiscreteFunction[np.float64] = resp_get.value[
+                "correction"
+            ]
 
-            lsa_time_axis = current_currection[0]
-            current_correction = current_currection[1]
+            lsa_time_axis: npt.NDArray[np.float64] = current_currection.xs
+            current_correction: npt.NDArray[np.float64] = current_currection.ys
 
             # downsample to match prediction
             downsample = cycle_data.num_samples // len(correction)
-            time_axis = np.arange(cycle_data.num_samples)[::downsample]
+            time_axis = np.arange(cycle_data.num_samples)[::downsample].astype(
+                np.float64
+            )
 
             # trim only part of beam that is before bema out
-            lsa_time_axis = lsa_time_axis[lsa_time_axis <= self._beam_out]
-            current_correction = current_correction[: lsa_time_axis.size]
-            time_axis = time_axis[time_axis <= self._beam_out]
-            correction = correction[: time_axis.size]
+            valid_indices = (self._beam_in <= lsa_time_axis) & (
+                lsa_time_axis <= self._beam_out
+            )
+            lsa_time_axis = lsa_time_axis[valid_indices]
+            current_correction = current_correction[valid_indices]
+
+            valid_indices_new = (self._beam_in <= time_axis) & (
+                time_axis <= self._beam_out
+            )
+            time_axis = time_axis[valid_indices_new]
+            correction = correction[valid_indices_new]
 
             if lsa_time_axis.size < time_axis.size:
                 # upsample LSA trim to match prediction
@@ -177,13 +192,50 @@ class TrimModel(QtCore.QObject):
                 # upsample prediction to match LSA trim
                 correction = np.interp(lsa_time_axis, time_axis, correction)
 
-            new_correction = current_correction + correction
+            new_correction = (current_correction + correction).astype(
+                np.float64
+            )
 
             log.info(f"[{cycle_data}] Sending trims to LSA.")
             trim_time = datetime.now()
 
-            lsa_time_axis = typing.cast(np.ndarray, lsa_time_axis)
-            func = DiscreteFunction(lsa_time_axis, new_correction)
+            new_correction = signal.perona_malik_smooth(
+                new_correction, 10.0, 5e-2, 2.0
+            )
+            if (
+                TRIM_SOFT_THRESHOLD
+                < np.max(np.abs(new_correction))
+                < TRIM_THRESHOLD
+            ):
+                log.info(
+                    "Max value in correction {} ".format(
+                        np.max(np.abs(new_correction))
+                    )
+                    + " is greater than {}, but less than {}. ".format(
+                        TRIM_SOFT_THRESHOLD, TRIM_THRESHOLD
+                    )
+                    + "Truncating trim."
+                )
+                new_correction[
+                    new_correction > TRIM_SOFT_THRESHOLD
+                ] = TRIM_SOFT_THRESHOLD
+                new_correction[
+                    new_correction < -TRIM_SOFT_THRESHOLD
+                ] = -TRIM_SOFT_THRESHOLD
+            elif np.max(np.abs(new_correction)) > TRIM_THRESHOLD:
+                log.error(
+                    "Max value in correction {} is ".format(
+                        np.max(np.max(new_correction))
+                    )
+                    + f"greater than threshold {TRIM_THRESHOLD}. "
+                    "Skipping trim."
+                )
+                return
+
+            lsa_time_axis = typing.cast(npt.NDArray[np.float64], lsa_time_axis)
+            func: DiscreteFunction[np.float64] = DiscreteFunction(
+                lsa_time_axis, new_correction
+            )
             resp_set = self._lsa.set(
                 endpoint=LsaEndpoint(
                     device_name=DEV_LSA_B,
@@ -207,6 +259,7 @@ class TrimModel(QtCore.QObject):
                 (lsa_time_axis, new_correction), trim_time, comment
             )
         except:  # noqa E722
+            log.exception("Failed to apply trim to LSA.")
             raise
         finally:
             self._trim_lock.unlock()
