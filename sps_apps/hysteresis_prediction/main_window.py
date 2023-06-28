@@ -115,6 +115,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self.toggle_plot_settings
         )
         self.actionContinuous_Data_Export.toggled.connect(self._io.set_enabled)
+        self.action_Clear_Buffer.triggered.connect(
+            self._acquisition.buffer.reset_buffer
+        )
 
         self.action_Load_Model.triggered.connect(self.on_load_model_triggered)
 

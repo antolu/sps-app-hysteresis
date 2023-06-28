@@ -1049,7 +1049,7 @@ class AcquisitionBuffer:
             )
             self.new_measured_data.emit(cycle_data)
 
-    def _reset_buffer(self) -> None:
+    def reset_buffer(self) -> None:
         log.debug("Resetting buffer...")
         with self._lock:
             self._buffer.clear()
@@ -1065,7 +1065,7 @@ class AcquisitionBuffer:
         if len(self._buffer_next) > 0:
             last = self._buffer_next[-1]
 
-            self._reset_buffer()
+            self.reset_buffer()
 
             with self._lock:
                 self._buffer_next.append(last)

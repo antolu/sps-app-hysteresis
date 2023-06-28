@@ -66,6 +66,7 @@
     </property>
     <addaction name="actionShow_Plot_Settings"/>
     <addaction name="actionContinuous_Data_Export"/>
+    <addaction name="action_Clear_Buffer"/>
    </widget>
    <addaction name="menu_file"/>
    <addaction name="menu_view"/>
@@ -148,6 +149,11 @@
    </property>
    <property name="toolTip">
     <string>Enable / Disable continuous data export. This will write cycle data to disk when new measured data arrives.</string>
+   </property>
+  </action>
+  <action name="action_Clear_Buffer">
+   <property name="text">
+    <string>&amp;Clear Buffer</string>
    </property>
   </action>
  </widget>
