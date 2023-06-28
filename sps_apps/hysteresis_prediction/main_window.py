@@ -55,6 +55,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         timing_bar = TimingBar(self, model=timing_model)
         self.timing_bar = timing_bar
 
+        self._buffer_size = buffer_size
         self._acquisition = Acquisition(min_buffer_size=buffer_size)
         self._inference = Inference(parent=self)
 
@@ -65,22 +66,28 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         self._io = IO()
 
-        self.actionShow_Plot_Settings.triggered.connect(
-            self.toggle_plot_settings
-        )
-        self.actionContinuous_Data_Export.toggled.connect(self._io.set_enabled)
+        self._connect_signals()
+        self._connect_actions()
 
+        # status messages
+        self._connect_status()
+
+        self._acquisition.run()
+
+    def _connect_signals(self) -> None:
         self.widgetSettings.timespan_changed.connect(
             self.widgetPlot.set_time_span
         )
 
         self.widgetSettings.downsample_changed.connect(
-            plot_model.set_downsample
+            self.widgetPlot.model.set_downsample
         )
         self.widgetSettings.toggle_predictions.connect(
             self._inference.set_do_inference
         )
-        self._inference.cycle_predicted.connect(plot_model.new_predicted_cycle)
+        self._inference.cycle_predicted.connect(
+            self.widgetPlot.model.new_predicted_cycle
+        )
         self._inference.cycle_predicted.connect(self.on_new_prediction)
         self._acquisition.new_buffer_data.connect(
             self._inference.predict_last_cycle
@@ -89,10 +96,11 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self.widgetSettings._on_new_cycle
         )
         self._acquisition.buffer.buffer_size_changed.connect(
-            lambda x: self.widgetSettings._set_progressbar(x, buffer_size)
+            lambda x: self.widgetSettings._set_progressbar(
+                x, self._buffer_size
+            )
         )
 
-        self.action_Load_Model.triggered.connect(self.on_load_model_triggered)
         self._inference.model_loaded.connect(
             self.widgetSettings.on_model_loaded
         )
@@ -102,12 +110,20 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             )
         )
 
+    def _connect_actions(self) -> None:
+        self.actionShow_Plot_Settings.triggered.connect(
+            self.toggle_plot_settings
+        )
+        self.actionContinuous_Data_Export.toggled.connect(self._io.set_enabled)
+
+        self.action_Load_Model.triggered.connect(self.on_load_model_triggered)
+
         self.actionPrediction_Analysis.triggered.connect(
             self.show_predicion_analysis
         )
         self.action_Trim_View.triggered.connect(self.show_trim_widget)
 
-        # status messages
+    def _connect_status(self) -> None:
         self.widgetSettings.toggle_predictions.connect(
             lambda enabled, *_: self._status_manager.statusChanged.emit(
                 AppStatus.INFERENCE_ENABLED
@@ -142,7 +158,6 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         )
 
         self._status_manager.statusChanged.emit(AppStatus.NO_MODEL)
-        self._acquisition.run()
 
     def on_load_model_triggered(self) -> None:
         dialog = ModelLoadDialog(parent=self)
