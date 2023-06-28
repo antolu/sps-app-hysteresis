@@ -11,6 +11,7 @@ from pyda.data import DiscreteFunction
 from pyda_japc import JapcProvider
 from pyda_lsa import LsaCycleContext, LsaEndpoint, LsaProvider
 from qtpy import QtCore
+from sps_projects.hysteresis_compensation.utils import signal
 
 from ...core.application_context import context
 from ...data import CycleData
@@ -102,6 +103,8 @@ class TrimModel(QtCore.QObject):
             raise ValueError(f"[{prediction}] No field prediction found.")
 
         correction = prediction.field_ref - prediction.field_pred
+
+        correction = signal.perona_malik_smooth(correction, 10, 5e-2, 2.0)
 
         time_margin = (prediction.cycle_time - datetime.now()).total_seconds()
         if time_margin < 1.0:
