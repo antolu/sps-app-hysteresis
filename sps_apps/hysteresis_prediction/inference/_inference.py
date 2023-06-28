@@ -14,7 +14,7 @@ from sps_projects.hysteresis_compensation.data import PhyLSTMDataModule
 from sps_projects.hysteresis_compensation.models import PhyLSTM1, PhyLSTMModule
 from sps_projects.hysteresis_compensation.utils import PhyLSTM1Output, ops
 
-from ..data import SingleCycleData
+from ..data import CycleData
 from ..utils import ThreadWorker, load_cursor, run_in_thread
 
 MS = int(1e3)
@@ -35,7 +35,7 @@ def inference_thread() -> QtCore.QThread:
 
 class Inference(QtCore.QObject):
     load_model = QtCore.Signal(str, str)  # ckpt path, device
-    cycle_predicted = QtCore.Signal(SingleCycleData, np.ndarray)
+    cycle_predicted = QtCore.Signal(CycleData, np.ndarray)
     model_loaded = QtCore.Signal()
 
     started = QtCore.Signal()
@@ -90,7 +90,7 @@ class Inference(QtCore.QObject):
 
     @run_in_thread(inference_thread)
     def predict_last_cycle(
-        self, cycle_data: list[SingleCycleData]
+        self, cycle_data: list[CycleData]
     ) -> Optional[Thread]:
         if not self._do_inference:
             log.debug("Inference is disabled. Not predicting.")
@@ -182,7 +182,7 @@ class Inference(QtCore.QObject):
 
         return np.array(pred_field)
 
-    def _predict_last_cycle(self, cycle_data: list[SingleCycleData]):
+    def _predict_last_cycle(self, cycle_data: list[CycleData]) -> np.ndarray:
         """
         Predict the field for the last cycle in the given data.
 

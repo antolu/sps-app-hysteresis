@@ -13,7 +13,7 @@ from pyda_lsa import LsaCycleContext, LsaEndpoint, LsaProvider
 from qtpy import QtCore
 
 from ...core.application_context import context
-from ...data import SingleCycleData
+from ...data import CycleData
 from ...utils import ThreadWorker
 
 log = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ class time_execution:
 
 
 class TrimModel(QtCore.QObject):
-    newPredictedData = QtCore.Signal(SingleCycleData, np.ndarray)
+    newPredictedData = QtCore.Signal(CycleData, np.ndarray)
 
     trimApplied = QtCore.Signal(tuple, datetime, str)
 
@@ -76,7 +76,7 @@ class TrimModel(QtCore.QObject):
 
         self.newPredictedData.connect(self.on_new_prediction)
 
-    def on_new_prediction(self, prediction: SingleCycleData, *_) -> None:
+    def on_new_prediction(self, prediction: CycleData, *_) -> None:
         if not self._trim_enabled:
             log.debug("Trim is disabled, skipping trim.")
             return
@@ -121,7 +121,7 @@ class TrimModel(QtCore.QObject):
         QtCore.QThreadPool.globalInstance().start(worker)
 
     def apply_correction(
-        self, correction: np.ndarray, cycle_data: SingleCycleData
+        self, correction: np.ndarray, cycle_data: CycleData
     ) -> None:
         if not self._trim_lock.tryLock():
             log.warning("Already applying trim, skipping.")

@@ -190,7 +190,7 @@ class AcquisitionBuffer:
     ) -> None:
         """
         Called when a new cycle is started (or is going to start).
-        This will create a new :class:`SingleCycleData` object and add
+        This will create a new :class:`CycleData` object and add
         it to the next cycles buffer with the programmed I and B,
         pending the measured I and B.
 
@@ -403,7 +403,7 @@ class AcquisitionBuffer:
         The collated samples can then be used to perform inference, or
         train models.
 
-        :return: A list of :class:`SingleCycleData` objects.
+        :return: A list of :class:`CycleData` objects.
 
         :raises InsufficientDataError: If the number of buffered samples is
             less than the minimum buffer size.

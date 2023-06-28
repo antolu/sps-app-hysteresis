@@ -79,14 +79,14 @@ from_utc_ns: Callable[[Union[int, float]], datetime] = partial(
 
 class Acquisition:
     data_acquired: Signal  # PropertyRetrievalResponse
-    new_buffer_data: Signal  # list[SingleCycleData]
+    new_buffer_data: Signal  # list[CycleData]
     cycle_mapping_changed: Signal  # str
     cycle_started: Signal  # str, str, int
     supercycle_started: Signal  # int, str
     supercycle_changed: Signal  # no argument
 
-    new_measured_data: Signal  # SingleCycleData
-    new_programmed_cycle: Signal  # SingleCycleData
+    new_measured_data: Signal  # CycleData
+    new_programmed_cycle: Signal  # CycleData
 
     def __init__(
         self,

@@ -6,14 +6,14 @@ from typing import Optional
 import numpy as np
 from qtpy.QtCore import QObject, Signal
 
-from ...data import Acquisition, SingleCycleData
+from ...data import Acquisition, CycleData
 from ._sources import AcquiredDataType, CurrentFieldSource
 
 log = logging.getLogger(__name__)
 
 
 class PlotModel(QObject):
-    new_predicted_cycle = Signal(SingleCycleData, np.ndarray)
+    new_predicted_cycle = Signal(CycleData, np.ndarray)
 
     def __init__(
         self,
@@ -62,7 +62,7 @@ class PlotModel(QObject):
             self._handle_new_programmed
         )
 
-    def _handle_new_measured(self, cycle_data: SingleCycleData) -> None:
+    def _handle_new_measured(self, cycle_data: CycleData) -> None:
         try:
             assert cycle_data.current_meas is not None
             assert cycle_data.field_meas is not None
@@ -101,7 +101,7 @@ class PlotModel(QObject):
             )
             return
 
-    def _handle_new_programmed(self, cycle_data: SingleCycleData) -> None:
+    def _handle_new_programmed(self, cycle_data: CycleData) -> None:
         try:
             self._current_prog_source.new_value(
                 cycle_data.cycle_timestamp, cycle_data.current_prog
@@ -117,7 +117,7 @@ class PlotModel(QObject):
             return
 
     def _handle_new_predicted(
-        self, cycle_data: SingleCycleData, predicted: np.ndarray
+        self, cycle_data: CycleData, predicted: np.ndarray
     ) -> None:
         try:
             self._field_predict_source.new_value(

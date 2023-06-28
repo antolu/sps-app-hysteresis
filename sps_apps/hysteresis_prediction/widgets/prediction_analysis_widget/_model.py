@@ -17,7 +17,7 @@ import pyda_japc
 import pyqtgraph as pg
 from qtpy import QtCore, QtGui
 
-from ...data import SingleCycleData
+from ...data import CycleData
 
 log = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class PlotMode(Enum):
 
 @dataclass
 class PredictionItem:
-    cycle_data: SingleCycleData
+    cycle_data: CycleData
     plot_item: pg.PlotCurveItem | None = None
     plot_item_dpp: pg.PlotCurveItem | None = None
     color: QtGui.QColor | None = None
@@ -129,7 +129,7 @@ class PredictionListModel(QtCore.QAbstractListModel):
         assert self._data.maxlen is not None
         return self._data.maxlen
 
-    def append(self, data: SingleCycleData) -> None:
+    def append(self, data: CycleData) -> None:
         if len(self._data) == self._data.maxlen:
             to_remove = self._data.popleft()
             index = (QtCore.QModelIndex(), 0, 0)
@@ -536,7 +536,7 @@ class PredictionAnalysisModel(QtCore.QObject):
     saved in the model.
     """
 
-    newData = QtCore.Signal(SingleCycleData)
+    newData = QtCore.Signal(CycleData)
     """ Triggered by new data acquisition (new predictions) """
 
     superCycleChanged = QtCore.Signal()
@@ -657,7 +657,7 @@ class PredictionAnalysisModel(QtCore.QObject):
     def disable_acquisition(self) -> None:
         self.enable_acquisition(False)
 
-    def _on_new_data_received(self, cycle_data: SingleCycleData) -> None:
+    def _on_new_data_received(self, cycle_data: CycleData) -> None:
         if self._selector is None:
             log.debug("No selector set. Discarding new data.")
             return
@@ -740,8 +740,7 @@ class PredictionAnalysisModel(QtCore.QObject):
         log.debug("Loading predictions from Pandas DataFrame.")
 
         predictions = [
-            SingleCycleData.from_pandas(row.to_frame())
-            for _, row in df.iterrows()
+            CycleData.from_pandas(row.to_frame()) for _, row in df.iterrows()
         ]
 
         user = predictions[0].user
