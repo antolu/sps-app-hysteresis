@@ -99,6 +99,8 @@ class PlotWidget(QWidget):
 
         self._connect_model(model)
 
+        self._model = model
+
     def _get_model(self) -> Optional[PlotModel]:
         return self._model
 
