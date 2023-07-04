@@ -214,37 +214,49 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.listPredictions.clicked.connect(model.item_clicked)
 
         def radio_changed(*_: typing.Any) -> None:
-            if self.radioPredicted.isChecked():
-                model.plotModeChanged.emit(PlotMode.PredictedOnly)
+            def _set_mode_reference() -> None:
+                self.buttonReference.setEnabled(True)
+                self.buttonReference.show()
 
+                self.buttonZoomFT.setEnabled(False)
+                self.buttonZoomFB.setEnabled(False)
+                self.buttonZoomFT.hide()
+                self.buttonZoomFB.hide()
+
+            def _set_mode_raw() -> None:
                 self.buttonReference.setEnabled(False)
                 self.buttonReference.hide()
+
                 self.buttonZoomFT.setEnabled(True)
                 self.buttonZoomFB.setEnabled(True)
                 self.buttonZoomFT.show()
                 self.buttonZoomFB.show()
-            elif self.radioMeasured.isChecked():
-                model.plotModeChanged.emit(PlotMode.VsMeasured)
 
-                self.buttonReference.setEnabled(False)
-                self.buttonZoomFT.setEnabled(False)
-                self.buttonZoomFB.setEnabled(False)
-                self.buttonReference.hide()
-                self.buttonZoomFT.hide()
-                self.buttonZoomFB.hide()
-            elif self.radioDpp.isChecked():
-                model.plotModeChanged.emit(PlotMode.dpp)
+            if self.radioPredVPred.isChecked():
+                model.plotModeChanged.emit(PlotMode.PredVsPred)
 
-                self.buttonReference.setEnabled(True)
-                self.buttonZoomFT.setEnabled(False)
-                self.buttonZoomFB.setEnabled(False)
-                self.buttonReference.show()
-                self.buttonZoomFT.hide()
-                self.buttonZoomFB.hide()
+                _set_mode_raw()
+            elif self.radioMeasVMeas.isChecked():
+                model.plotModeChanged.emit(PlotMode.MeasVsMeas)
 
-        self.radioPredicted.clicked.connect(radio_changed)
-        self.radioMeasured.toggled.connect(radio_changed)
-        self.radioDpp.clicked.connect(radio_changed)
+                _set_mode_raw()
+            elif self.radioPredVMeas.isChecked():
+                model.plotModeChanged.emit(PlotMode.PredVsMeas)
+
+                _set_mode_reference()
+            elif self.radioPredVRef.isChecked():
+                model.plotModeChanged.emit(PlotMode.PredVsRef)
+
+                _set_mode_reference()
+            else:
+                model.plotModeChanged.emit(PlotMode.MeasVsRef)
+                _set_mode_reference()
+
+        self.radioPredVPred.clicked.connect(radio_changed)
+        self.radioMeasVMeas.clicked.connect(radio_changed)
+        self.radioPredVMeas.clicked.connect(radio_changed)
+        self.radioPredVRef.clicked.connect(radio_changed)
+        self.radioMeasVRef.clicked.connect(radio_changed)
 
         self.actionClear_Buffer.triggered.connect(model.clear)
 

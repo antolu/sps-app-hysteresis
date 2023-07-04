@@ -387,36 +387,22 @@ class PredictionPlotModel(QtCore.QObject):
             item.color = self._color_pool.get_color()
 
         cycle_data = item.cycle_data
-        assert cycle_data.field_pred is not None
 
-        x = self._make_time_axis(item)
         if self._plot_mode == PlotMode.PredVsPred:
-            y = cycle_data.field_pred[1, :]
-            x = x[:: len(x) // len(y)]
+            x, y = make_pred_vs_pred(cycle_data)
+        elif self._plot_mode == PlotMode.MeasVsMeas:
+            x, y = make_meas_vs_meas(cycle_data)
         elif self._plot_mode == PlotMode.PredVsMeas:
-            assert cycle_data.field_meas is not None
-
-            downsample = cycle_data.num_samples // len(
-                cycle_data.field_pred[0, :]
-            )
-            y = (
-                cycle_data.field_meas[::downsample]
-                - cycle_data.field_pred[1, :]
-            )
-            x = x[:: len(x) // len(y)]
+            x, y = make_pred_vs_meas(cycle_data)
         elif self._plot_mode == PlotMode.PredVsRef:
             if self._reference is None:
                 raise ValueError("No reference set.")
-            reference = self._reference
+            x, y = make_pred_vs_ref(cycle_data, self._reference.cycle_data)
+        elif self._plot_mode == PlotMode.MeasVsRef:
+            if self._reference is None:
+                raise ValueError("No reference set.")
 
-            assert reference.cycle_data.field_pred is not None
-
-            y = (
-                (reference.cycle_data.field_pred - cycle_data.field_pred)
-                / reference.cycle_data.field_pred
-                * 1e4
-            )[1, :]
-            x = x[:: len(x) // len(y)]
+            x, y = make_meas_vs_ref(cycle_data, self._reference.cycle_data)
         else:
             raise ValueError(f"Invalid plot mode {self._plot_mode.name}")
 
@@ -476,6 +462,7 @@ class PredictionPlotModel(QtCore.QObject):
             log.debug("No items plotted, cannot zoom flat top.")
             return
 
+        # find max and min flat top values for all recorded data
         max_val = max(
             [
                 item.cycle_data.field_pred.max()
@@ -751,3 +738,84 @@ class PredictionAnalysisModel(QtCore.QObject):
         self.clear()
         for pred in predictions:
             self._list_model.append(pred)
+
+
+def calc_dpp(
+    reference: np.ndarray, value: np.ndarray, scale: float = 1.0
+) -> np.ndarray:
+    return (reference - value) / reference * scale
+
+
+def calc_downsample(high: np.ndarray, low: np.ndarray) -> float:
+    return len(high) // len(low)
+
+
+def make_pred_vs_pred(
+    cycle_data: CycleData,
+) -> tuple[np.ndarray, np.ndarray]:
+    assert cycle_data.field_pred is not None
+    y = cycle_data.field_pred[1, :]
+
+    x = np.arange(0, cycle_data.num_samples, cycle_data.num_samples // y.size)
+
+    return x, y
+
+
+def make_meas_vs_meas(
+    cycle_data: CycleData,
+) -> tuple[np.ndarray, np.ndarray]:
+    assert cycle_data.field_meas is not None
+    y = cycle_data.field_meas
+
+    x = np.arange(0, cycle_data.num_samples)
+
+    return x, y
+
+
+def make_pred_vs_meas(
+    cycle_data: CycleData,
+) -> tuple[np.ndarray, np.ndarray]:
+    assert cycle_data.field_pred is not None
+    assert cycle_data.field_meas is not None
+
+    field_pred = cycle_data.field_pred[1, :]
+    field_meas = cycle_data.field_meas
+
+    downsample = cycle_data.num_samples // field_pred.size
+
+    y = calc_dpp(field_meas[::downsample], field_pred) * 1e4
+    x = np.arange(0, cycle_data.num_samples, cycle_data.num_samples // y.size)
+
+    return x, y
+
+
+def make_pred_vs_ref(
+    cycle_data: CycleData,
+    reference: CycleData,
+) -> tuple[np.ndarray, np.ndarray]:
+    assert cycle_data.field_pred is not None
+    assert reference.field_pred is not None
+
+    field_pred = cycle_data.field_pred[1, :]
+    field_ref = reference.field_pred[1, :]
+
+    y = calc_dpp(field_ref, field_pred) * 1e4
+    x = np.arange(0, cycle_data.num_samples, cycle_data.num_samples // y.size)
+
+    return x, y
+
+
+def make_meas_vs_ref(
+    cycle_data: CycleData,
+    reference: CycleData,
+) -> tuple[np.ndarray, np.ndarray]:
+    assert cycle_data.field_meas is not None
+    assert reference.field_meas is not None
+
+    field_meas = cycle_data.field_meas
+    field_ref = reference.field_meas
+
+    y = calc_dpp(field_ref, field_meas) * 1e4
+    x = np.arange(0, cycle_data.num_samples)
+
+    return x, y
