@@ -124,7 +124,11 @@ class CycleData:
 
         item.current_input = d["current_input"]
         item.field_ref = d["field_ref"]
-        item.field_pred = d["field_pred"].reshape(2, d["field_pred"].size // 2)
+        item.field_pred = (
+            d["field_pred"].reshape(2, d["field_pred"].size // 2)
+            if d["field_pred"] is not None
+            else None
+        )
         item.field_pred = d["field_pred"]
         item.current_meas = d["current_meas"]
         item.field_meas = d["field_meas"]
@@ -147,7 +151,7 @@ class CycleData:
         if len(df) != 1:
             raise ValueError("DataFrame must have only one row")
 
-        return cls.from_dict(df.to_dict())
+        return cls.from_dict({k: v[0] for k, v in df.to_dict().items()})
 
     def __str__(self) -> str:
         return f"{self.cycle}@{self.cycle_time}"
