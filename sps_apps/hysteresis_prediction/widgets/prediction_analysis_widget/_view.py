@@ -267,6 +267,11 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.buttonZoomBI.clicked.connect(model.plot_model.zoomBeamIn.emit)
         self.actionResetAxes.triggered.connect(model.plot_model.resetAxes.emit)
 
+        def _enable_spinbox(*_) -> None:
+            self.spinBoxYMin.setEnabled(True)
+            self.spinBoxYMax.setEnabled(True)
+
+        model.plot_model.plotAdded.connect(_enable_spinbox)
         model.plot_model.plotAdded.connect(self.plotPredWidget.addItem)
         model.plot_model.plotRemoved.connect(self.plotPredWidget.removeItem)
         model.plot_model.plotAdded_dpp.connect(self.plotDiffWidget.addItem)
@@ -276,7 +281,20 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         model.plot_model.setXRange.connect(
             partial(self.plotPredWidget.vb.setXRange, padding=0)
         )
-        model.plot_model.setYRange.connect(self.plotPredWidget.vb.setYRange)
+
+        def set_y_range(min_: float, max_: float) -> None:
+            self.spinBoxYMin.blockSignals(True)
+            self.spinBoxYMin.setValue(min_)
+            self.spinBoxYMin.blockSignals(False)
+
+            self.spinBoxYMax.blockSignals(True)
+            self.spinBoxYMax.setValue(max_)
+            self.spinBoxYMax.blockSignals(False)
+
+            assert self.plotPredWidget.vb is not None
+            self.plotPredWidget.vb.setYRange(min_, max_)
+
+        model.plot_model.setYRange.connect(set_y_range)
         model.userChanged.connect(self.LsaSelector.select_user)
 
     def _disconnect_model(self, model: PredictionAnalysisModel) -> None:
