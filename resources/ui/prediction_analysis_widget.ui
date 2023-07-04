@@ -266,9 +266,9 @@
           </widget>
          </item>
          <item>
-          <widget class="QRadioButton" name="radioPredicted">
+          <widget class="QRadioButton" name="radioPredVPred">
            <property name="text">
-            <string>Predicted only</string>
+            <string>Pred. vs. Pred.</string>
            </property>
            <property name="checked">
             <bool>true</bool>
@@ -276,16 +276,30 @@
           </widget>
          </item>
          <item>
-          <widget class="QRadioButton" name="radioMeasured">
+          <widget class="QRadioButton" name="radioMeasVMeas">
            <property name="text">
-            <string>With measured</string>
+            <string>Meas. vs. Meas.</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QRadioButton" name="radioDpp">
+          <widget class="QRadioButton" name="radioPredVMeas">
            <property name="text">
-            <string>dp/p</string>
+            <string>Pred. vs. Meas.</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="radioPredVRef">
+           <property name="text">
+            <string>Pred vs. Ref.</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="radioMeasVRef">
+           <property name="text">
+            <string>Meas vs. Ref.</string>
            </property>
           </widget>
          </item>
