@@ -27,9 +27,11 @@ BEAM_OUT = "SX.BEAM-OUT-CTML/ControlValue#controlValue"
 
 
 class PlotMode(Enum):
-    PredictedOnly = auto()
-    VsMeasured = auto()
-    dpp = auto()
+    PredVsPred = auto()
+    MeasVsMeas = auto()
+    PredVsMeas = auto()
+    PredVsRef = auto()
+    MeasVsRef = auto()
 
 
 @dataclass
@@ -217,7 +219,7 @@ class PredictionPlotModel(QtCore.QObject):
         self.zoomBeamIn.connect(self._zoom_beam_in)
         self.resetAxes.connect(self._reset_axes)
 
-        self._plot_mode = PlotMode.PredictedOnly
+        self._plot_mode = PlotMode.PredVsPred
         self._reference: PredictionItem | None = None
         self._color_pool = ColorPool()
 
@@ -388,10 +390,10 @@ class PredictionPlotModel(QtCore.QObject):
         assert cycle_data.field_pred is not None
 
         x = self._make_time_axis(item)
-        if self._plot_mode == PlotMode.PredictedOnly:
+        if self._plot_mode == PlotMode.PredVsPred:
             y = cycle_data.field_pred[1, :]
             x = x[:: len(x) // len(y)]
-        elif self._plot_mode == PlotMode.VsMeasured:
+        elif self._plot_mode == PlotMode.PredVsMeas:
             assert cycle_data.field_meas is not None
 
             downsample = cycle_data.num_samples // len(
@@ -402,7 +404,7 @@ class PredictionPlotModel(QtCore.QObject):
                 - cycle_data.field_pred[1, :]
             )
             x = x[:: len(x) // len(y)]
-        elif self._plot_mode == PlotMode.dpp:
+        elif self._plot_mode == PlotMode.PredVsRef:
             if self._reference is None:
                 raise ValueError("No reference set.")
             reference = self._reference
