@@ -74,7 +74,11 @@ class Inference(QtCore.QObject):
 
     def _on_load_model(self, ckpt_path: str, device: str = "cpu") -> None:
         with load_cursor():
-            data_module, module = self._load_model(ckpt_path)
+            try:
+                data_module, module = self._load_model(ckpt_path)
+            except:  # noqa: broad-except
+                log.exception("Error occured.")
+                return
 
             with self._lock:
                 self.device = device
@@ -162,12 +166,23 @@ class Inference(QtCore.QObject):
             *ops.squeeze(predictions_detached)
         )
 
+        pred_field = ops.to_cpu(
+            ops.detach(
+                ops.truncate(
+                    ops.concatenate(
+                        *[o["z"][..., 0].flatten() for o in predictions_raw]
+                    ),
+                    dataloader.dataset.num_points,
+                )
+            )
+        ).numpy()
+
         log.debug(f"Raw predictions shape: {predictions['z'].shape}")
         log.debug("Running prediction postprocessing.")
         current = torch.cat(
             [batch["input"].squeeze() for batch in dataloader], dim=0
         ).numpy()
-        pred_field = predictions["z"].numpy()[..., 0]
+        # pred_field = predictions["z"].numpy()[..., 0].flatten()
 
         current, pred_field = dataloader.dataset.truncate_arrays(
             current, pred_field
