@@ -1,5 +1,6 @@
 IDEs
 .idea
+test_scripts/
 
 # Cached training results
 *.pkl
