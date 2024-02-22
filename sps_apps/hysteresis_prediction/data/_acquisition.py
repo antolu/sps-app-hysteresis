@@ -20,7 +20,6 @@ from pyda.data import PropertyRetrievalResponse
 
 try:
     from pyda_japc import JapcProvider
-    from pyjapc import PyJapc
     from pyrbac import AuthenticationClient  # noqa F401
 except ImportError:
     # for my macos laptop
@@ -35,7 +34,7 @@ from ._acquisition_buffer import (
     InsufficientDataError,
 )
 from ._cycle_to_tgm import LSAContexts
-from ._pyjapc import PyJapc2Pyda, PyJapcEndpoint, SubscriptionCallback
+from ._pyjapc import PyJapcEndpoint, SubscriptionCallback
 
 __all__ = ["Acquisition"]
 
@@ -148,9 +147,6 @@ class Acquisition:
         # set up PyDA and PyJApc
         self._japc_simple = SimpleClient(provider=japc_provider)
         self._japc_async = AsyncIOClient(provider=japc_provider)
-        japc = PyJapc(incaAcceleratorName=None, selector="SPS.USER.ALL")
-        japc.rbacLogin()
-        self._japc = PyJapc2Pyda(japc)
 
         # Initialize signals, but don't start them
         self.data_acquired = Signal(PropertyRetrievalResponse)
@@ -241,9 +237,6 @@ class Acquisition:
             ("PartialEconomy", TRIGGER_DYNECO, "SPS.USER.ALL"),
             ("MeasuredCurrent", DEV_MEAS_I, "SPS.USER.ALL"),
             ("MeasuredBField", DEV_MEAS_B, "SPS.USER.ALL"),
-        ]
-
-        pyjapc_subscriptions = [
             ("ProgrammedCurrent", DEV_LSA_I, "SPS.USER.ALL"),
             ("ProgrammedBField", DEV_LSA_B, "SPS.USER.ALL"),
         ]
@@ -264,14 +257,6 @@ class Acquisition:
             )
 
             self._async_handles[name] = handle
-
-        for name, endpoint, selector in pyjapc_subscriptions:
-            log.debug(f"Subscribing to {endpoint} with selector {selector}.")
-            handle = self._japc.subscribe(
-                endpoint, context=selector, callback=self.data_acquired.emit
-            )
-
-            self._subscribe_handles[name] = handle
 
         return list(self._async_handles.values())
 
@@ -397,10 +382,10 @@ class Acquisition:
             selector = self._lsa_to_pls[cycle]
             try:
                 self._handle_acquisition(
-                    self._japc.get(DEV_LSA_I, context=selector)
+                    self._japc_simple.get(DEV_LSA_I, context=selector)
                 )
                 self._handle_acquisition(
-                    self._japc.get(DEV_LSA_B, context=selector)
+                    self._japc_simple.get(DEV_LSA_B, context=selector)
                 )
             except:  # noqa E722
                 log.exception("Error fetching LSA programs.")
