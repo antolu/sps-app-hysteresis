@@ -91,7 +91,7 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
                 self.progressBar.hide()
             else:
                 self.progressBar.show()
-        except:  # noqa: broad-except
+        except:  # noqa E722
             log.exception(
                 "An exception occurred while setting progress bar value."
             )

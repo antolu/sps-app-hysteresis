@@ -3,7 +3,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from ..core.application_context import context
+from op_app_context import settings
+
 from ..data import CycleData
 
 log = logging.getLogger(__name__)
@@ -12,7 +13,6 @@ log = logging.getLogger(__name__)
 class IO:
     def __init__(self) -> None:
         self._enabled = False
-        pass
 
     def enable(self) -> IO:
         self._enabled = True
@@ -37,7 +37,7 @@ class IO:
             )
             return
 
-        out_dir = Path(context.save_dir)
+        out_dir = Path(settings["save_dir", "."])
         if not out_dir.exists():
             out_dir.mkdir(parents=True)
 

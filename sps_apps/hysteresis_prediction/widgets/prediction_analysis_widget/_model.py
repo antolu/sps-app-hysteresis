@@ -1,6 +1,7 @@
 """
 This module contains the model for the prediction analysis widget.
 """
+
 from __future__ import annotations
 
 import logging
@@ -480,8 +481,7 @@ class PredictionPlotModel(QtCore.QObject):
 
         self.setYRange.emit(0.997 * min_val, 1.0005 * max_val)
 
-    def _zoom_flat_bottom(self) -> None:
-        ...
+    def _zoom_flat_bottom(self) -> None: ...
 
     def _zoom_beam_in(self) -> None:
         if len(self._plotted_items) == 0:

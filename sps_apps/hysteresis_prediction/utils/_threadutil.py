@@ -10,6 +10,9 @@ It allows you to receive results from the function invocation:
     print(return_2())
 """
 
+from __future__ import annotations
+
+import typing
 import typing as t
 from functools import wraps
 from threading import Event, Thread, get_ident
@@ -145,7 +148,8 @@ class Task:
         self._args = args
         self._kwargs = kwargs
         self.has_run = Event()
-        self._result = self._exception = None
+        self._exception: Exception | None = None
+        self._result: typing.Any | None = None
 
     def __call__(self) -> None:
         try:

@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 
 import torch
 from accwidgets.qt import exec_app_interruptable
-from PyQt5.QtWidgets import QApplication
+from qtpy import QtWidgets
 from rich.logging import RichHandler
 
 from . import __version__
@@ -62,15 +62,16 @@ def main() -> None:
     args = parser.parse_args()
     setup_logger(args.verbose)
 
-    from .core.application_context import context
-
-    context.lsa_server = args.lsa_server
-
-    application = QApplication([])
+    application = QtWidgets.QApplication([])
     application.setApplicationVersion(__version__)
     application.setOrganizationName("CERN")
     application.setOrganizationDomain("cern.ch")
     application.setApplicationName("SPS Hysteresis Prediction")
+
+    from op_app_context import context, settings
+
+    context.lsa_server = args.lsa_server
+    settings.configure_application(application)
 
     main_window = MainWindow(buffer_size=args.buffer_size)
     main_window.show()

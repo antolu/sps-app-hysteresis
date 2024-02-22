@@ -1,6 +1,7 @@
 """
 Miscellaneous idgets for the hysteresis prediction app.
 """
+
 from __future__ import annotations
 
 from enum import Enum

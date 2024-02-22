@@ -2,6 +2,7 @@
 This module contains the AcquisitionBuffer class, which is used to
 buffer and order the data acquired by the Acquisition class.
 """
+
 from __future__ import annotations
 
 import logging

@@ -1,6 +1,7 @@
 """
 This module contains functions for trimming LSA functions
 """
+
 from __future__ import annotations
 
 import logging
@@ -154,8 +155,7 @@ class TrimManager:
         comment: str,
         parameter_type: PARAMETER_TYPE = "function",
         part: PART_TYPE = "VALUE",
-    ):
-        ...
+    ) -> typing.Any: ...
 
     @typing.overload
     def send_trim(
@@ -165,8 +165,7 @@ class TrimManager:
         comment: str,
         parameter_type: list[PARAMETER_TYPE],
         part: PART_TYPE = "VALUE",
-    ):
-        ...
+    ) -> typing.Any: ...
 
     def send_trim(
         self,
@@ -175,7 +174,7 @@ class TrimManager:
         comment: str,
         parameter_type: PARAMETER_TYPE | list[PARAMETER_TYPE] = "function",
         part: PART_TYPE = "VALUE",
-    ):
+    ) -> typing.Any:
         """
         Send trims via pjlsa. Function can be called either on lists of
         parameters, values, etc. or on a single one.

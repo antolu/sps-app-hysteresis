@@ -6,10 +6,11 @@ This module uses pjlsa to interface with LSA.
 
 The lsa_contexts object is a global object that can be imported in the app.
 """
+
 import logging
 import typing as t
 
-from ..core.application_context import context
+from op_app_context import context
 
 __all__ = ["LSAContexts"]
 
@@ -38,7 +39,7 @@ class LSAContexts:
 
         self.machine = machine
 
-    def update(self):
+    def update(self) -> None:
         """
         Fetches LSA contexts from LSA with pjlsa and queries if they are being
         played.
@@ -52,7 +53,7 @@ class LSAContexts:
             )
 
         log.debug("Preparing to update LSA cycle to PLS mapping.")
-        with context.lsa.java_api():
+        with context.lsa_client.java_api():
             from cern.accsoft.commons.domain import CernAccelerator
             from cern.lsa.client import ContextService, ServiceLocator
             from cern.lsa.domain.settings import (

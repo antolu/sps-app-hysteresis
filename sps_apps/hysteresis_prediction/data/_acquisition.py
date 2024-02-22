@@ -2,6 +2,7 @@
 This module implements the acquisition of data, both measured
 and reference, and publishes it for external use.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -20,7 +21,7 @@ from pyda.data import PropertyRetrievalResponse
 try:
     from pyda_japc import JapcProvider
     from pyjapc import PyJapc
-    from pyrbac import AuthenticationClient  # noqa: import-error
+    from pyrbac import AuthenticationClient  # noqa F401
 except ImportError:
     # for my macos laptop
     AuthenticationClient = None  # type: ignore
@@ -45,7 +46,7 @@ DEV_LSA_I = "MBI/REF.TABLE.FUNC.VALUE"
 DEV_MEAS_I = "MBI/LOG.I.MEAS"
 DEV_MEAS_B = "SR.BMEAS-SP-B-SD/CycleSamples#samples"
 
-TRIGGER_EVENT = "XTIM.SX.FCY2500-CT/Acquisition"
+TRIGGER_EVENT = "SX.CZERO-CTML/CycleWarning"
 TRIGGER_DYNECO = "XTIM.SX.APECO-CT/Acquisition"
 START_CYCLE = "XTIM.SX.SCY-CT/Acquisition"
 START_SUPERCYCLE = "SX.CZERO-CTML/SuperCycle"
@@ -121,14 +122,13 @@ class Acquisition:
 
         if japc_provider is None:
             assert AuthenticationClient is not None
-            rbac_client = AuthenticationClient.create()
+            rbac_client = AuthenticationClient()
             log.info(
                 "JapcProvider not provided, logging into RBAC by location."
             )
             token = rbac_client.login_location()
             log.info(
-                "RBAC login successful. "
-                f"Identified as {token.get_user_name()}."
+                "RBAC login successful. " f"Identified as {token.user_name}."
             )
             japc_provider = JapcProvider(rbac_token=token)
 
@@ -209,7 +209,7 @@ class Acquisition:
         Signal.start_all(asyncio.get_running_loop())
         try:
             handles = self._setup_subscriptions()
-        except:  # noqa
+        except:  # noqa F722
             log.exception("Error while setting up subscriptions.")
             return
 
@@ -224,7 +224,7 @@ class Acquisition:
 
                 try:
                     self._handle_acquisition(response)
-                except Exception as e:
+                except Exception as e:  # noqa F722
                     log.exception("Error handling acquisition event." + str(e))
         except asyncio.CancelledError:
             log.debug("Acquisition loop received cancel event.")
@@ -402,7 +402,7 @@ class Acquisition:
                 self._handle_acquisition(
                     self._japc.get(DEV_LSA_B, context=selector)
                 )
-            except:  # noqa: broad-except
+            except:  # noqa E722
                 log.exception("Error fetching LSA programs.")
                 return
 

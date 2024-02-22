@@ -7,14 +7,14 @@ from datetime import datetime
 
 import numpy as np
 import numpy.typing as npt
+from op_app_context import context
 from pyda import SimpleClient
 from pyda.data import DiscreteFunction
 from pyda_japc import JapcProvider
 from pyda_lsa import LsaCycleContext, LsaEndpoint, LsaProvider
 from qtpy import QtCore
-from sps_projects.hysteresis_compensation.utils import signal
+from transformertf.utils import signal
 
-from ...core.application_context import context
 from ...data import CycleData
 from ...utils import ThreadWorker
 
@@ -40,17 +40,17 @@ class time_execution:
     >>> print(t.duration)
     """
 
-    def __init__(self):
-        self.start = 0
-        self.end = 0
-        self.duration = 0
+    def __init__(self) -> None:
+        self.start = 0.0
+        self.end = 0.0
+        self.duration = 0.0
 
-    def __enter__(self):
+    def __enter__(self) -> time_execution:
         self.start = time.time()
 
         return self
 
-    def __exit__(self, exc_type, exc_value, exc_traceback):
+    def __exit__(self, exc_type, exc_value, exc_traceback):  # type: ignore
         self.end = time.time()
         self.duration = self.end - self.start
 
@@ -81,7 +81,7 @@ class TrimModel(QtCore.QObject):
 
         self.newPredictedData.connect(self.on_new_prediction)
 
-    def on_new_prediction(self, prediction: CycleData, *_) -> None:
+    def on_new_prediction(self, prediction: CycleData, *_: typing.Any) -> None:
         if not self._trim_enabled:
             log.debug("Trim is disabled, skipping trim.")
             return
@@ -156,9 +156,7 @@ class TrimModel(QtCore.QObject):
             if resp_get.exception is not None:
                 raise resp_get.exception
 
-            current_currection: DiscreteFunction[np.float64] = resp_get.value[
-                "correction"
-            ]
+            current_currection: DiscreteFunction = resp_get.value["correction"]
 
             lsa_time_axis: npt.NDArray[np.float64] = current_currection.xs
             current_correction: npt.NDArray[np.float64] = current_currection.ys
@@ -216,12 +214,12 @@ class TrimModel(QtCore.QObject):
                     )
                     + "Truncating trim."
                 )
-                new_correction[
-                    new_correction > TRIM_SOFT_THRESHOLD
-                ] = TRIM_SOFT_THRESHOLD
-                new_correction[
-                    new_correction < -TRIM_SOFT_THRESHOLD
-                ] = -TRIM_SOFT_THRESHOLD
+                new_correction[new_correction > TRIM_SOFT_THRESHOLD] = (
+                    TRIM_SOFT_THRESHOLD
+                )
+                new_correction[new_correction < -TRIM_SOFT_THRESHOLD] = (
+                    -TRIM_SOFT_THRESHOLD
+                )
             elif np.max(np.abs(new_correction)) > TRIM_THRESHOLD:
                 log.error(
                     "Max value in correction {} is ".format(
@@ -233,7 +231,7 @@ class TrimModel(QtCore.QObject):
                 return
 
             lsa_time_axis = typing.cast(npt.NDArray[np.float64], lsa_time_axis)
-            func: DiscreteFunction[np.float64] = DiscreteFunction(
+            func: DiscreteFunction = DiscreteFunction(
                 lsa_time_axis, new_correction
             )
             resp_set = self._lsa.set(

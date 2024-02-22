@@ -1,6 +1,7 @@
 """
 Implementation of a PyQt signal/slot system with asyncio.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -88,7 +89,7 @@ class Signal:
         :raises TypeError: If the slot is not a callable.
         :raises TypeError: If the slot has the wrong number of arguments.
         """
-        if not isinstance(handle, Callable):
+        if not isinstance(handle, Callable):  # type: ignore[arg-type]
             raise TypeError(f"Expected a callable, got {type(handle)}")
 
         self._handles.append(Handle(handle, current_thread()))
