@@ -13,6 +13,7 @@ from threading import Lock
 from typing import Callable, Iterable, Optional, Union
 
 import numpy as np
+import pyda.data
 
 from ..async_utils import Signal
 from ..utils import from_timestamp
@@ -624,7 +625,7 @@ class AcquisitionBuffer:
         self,
         cycle: str,
         cycle_timestamp: Union[int, float, None],
-        value: np.ndarray,
+        value: pyda.data.DiscreteFunction,
     ) -> None:
         """
         Adds a new programmed current to the buffer. Only the one value is
@@ -635,20 +636,14 @@ class AcquisitionBuffer:
         :param value: The new programmed current value.
         """
         log_cycle("Buffer received new programmed I.", cycle)
-        if len(value) != 2:
-            log.error(
-                "Received programmed I that is not composed of "
-                "time and I subarrays."
-            )
-            return
 
-        value[0] *= 1e3  # s to ms
+        array = np.stack([value.xs * 1e3, value.ys], axis=0)
 
         def set_new_programmed_current() -> None:
             log_cycle("Setting new programmed current.", cycle)
 
             with self._lock:
-                self._i_prog[cycle] = value
+                self._i_prog[cycle] = array
 
             if len(self._buffer_next) > 0:
                 last_cycle = self._buffer_next[-1]
@@ -662,7 +657,7 @@ class AcquisitionBuffer:
                         last_cycle.cycle_timestamp,
                     )
 
-                    last_cycle.current_prog = value
+                    last_cycle.current_prog = array
 
             # log_cycle("Removing buffered reference data.", cycle)
             # if cycle not in self._i_ref:
@@ -683,11 +678,11 @@ class AcquisitionBuffer:
         else:
             old_value = self._i_prog[cycle]
 
-            if old_value.shape != value.shape:
+            if old_value.shape != array.shape:
                 log_cycle("Programmed current length has changed.", cycle)
                 set_new_programmed_current()
 
-            elif not np.allclose(old_value, value):
+            elif not np.allclose(old_value, array):
                 log_cycle("Programmed current values has changed.", cycle)
                 set_new_programmed_current()
 
@@ -698,22 +693,16 @@ class AcquisitionBuffer:
         self,
         cycle: str,
         cycle_timestamp: Union[int, float, None],
-        value: np.ndarray,
+        value: pyda.data.DiscreteFunction,
     ) -> None:
         log_cycle("Buffer received new programmed B.", cycle)
-        if len(value) != 2:
-            log.error(
-                "Received programmed B that is not composed of "
-                "time and B subarrays."
-            )
-            return
 
-        value[0] *= 1e3  # s to ms
+        array = np.stack([value.xs * 1e3, value.ys], axis=0)
 
         def set_new_programmed_field() -> None:
             log_cycle("Setting new programmed field.", cycle)
             with self._lock:
-                self._b_prog[cycle] = value
+                self._b_prog[cycle] = array
 
             log_cycle("Removing buffered reference data.", cycle)
             if cycle not in self._b_ref:
@@ -731,11 +720,11 @@ class AcquisitionBuffer:
         else:
             old_value = self._b_prog[cycle]
 
-            if len(old_value) != len(value):
+            if len(old_value) != len(array):
                 log_cycle("Programmed field length has changed.", cycle)
                 set_new_programmed_field()
 
-            elif not np.allclose(old_value, value):
+            elif not np.allclose(old_value, array):
                 log_cycle("Programmed field values has changed.", cycle)
                 set_new_programmed_field()
 

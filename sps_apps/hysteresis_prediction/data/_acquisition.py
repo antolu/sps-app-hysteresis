@@ -14,6 +14,8 @@ from signal import SIGINT, SIGTERM, signal
 from threading import Thread
 from typing import Callable, Iterable, Optional, Union
 
+import pyda._metadata
+import pyda.providers
 from pyda import AsyncIOClient, SimpleClient
 from pyda.clients.asyncio import AsyncIOSubscription
 from pyda.data import PropertyRetrievalResponse
@@ -129,7 +131,13 @@ class Acquisition:
             log.info(
                 "RBAC login successful. " f"Identified as {token.user_name}."
             )
-            japc_provider = JapcProvider(rbac_token=token)
+            japc_provider = JapcProvider(
+                rbac_token=token,
+            )
+            japc_provider = pyda.providers.Provider(
+                data_source=japc_provider,
+                metadata_source=pyda._metadata.NoMetadataSource(),
+            )
 
         # Get mapped contextd
         self._pls_to_lsa: dict[str, str]
@@ -170,6 +178,10 @@ class Acquisition:
         def wrapper() -> None:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
+
+            from pyda.clients.asyncio import _asyncio
+
+            _asyncio._get_loop = lambda *_: loop
 
             self._main_task = loop.create_task(self._run())
 
@@ -382,10 +394,14 @@ class Acquisition:
             selector = self._lsa_to_pls[cycle]
             try:
                 self._handle_acquisition(
-                    self._japc_simple.get(DEV_LSA_I, context=selector)
+                    self._japc_simple.get(
+                        PyJapcEndpoint.from_str(DEV_LSA_I), context=selector
+                    )
                 )
                 self._handle_acquisition(
-                    self._japc_simple.get(DEV_LSA_B, context=selector)
+                    self._japc_simple.get(
+                        PyJapcEndpoint.from_str(DEV_LSA_B), context=selector
+                    )
                 )
             except:  # noqa E722
                 log.exception("Error fetching LSA programs.")
