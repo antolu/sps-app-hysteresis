@@ -1,4 +1,4 @@
-exclude: ^(\.idea)$
+exclude: '^(sps_apps/hysteresis_prediction/generated/.*|docs/|test_scripts/.*)$'
 repos:
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: "v0.2.2"
@@ -16,7 +16,7 @@ repos:
           - "--namespace-packages"
           - "--ignore-missing-imports"
           - "--explicit-package-bases"
-        exclude: '^(sps-apps/hysteresis_prediction/generated/.*|docs/|test_scripts/)$'
+        exclude: '^(sps_apps/hysteresis_prediction/generated/.*|docs/|test_scripts/.*)$'
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
