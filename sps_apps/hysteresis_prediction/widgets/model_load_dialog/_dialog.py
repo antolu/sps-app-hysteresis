@@ -43,6 +43,7 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QtWidgets.QDialog):
         else:
             self.comboDevice.setCurrentIndex(self.last_selected_device)
 
+        self.last_selected_model = settings["last_selected_model", ""]
         if self.last_selected_model != "":
             self.comboBoxModel.setCurrentIndex(
                 self.comboBoxModel.findText(self.last_selected_model)
@@ -96,6 +97,8 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QtWidgets.QDialog):
         log.debug(f"Selected checkpoint at {ckpt_path} on device {device}.")
         self.last_selected_device = self.comboDevice.currentIndex()
         self.last_selected_model = self.comboBoxModel.currentText()
+
+        settings["last_selected_model"] = self.last_selected_model
 
         self.load_checkpoint.emit(self.last_selected_model, ckpt_path, device)
 
