@@ -5,11 +5,35 @@ Time utilities for handling acquired data
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import time
 from typing import Literal, Union
 
 __all__ = ["from_timestamp"]
 
 UNIT_TO_SCALE = {"s": 1, "ms": 1e3, "us": 1e6, "ns": 1e9}
+
+
+class time_execution:
+    """
+    Convenience class for timing execution. Used simply as
+    >>> with time_execution() as t:
+    >>>     # some code to time
+    >>> print(t.duration)
+    """
+
+    def __init__(self) -> None:
+        self.start = 0.0
+        self.end = 0.0
+        self.duration = 0.0
+
+    def __enter__(self) -> time_execution:
+        self.start = time.time()
+
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):  # type: ignore
+        self.end = time.time()
+        self.duration = self.end - self.start
 
 
 def from_timestamp(

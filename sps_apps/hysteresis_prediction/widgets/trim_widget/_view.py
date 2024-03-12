@@ -65,7 +65,7 @@ class TrimWidgetView(QtWidgets.QWidget):
         self._model = None
 
         selector_model = LsaSelectorModel(
-            accelerator=LsaSelectorAccelerator.SPS, lsa=context.lsa
+            accelerator=LsaSelectorAccelerator.SPS, lsa=context.lsa_client
         )
         self.LsaSelector = LsaSelector(model=selector_model, parent=self)
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from typing import Any, Optional
+import math
 
 from qtpy.QtCore import QTimer, Signal
 from qtpy.QtWidgets import QWidget
@@ -85,7 +86,7 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
         try:
             new_value = value / total * 100 if value < total else 100
             log.debug(f"Setting progress bar value to {new_value}.")
-            self.progressBar.setValue(new_value)
+            self.progressBar.setValue(math.ceil(new_value))
 
             if new_value >= 100:
                 self.progressBar.hide()

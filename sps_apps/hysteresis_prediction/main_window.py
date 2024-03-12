@@ -222,9 +222,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             model = TrimModel()
             widget = TrimWidgetView(model=model, parent=None)
 
-            self._inference.cycle_predicted.connect(
-                model.newPredictedData.emit
-            )
+            self._inference.cycle_predicted.connect(model.on_new_prediction)
 
             uuid = str(uuid4())
             self._trim_wide_widgets[uuid] = widget
@@ -234,7 +232,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
                 widget.deleteLater()
 
                 self._inference.cycle_predicted.disconnect(
-                    model.newPredictedData.emit
+                    model.on_new_prediction
                 )
 
             widget.windowClosed.connect(on_close)

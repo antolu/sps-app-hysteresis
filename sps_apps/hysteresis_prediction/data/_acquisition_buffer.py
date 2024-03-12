@@ -119,7 +119,8 @@ class AcquisitionBuffer:
         self._SIGNAL_MAP: dict[
             BufferSignal, Callable[[str, int | float, str], None]
         ] = {
-            BufferSignal.CYCLE_START: self.on_start_cycle,
+            # BufferSignal.CYCLE_START: self.on_start_cycle,
+            BufferSignal.CYCLE_START: lambda *args: None,
             BufferSignal.DYNECO: self._handle_dyneco,
             BufferSignal.FOREWARNING: self.new_cycle,
         }
@@ -290,72 +291,72 @@ class AcquisitionBuffer:
 
         self.new_programmed_cycle.emit(cycle_data)
 
-    def on_start_cycle(
-        self, cycle: str, cycle_timestamp: Union[int, float], user: str
-    ) -> None:
-        """
-        This method is implemented only to cope with the timing cycle
-        timestamp being incorrect for two following cycles.
+        # def on_start_cycle(
+        #     self, cycle: str, cycle_timestamp: Union[int, float], user: str
+        # ) -> None:
+        #     """
+        #     This method is implemented only to cope with the timing cycle
+        #     timestamp being incorrect for two following cycles.
 
-        This method checks if the latest added cycle in NEXT buffer is
-        correct, and corrects the cycle timestamp if required.
+        #     This method checks if the latest added cycle in NEXT buffer is
+        #     correct, and corrects the cycle timestamp if required.
 
-        :param cycle The LSA cycle name.
-        :param cycle_timestamp The unique (and correct) timestamp of the
-        cycle.
-        """
-        log_cycle("Start cycle event received.", cycle, cycle_timestamp)
+        #     :param cycle The LSA cycle name.
+        #     :param cycle_timestamp The unique (and correct) timestamp of the
+        #     cycle.
+        #     """
+        #     log_cycle("Start cycle event received.", cycle, cycle_timestamp)
 
-        if len(self._buffer_next) == 0:
-            log.debug("No cycles in NEXT buffer. No need to change timestamp.")
-            return
+        #     if len(self._buffer_next) == 0:
+        #         log.debug("No cycles in NEXT buffer. No need to change timestamp.")
+        #         return
 
-        last_cycle = self._buffer_next[-1]
+        #     last_cycle = self._buffer_next[-1]
 
-        if last_cycle.cycle_timestamp == cycle_timestamp:
-            log_cycle(
-                "Cycle timestamp is identical to last data in NEXT "
-                "buffer. No need to correct.",
-                cycle,
-                cycle_timestamp,
-            )
-            return
+        # if last_cycle.cycle_timestamp == cycle_timestamp:
+        #     log_cycle(
+        #         "Cycle timestamp is identical to last data in NEXT "
+        #         "buffer. No need to correct.",
+        #         cycle,
+        #         cycle_timestamp,
+        #     )
+        #     return
 
-        time_descr = abs(last_cycle.cycle_timestamp - cycle_timestamp) / 1e6
+        # time_descr = abs(last_cycle.cycle_timestamp - cycle_timestamp) / 1e6
 
         # if time_descr < 5:  # diff less than 5 ms
-        if True:
-            log_cycle(
-                "Diff in cycle timestamp between last cycle in NEXT buffer"
-                "and started cycle is not the same, but less than 5 ms. "
-                f"Setting the cycle timestamp to {cycle_timestamp}.",
-                cycle,
-                cycle_timestamp,
-            )
+        # if True:
+        #     log_cycle(
+        #         "Diff in cycle timestamp between last cycle in NEXT buffer"
+        #         "and started cycle is not the same, but less than 5 ms. "
+        #         f"Setting the cycle timestamp to {cycle_timestamp}.",
+        #         cycle,
+        #         cycle_timestamp,
+        #     )
 
-            with self._lock:
-                self._cycles_next_index.pop(last_cycle.cycle_timestamp)
-                last_cycle.cycle_timestamp = cycle_timestamp
-                last_cycle.__post_init__()
-                self._cycles_next_index[cycle_timestamp] = last_cycle
+        #     with self._lock:
+        #         self._cycles_next_index.pop(last_cycle.cycle_timestamp)
+        #         last_cycle.cycle_timestamp = cycle_timestamp
+        #         last_cycle.__post_init__()
+        #         self._cycles_next_index[cycle_timestamp] = last_cycle
 
-            return
-        else:
-            log.warning(
-                f"Time discrepancy {time_descr} ms between last cycle in "
-                "NEXT buffer and started cycle is not the 0, and "
-                f"greater than 5 ms: {last_cycle} -> "
-                f"{cycle}@{from_timestamp(cycle_timestamp)}."
-            )
-            log.debug(
-                "Current buffer state:\nNEXT\n"
-                + debug_msg(self._buffer_next)
-                + "\n\nBUFFER\n"
-                + debug_msg(self._buffer)
-            )
-            return
+        #     return
+        # else:
+        # log.warning(
+        #     f"Time discrepancy {time_descr} ms between last cycle in "
+        #     "NEXT buffer and started cycle is not the 0, and "
+        #     f"greater than 5 ms: {last_cycle} -> "
+        #     f"{cycle}@{from_timestamp(cycle_timestamp)}."
+        # )
+        # log.debug(
+        #     "Current buffer state:\nNEXT\n"
+        #     + debug_msg(self._buffer_next)
+        #     + "\n\nBUFFER\n"
+        #     + debug_msg(self._buffer)
+        # )
+        # return
 
-        log.warning("Don't know what to do here.")
+        # log.warning("Don't know what to do here.")
 
     def _handle_dyneco(
         self, cycle: str, cycle_timestamp: Union[int, float], user: str
@@ -505,10 +506,16 @@ class AcquisitionBuffer:
             if not cycle_data.cycle.endswith("_DYNECO"):
                 log_cycle(
                     "Cycle name does not match. "
-                    f"Expected {cycle_data.cycle}, got {cycle}.",
+                    f"Expected {cycle}, got {cycle_data.cycle}.",
                     cycle,
                     cycle_timestamp,
                 )
+                log.debug("All cycles:")
+                s = ", ".join(
+                    [f"{c.cycle_time}: {c.cycle}" for c in self._buffer_next]
+                )
+                log.debug(s)
+
                 return
             else:
                 log_cycle(
