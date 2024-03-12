@@ -451,6 +451,17 @@ class AcquisitionBuffer:
                         )
                         raise InsufficientDataError(msg)
                     cycle_data.current_input = self._i_ref[cycle_data.cycle]
+
+                if incomplete_samples[-2].field_meas is None:
+                    log_cycle(
+                        "Last cycle in NEXT buffer has no measured field. "
+                        "Using the last measured field for prediction.",
+                        incomplete_samples[-2].cycle,
+                        incomplete_samples[-2].cycle_timestamp,
+                    )
+
+                    field_ref = self._b_meas[incomplete_samples[-2].cycle]
+                    incomplete_samples[-2].field_meas = field_ref
             else:
                 incomplete_samples = []
 
@@ -612,10 +623,10 @@ class AcquisitionBuffer:
         else:
             log_cycle("Updating measured magnetic field.", cycle)
 
+        value = value.flatten() / 1e4  # G to T
+
         with self._lock:
             self._b_meas[cycle_data.cycle] = value
-
-        value = value.flatten() / 1e4  # G to T
 
         log_cycle(
             "Setting measured B for cycle data in NEXT buffer.",
