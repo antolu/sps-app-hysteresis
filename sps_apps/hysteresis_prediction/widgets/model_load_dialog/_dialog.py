@@ -32,6 +32,8 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QtWidgets.QDialog):
 
         gpu_item: QtGui.QStandardItem = self.comboDevice.model().item(1)
 
+        self.textCkptPath.setText(settings["checkpoint_file", ""])
+
         if self.last_selected_device == -1:
             if torch.cuda.is_available():
                 gpu_item.setFlags(gpu_item.flags() | QtCore.Qt.ItemIsEnabled)
@@ -74,6 +76,7 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QtWidgets.QDialog):
 
         self.textCkptPath.setText(file_path)
         settings["checkpoint_dir"] = path.dirname(file_path)
+        settings["checkpoint_file"] = file_path
 
     @QtCore.Slot()
     def on_ok_clicked(self) -> None:
