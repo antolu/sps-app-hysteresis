@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import time
 from threading import Lock
 
 import numpy as np
@@ -11,7 +10,7 @@ from hysteresis_scripts.predict import Predictor
 from qtpy import QtCore, QtWidgets
 
 from ..data import CycleData
-from ..utils import ThreadWorker, load_cursor, run_in_thread
+from ..utils import ThreadWorker, load_cursor, run_in_thread, time_execution
 
 MS = int(1e3)
 NS = int(1e9)
@@ -161,18 +160,16 @@ class Inference(QtCore.QObject):
             }
         )
 
-        assert self._data_module is not None
-        start = time.time()
         log.debug("Running inference.")
-        predictions = self._predictor.predict(
-            past_covariates,
-            future_covariates,
-            past_field,
-            exception_on_failure=True,
-            upsample=False,
-        )
-        stop = time.time()
-        log.info("Inference took: %f s", stop - start)
+        with time_execution() as timer:
+            predictions = self._predictor.predict(
+                past_covariates,
+                future_covariates,
+                past_field,
+                exception_on_failure=True,
+                upsample=False,
+            )
+        log.info("Inference took: %f s", timer.duration)
 
         time_axis = (
             np.arange(last_cycle.num_samples) / MS
