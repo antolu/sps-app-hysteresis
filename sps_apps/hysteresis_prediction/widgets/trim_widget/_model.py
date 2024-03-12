@@ -35,7 +35,7 @@ BEAM_OUT = "SX.BEAM-OUT-CTML/ControlValue#controlValue"
 
 
 class TrimModel(QtCore.QObject):
-    trimApplied = QtCore.Signal(tuple[np.ndarray, np.ndarray], datetime, str)
+    trimApplied = QtCore.Signal(tuple, datetime, str)
     """ Signal emitted when a trim has been applied. (corr_x, corr_y), time, comment """
 
     def __init__(self, parent: QtCore.QObject | None = None):
