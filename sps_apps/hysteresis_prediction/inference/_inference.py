@@ -172,10 +172,10 @@ class Inference(QtCore.QObject):
         log.info("Inference took: %f s", timer.duration)
 
         time_axis = (
-            np.arange(last_cycle.num_samples) / MS
+            np.arange(len(future_covariates)) / MS
             + last_cycle.cycle_timestamp / NS
         )
-        time_axis = time_axis[:: int(len(time_axis) / len(predictions))]
+        time_axis = time_axis[:: int(len(future_covariates) / len(predictions))]
 
         return np.stack((time_axis, predictions), axis=0)
 

@@ -79,18 +79,19 @@ class PlotModel(QObject):
                 downsample_factor = (
                     cycle_data.field_meas.size // field_pred.shape[-1]
                 )
-                dpp = (
-                    (
-                        cycle_data.field_meas[::downsample_factor]
-                        - cycle_data.field_pred[1, :]
-                    )
-                    / cycle_data.field_meas[::downsample_factor]
-                    * 1e4
-                )
+                # dpp = (
+                #     (
+                #         cycle_data.field_meas[::downsample_factor]
+                #         - cycle_data.field_pred[1, :]
+                #     )
+                #     / cycle_data.field_meas[::downsample_factor]
+                #     * 1e4
+                # )
+                delta = (cycle_data.field_meas[::downsample_factor] - field_pred[1, :]) * 1e4
                 self._field_meas_dpp_source.new_value(
                     cycle_data.cycle_timestamp,
                     np.stack(
-                        (field_pred[0, :], dpp),
+                        (field_pred[0, :], delta),
                         axis=0,
                     ),
                 )
@@ -126,14 +127,15 @@ class PlotModel(QObject):
 
             if cycle_data.field_ref is not None:
                 log.debug(f"Plotting field diff for cycle {cycle_data.cycle}")
-                dpp = (
-                    (cycle_data.field_ref[1, :] - predicted[1, :])
-                    / cycle_data.field_ref[1, :]
-                    * 1e4
-                )
+                # dpp = (
+                #     (cycle_data.field_ref[1, :] - predicted[1, :])
+                #     / cycle_data.field_ref[1, :]
+                #     * 1e4
+                # )
+                delta = (cycle_data.field_ref[1, :] - predicted[1, :]) * 1e4
                 self._field_ref_dpp_source.new_value(
                     cycle_data.cycle_timestamp,
-                    np.stack([predicted[0, :], dpp], axis=0),
+                    np.stack([predicted[0, :], delta], axis=0),
                 )
         except Exception:  # noqa: broad-except
             log.exception(
