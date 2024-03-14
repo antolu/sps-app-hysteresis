@@ -11,6 +11,7 @@ from datetime import datetime
 from enum import Enum
 from threading import Lock
 from typing import Callable, Iterable, Optional, Union
+import copy
 
 import numpy as np
 import pyda.data
@@ -224,39 +225,6 @@ class AcquisitionBuffer:
             )
             return
 
-        if cycle_timestamp in self._cycles_next_index:
-            """
-            This should never happen, but does happen on duplicated cycles
-            in the current TGM configuration.
-            """
-            log_cycle(
-                f"[{cycle}@{from_timestamp(cycle_timestamp)}] "
-                "Cycle data already exists in NEXT buffer. "
-                "Shifting data...",
-                cycle,
-                cycle_timestamp,
-            )
-
-            conflicting_cycle = self._cycles_next_index[cycle_timestamp]
-            index = self._buffer_next.index(conflicting_cycle)
-
-            base_timestamp = conflicting_cycle.cycle_timestamp
-            for i in range(len(self._buffer_next), index, -1):
-                base_timestamp += self._buffer_next[i - 1].num_samples * int(
-                    1e6
-                )
-
-            orig_cycle_timestamp = cycle_timestamp
-            cycle_timestamp = base_timestamp
-
-            log_cycle(
-                "Shifted cycle timestamp "
-                f"{orig_cycle_timestamp} -> {cycle_timestamp}",
-                cycle,
-                cycle_timestamp,
-                log_level=logging.WARNING,
-            )
-
         cycle_data = CycleData(
             cycle,
             user,
@@ -290,73 +258,6 @@ class AcquisitionBuffer:
             self.reset_buffer()
 
         self.new_programmed_cycle.emit(cycle_data)
-
-        # def on_start_cycle(
-        #     self, cycle: str, cycle_timestamp: Union[int, float], user: str
-        # ) -> None:
-        #     """
-        #     This method is implemented only to cope with the timing cycle
-        #     timestamp being incorrect for two following cycles.
-
-        #     This method checks if the latest added cycle in NEXT buffer is
-        #     correct, and corrects the cycle timestamp if required.
-
-        #     :param cycle The LSA cycle name.
-        #     :param cycle_timestamp The unique (and correct) timestamp of the
-        #     cycle.
-        #     """
-        #     log_cycle("Start cycle event received.", cycle, cycle_timestamp)
-
-        #     if len(self._buffer_next) == 0:
-        #         log.debug("No cycles in NEXT buffer. No need to change timestamp.")
-        #         return
-
-        #     last_cycle = self._buffer_next[-1]
-
-        # if last_cycle.cycle_timestamp == cycle_timestamp:
-        #     log_cycle(
-        #         "Cycle timestamp is identical to last data in NEXT "
-        #         "buffer. No need to correct.",
-        #         cycle,
-        #         cycle_timestamp,
-        #     )
-        #     return
-
-        # time_descr = abs(last_cycle.cycle_timestamp - cycle_timestamp) / 1e6
-
-        # if time_descr < 5:  # diff less than 5 ms
-        # if True:
-        #     log_cycle(
-        #         "Diff in cycle timestamp between last cycle in NEXT buffer"
-        #         "and started cycle is not the same, but less than 5 ms. "
-        #         f"Setting the cycle timestamp to {cycle_timestamp}.",
-        #         cycle,
-        #         cycle_timestamp,
-        #     )
-
-        #     with self._lock:
-        #         self._cycles_next_index.pop(last_cycle.cycle_timestamp)
-        #         last_cycle.cycle_timestamp = cycle_timestamp
-        #         last_cycle.__post_init__()
-        #         self._cycles_next_index[cycle_timestamp] = last_cycle
-
-        #     return
-        # else:
-        # log.warning(
-        #     f"Time discrepancy {time_descr} ms between last cycle in "
-        #     "NEXT buffer and started cycle is not the 0, and "
-        #     f"greater than 5 ms: {last_cycle} -> "
-        #     f"{cycle}@{from_timestamp(cycle_timestamp)}."
-        # )
-        # log.debug(
-        #     "Current buffer state:\nNEXT\n"
-        #     + debug_msg(self._buffer_next)
-        #     + "\n\nBUFFER\n"
-        #     + debug_msg(self._buffer)
-        # )
-        # return
-
-        # log.warning("Don't know what to do here.")
 
     def _handle_dyneco(
         self, cycle: str, cycle_timestamp: Union[int, float], user: str
@@ -432,17 +333,17 @@ class AcquisitionBuffer:
                 "Building buffer."
             )
 
-            out_buffer = list(self._buffer)
+            past_buffer = copy.deepcopy(list(self._buffer))
 
             if not self._buffer_only_measured:
-                incomplete_samples = list(self._buffer_next)
+                future_buffer = copy.deepcopy(list(self._buffer_next))
 
                 # TODO: log cycle data parsing
-                for cycle_data in out_buffer:
+                for cycle_data in past_buffer:
                     assert cycle_data.current_meas is not None
                     cycle_data.current_input = cycle_data.current_meas
 
-                for cycle_data in incomplete_samples:
+                for cycle_data in future_buffer:
                     if cycle_data.cycle not in self._i_ref:
                         msg = (
                             "Missing reference current for "
@@ -452,23 +353,23 @@ class AcquisitionBuffer:
                         raise InsufficientDataError(msg)
                     cycle_data.current_input = self._i_ref[cycle_data.cycle]
 
-                if incomplete_samples[-2].field_meas is None:
-                    log_cycle(
-                        "Last cycle in NEXT buffer has no measured field. "
-                        "Using the last measured field for prediction.",
-                        incomplete_samples[-2].cycle,
-                        incomplete_samples[-2].cycle_timestamp,
-                    )
+                    if cycle_data.field_meas is None:
+                        log_cycle(
+                            "Last cycle in NEXT buffer has no measured field. "
+                            "Using the last measured field for prediction.",
+                            cycle_data.cycle,
+                            cycle_data.cycle_timestamp,
+                        )
 
-                    field_ref = self._b_meas[incomplete_samples[-2].cycle]
-                    incomplete_samples[-2].field_meas = field_ref
+                        field_ref = self._b_meas[cycle_data.cycle]
+                        cycle_data.field_meas = field_ref
             else:
-                incomplete_samples = []
+                future_buffer = []
 
-        out_buffer += incomplete_samples
+        past_buffer += future_buffer
 
-        log.debug(f"Collected {len(out_buffer)} cycle samples.")
-        return out_buffer
+        log.debug(f"Collected {len(past_buffer)} cycle samples.")
+        return past_buffer
 
     def _new_measured_I(
         self, cycle: str, cycle_timestamp: Union[int, float], value: np.ndarray
@@ -542,10 +443,10 @@ class AcquisitionBuffer:
         else:
             log_cycle("Updating measured current for cycle.", cycle)
 
+        value = value.flatten()
+
         with self._lock:
             self._i_ref[cycle_data.cycle] = value
-
-        value = value.flatten()
 
         log_cycle(
             "Setting measured I for cycle data in NEXT buffer.",
@@ -754,6 +655,11 @@ class AcquisitionBuffer:
     ) -> None:
         log_cycle("Buffer received new reference B.", cycle)
 
+        # save predicted field
+        with self._lock:
+            cycle_data = self._cycles_next_index[cycle_timestamp]
+            cycle_data.field_pred = value
+
         if cycle in self._b_ref:
             log_cycle("Reference field already set. Not updating it.", cycle)
             return
@@ -761,6 +667,10 @@ class AcquisitionBuffer:
         log_cycle("Setting new reference field.", cycle)
         with self._lock:
             self._b_ref[cycle] = value
+
+            for cycle_data in self._buffer_next + self._buffer:
+                if cycle_data.cycle == cycle:
+                    cycle_data.field_ref = value
 
     def _check_buffer_integrity(self) -> None:
         """
@@ -916,12 +826,14 @@ class AcquisitionBuffer:
             return
 
         if len(self._buffer) == 1:
+            self.buffer_size_changed.emit(len(self))
             log.debug(
                 "Insufficient buffered cycles " f"({len(self._buffer)})."
             )
             return
 
         if len(self._buffer_next) == 0:
+            self.buffer_size_changed.emit(len(self))
             log.debug("No buffered NEXT cycles.")
             return
 

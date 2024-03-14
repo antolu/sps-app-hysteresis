@@ -36,7 +36,6 @@ from ._acquisition_buffer import (
     InsufficientDataError,
 )
 from ._cycle_to_tgm import LSAContexts
-from ._pyjapc import PyJapcEndpoint, SubscriptionCallback
 
 __all__ = ["Acquisition"]
 
@@ -79,6 +78,20 @@ from_utc_ns: Callable[[Union[int, float]], datetime] = partial(
 )
 
 
+class JapcEndpoint(pyda.data.StandardEndpoint):
+    @classmethod
+    def from_str(cls, value: str) -> JapcEndpoint:
+        m = ENDPOINT_RE.match(value)
+
+        if not m:
+            raise ValueError(f"Not a valid endpoint: {value}.")
+
+        return cls(
+            device_name=m.group("device"),
+            property_name=m.group("property"),
+        )
+
+
 class Acquisition:
     data_acquired: Signal  # PropertyRetrievalResponse
     new_buffer_data: Signal  # list[CycleData]
@@ -118,7 +131,6 @@ class Acquisition:
         )
 
         self._async_handles: dict[str, AsyncIOSubscription] = {}
-        self._subscribe_handles: dict[str, SubscriptionCallback] = {}
         self._main_task: Optional[asyncio.Task] = None
 
         if japc_provider is None:
@@ -256,12 +268,11 @@ class Acquisition:
             self._japc_simple.get(START_SUPERCYCLE, context="")
         )
 
-        handle: Union[SubscriptionCallback, AsyncIOSubscription]
         log.debug("Subscribing to events.")
         for name, endpoint, selector in pyda_subscriptions:
             log.debug(f"Subscribing to {endpoint} with selector {selector}.")
             handle = self._japc_async.subscribe(
-                PyJapcEndpoint.from_str(endpoint), context=selector
+                JapcEndpoint.from_str(endpoint), context=selector
             )
 
             self._async_handles[name] = handle
@@ -391,12 +402,12 @@ class Acquisition:
             try:
                 self._handle_acquisition(
                     self._japc_simple.get(
-                        PyJapcEndpoint.from_str(DEV_LSA_I), context=selector
+                        JapcEndpoint.from_str(DEV_LSA_I), context=selector
                     )
                 )
                 self._handle_acquisition(
                     self._japc_simple.get(
-                        PyJapcEndpoint.from_str(DEV_LSA_B), context=selector
+                        JapcEndpoint.from_str(DEV_LSA_B), context=selector
                     )
                 )
             except:  # noqa E722

@@ -8,6 +8,7 @@ from qtpy.QtCore import QObject, Signal
 
 from ...data import Acquisition, CycleData
 from ._sources import AcquiredDataType, CurrentFieldSource
+from transformertf.data import downsample as downsample_tf
 
 log = logging.getLogger(__name__)
 
@@ -87,7 +88,12 @@ class PlotModel(QObject):
                 #     / cycle_data.field_meas[::downsample_factor]
                 #     * 1e4
                 # )
-                delta = (cycle_data.field_meas[::downsample_factor] - field_pred[1, :]) * 1e4
+                delta = (
+                    downsample_tf(
+                        cycle_data.field_meas, downsample_factor, "average"
+                    )
+                    - field_pred[1, :]
+                ) * 1e4
                 self._field_meas_dpp_source.new_value(
                     cycle_data.cycle_timestamp,
                     np.stack(

@@ -15,7 +15,6 @@ from pyda.data import DiscreteFunction
 from pyda_japc import JapcProvider
 from pyda_lsa import LsaCycleContext, LsaEndpoint, LsaProvider
 from qtpy import QtCore
-from transformertf.utils import signal
 
 from ...data import CycleData
 from ...utils import ThreadWorker, time_execution
@@ -101,8 +100,8 @@ class TrimModel(QtCore.QObject):
             raise ValueError(f"[{prediction}] No field prediction found.")
 
         # calc delta and smooth it
-        correction = prediction.field_ref - prediction.field_pred
-        correction = signal.perona_malik_smooth(correction, 10.0, 5e-2, 5.0)
+        correction = prediction.field_pred - prediction.field_ref
+        # correction = signal.perona_malik_smooth(correction, 10.0, 5e-2, 5.0)
 
         time_margin = (prediction.cycle_time - datetime.now()).total_seconds()
         if time_margin < 1.0:
@@ -182,7 +181,7 @@ class TrimModel(QtCore.QObject):
         )
 
         # calculate correction
-        new_correction = (current_correction + correction).astype(np.float64)
+        new_correction = (current_correction - correction).astype(np.float64)
 
         # trim only part of beam that is before beam out
         time_axis, new_correction = self.truncate_beam_in(
@@ -190,9 +189,9 @@ class TrimModel(QtCore.QObject):
         )
 
         # smooth the correction
-        new_correction = signal.perona_malik_smooth(
-            new_correction, 10.0, 5e-2, 2.0
-        )
+        # new_correction = signal.perona_malik_smooth(
+        #     new_correction, 10.0, 5e-2, 2.0
+        # )
 
         new_correction = truncate_correction(
             new_correction, (TRIM_SOFT_THRESHOLD, TRIM_THRESHOLD)

@@ -123,13 +123,6 @@ class Inference(QtCore.QObject):
             if data.current_input is None:
                 raise ValueError("Not all data has input current set.")
 
-        current_input = np.concatenate(
-            [data.current_input for data in cycle_data]
-        )
-
-        last_cycle = cycle_data[-1]
-        log.debug(f"Running prediction on {len(current_input)} samples.")
-
         past_current = np.concatenate(
             [data.current_input for data in cycle_data[:-1]]
         )
@@ -139,11 +132,7 @@ class Inference(QtCore.QObject):
                     "Not all data in the past has measured field set."
                 )
         past_field = np.concatenate(
-            [
-                data.field_meas
-                for data in cycle_data[:-1]
-                if data.field_meas is not None
-            ]
+            [data.field_meas for data in cycle_data[:-1]]
         )
         past_covariates = pd.DataFrame(
             {
@@ -160,6 +149,13 @@ class Inference(QtCore.QObject):
             }
         )
 
+        df = pd.concat([past_covariates, future_covariates])
+        df["B_meas_T"] = np.concatenate(
+            [past_field, cycle_data[-1].field_meas]
+        )
+
+        df.to_parquet("test_predict.parquet")
+
         log.debug("Running inference.")
         with time_execution() as timer:
             predictions = self._predictor.predict(
@@ -173,9 +169,15 @@ class Inference(QtCore.QObject):
 
         time_axis = (
             np.arange(len(future_covariates)) / MS
-            + last_cycle.cycle_timestamp / NS
+            + cycle_data[-1].cycle_timestamp / NS
         )
-        time_axis = time_axis[:: int(len(future_covariates) / len(predictions))]
+        time_axis = time_axis[
+            :: int(len(future_covariates) / len(predictions))
+        ]
+
+        log.debug(
+            f"Made time axis of length {len(time_axis)} for {len(predictions)} predictions"
+        )
 
         return np.stack((time_axis, predictions), axis=0)
 
@@ -191,7 +193,7 @@ class Inference(QtCore.QObject):
 def calc_time_derivative(column: pd.Series | np.ndarray) -> np.ndarray:
     if isinstance(column, pd.Series):
         column = column.to_numpy()
-    col_smoothed = scipy.signal.medfilt(column, kernel_size=25)
+    col_smoothed = scipy.signal.medfilt(column, kernel_size=5)
     gradient = np.gradient(col_smoothed)
 
     return gradient
