@@ -1,3 +1,2 @@
-def test_hysteresis_prediction():
+def test_hysteresis_prediction() -> None:
     return
-

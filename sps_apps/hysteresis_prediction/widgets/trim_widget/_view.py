@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import typing
 
 import numpy as np
 import numpy.typing as npt
@@ -11,9 +12,9 @@ from accwidgets.lsa_selector import (
     LsaSelectorAccelerator,
     LsaSelectorModel,
 )
+from op_app_context import context
 from qtpy import QtCore, QtWidgets
 
-from ...core.application_context import context
 from .._widgets import ToggleButton
 from ._model import TrimModel
 
@@ -44,7 +45,7 @@ class TrimInfoWidget(QtWidgets.QWidget):
         grid_layout.addWidget(self.LastCommentLineValue, 2, 1)
 
     def on_trim_applied(
-        self, _, trim_time: datetime.datetime, trim_comment: str
+        self, _: typing.Any, trim_time: datetime.datetime, trim_comment: str
     ) -> None:
         self.LastTrimLineValue.setText(
             trim_time.strftime("%Y%m%d-%H:%M:%S:%f")[:-4]
@@ -64,7 +65,7 @@ class TrimWidgetView(QtWidgets.QWidget):
         self._model = None
 
         selector_model = LsaSelectorModel(
-            accelerator=LsaSelectorAccelerator.SPS, lsa=context.lsa
+            accelerator=LsaSelectorAccelerator.SPS, lsa=context.lsa_client
         )
         self.LsaSelector = LsaSelector(model=selector_model, parent=self)
 
@@ -148,13 +149,16 @@ class TrimWidgetView(QtWidgets.QWidget):
     def _on_trim_applied(
         self,
         values: tuple[npt.NDArray[np.int32], npt.NDArray[np.float32]],
-        *_,
+        *_: typing.Any,
     ) -> None:
         curve = accgraph.CurveData(*values)
 
         self._plot_source.send_data(curve)
 
     def on_user_selected_lsa(self, user: str) -> None:
+        if self.model is None:
+            raise RuntimeError("Model is not set.")
+
         if user != self.model.selector:
             self.toggle_button.setEnabled(False)
 

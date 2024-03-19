@@ -1,6 +1,7 @@
 """
 This file contains the view for the prediction analysis widget.
 """
+
 from __future__ import annotations
 
 import logging
@@ -10,9 +11,9 @@ from functools import partial
 import pandas as pd
 import pyqtgraph as pg
 from accwidgets import lsa_selector
+from op_app_context import context
 from qtpy import QtCore, QtGui, QtWidgets
 
-from ...core.application_context import context
 from ...generated.prediction_analysis_widget_ui import (
     Ui_PredictionAnalysisWidget,
 )
@@ -81,7 +82,7 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
 
         selector_model = lsa_selector.LsaSelectorModel(
             accelerator=lsa_selector.LsaSelectorAccelerator.SPS,
-            lsa=context.lsa,
+            lsa=context.lsa_client,
             categories={
                 lsa_selector.AbstractLsaSelectorContext.Category.MD,
                 lsa_selector.AbstractLsaSelectorContext.Category.OPERATIONAL,
@@ -267,7 +268,7 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.buttonZoomBI.clicked.connect(model.plot_model.zoomBeamIn.emit)
         self.actionResetAxes.triggered.connect(model.plot_model.resetAxes.emit)
 
-        def _enable_spinbox(*_) -> None:
+        def _enable_spinbox(*_: typing.Any) -> None:
             self.spinBoxYMin.setEnabled(True)
             self.spinBoxYMax.setEnabled(True)
 

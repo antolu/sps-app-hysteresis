@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import traceback
+import typing
+
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QCursor
 from qtpy.QtWidgets import QApplication
@@ -28,5 +31,5 @@ class load_cursor:
 
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:  # type: ignore
+    def __exit__(self, exc_type: typing.Type[Exception], exc_val: Exception, exc_tb: traceback.FrameSummary) -> None:  # type: ignore
         set_cursor_normal()

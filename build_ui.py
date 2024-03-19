@@ -1,6 +1,7 @@
 """
 This script is used to generate the UI files for the application.
 """
+
 from os import path
 
 import pyqt5ac

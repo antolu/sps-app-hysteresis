@@ -1,80 +1,78 @@
 [build-system]
-requires = [
-    'setuptools >= 61',
-    'setuptools-scm[toml] ~= 6.0',
-    'wheel',
-]
-build-backend = 'setuptools.build_meta'
+requires = ["setuptools >= 61", "setuptools-scm[toml] ~= 6.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
-name = 'sps-app-hysteresis'
-authors = [
-    { name = "Anton Lu", email = "anton.lu@cern.ch" }
-]
-dynamic = ['version', 'readme']
-description = 'GUI for predicting the magnetic field based on measured and programmed current in the SPS'
-license = {text = 'Other/Proprietary License'}
+name = "sps-app-hysteresis"
+authors = [{ name = "Anton Lu", email = "anton.lu@cern.ch" }]
+dynamic = ["version", "readme"]
+description = "GUI for predicting the magnetic field based on measured and programmed current in the SPS"
+license = { text = "Other/Proprietary License" }
 classifiers = [
-    'Development Status :: 3 - Alpha',
-    'Environment :: X11 Applications :: Qt',
-    'Intended Audience :: Science/Research',
-    'License :: Other/Proprietary License',
-    'Natural Language :: English',
-    'Operating System :: POSIX :: Linux',
-    'Programming Language :: Python :: 3 :: Only',
-    'Programming Language :: Python :: 3.9',
-    'Programming Language :: Python :: 3.10',
-    'Topic :: Scientific/Engineering :: Artificial Intelligence',
-    'Topic :: Scientific/Engineering :: Physics',
+    "Development Status :: 3 - Alpha",
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: Science/Research",
+    "License :: Other/Proprietary License",
+    "Natural Language :: English",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Physics",
 ]
-requires-python = '>=3.9'
+requires-python = ">=3.11"
 dependencies = [
-    'accjapc ~= 0.2.3',
-    'accwidgets[graph] ~= 1.7.5',
-    'matplotlib ~= 3.6',
-    'numpy ~= 1.24',
-    'pjlsa ~= 0.2.16',
-    'pyjapc ~= 2.6',
-    'pytorch-lightning ~= 2.0',
-    'pyda ~= 0.1',
-    'pyda-japc ~= 0.1',
-    'pyda-rda3 ~= 0.1',
-    'PyQt5 ~= 5.12',
-    'rich',
-    'QtPy ~= 2.3',
-    'scipy ~= 1.10.1',
-    'scikit-learn ~= 1.2',
-    'torch ~= 2.0',
+    "accwidgets[all-widgets] ~= 3.0",
+    "matplotlib ~= 3.8",
+    "numpy ~= 1.26",
+    "pjlsa ~= 0.2",
+    "pytorch-lightning ~= 2.0",
+    "pyrbac ~= 1.1",
+    "pyda ~= 0.4",
+    "pyda-japc ~= 0.3",
+    "pyda-lsa ~= 0.4",
+    "PyQt5 ~= 5.12",
+    "rich ~= 13.7",
+    "QtPy ~= 2.4",
+    "scipy ~= 1.12",
+    "scikit-learn ~= 1.4",
+    "torch ~= 2.2",
+    "transformertf ~= 0.0.16",
+    "hysteresis-scripts ~= 0.0.2",
+    "op-app-context ~= 0.1",
 ]
 
 [project.optional-dependencies]
-test = [
-    "flake8",
-    "pylint",
-    "pytest-cov"
-]
-dev = [
-    "black",
-    "pre-commit",
-    "ruff"
-]
+test = ["pytest", "pytest-cov"]
+doc = ["acc-py-sphinx", "myst-parser", "sphinx-copybutton"]
+dev = ["pre-commit", "ruff", "mypy"]
+
+[project.urls]
+homepage = "https://gitlab.cern.ch/dsb/applications/sps-app-hysteresis"
+documentation = "https://acc-py.web.cern.ch/gitlab/dsb/applications/sps-app-hysteresis/docs/stable/"
+repository = "https://gitlab.cern.ch/dsb/applications/sps-app-hysteresis"
+changelog = "https://gitlab.cern.ch/dsb/applications/sps-app-hysteresis"
 
 # keep this for dynamic versioning
 [tool.setuptools_scm]
+write_to = "sps_apps/hysteresis_prediction/_version.py"
+local_scheme = "no-local-version"
 
 [tool.setuptools.dynamic]
-readme = {file = ["README.md"], content-type = "text/markdown"}
+readme = { file = ["README.md"], content-type = "text/markdown" }
 
-[tool.setuptools]
-packages = [
-    'sps_apps.hysteresis_prediction',
-]
+[tool.setuptools.packages.find]
+include = ["sps_apps.hysteresis_prediction*"]
+namespaces = true
+exclude = ["tests", "tests.*", "build"]
+
 
 [project.scripts]
 app-hysteresis = "sps_apps.hysteresis_prediction.application:main"
 
 [tool.black]
-target-version = ['py39', 'py310']
+target-version = ["py311"]
 line-length = 79
 include = '\.pyi?$'
 exclude = '''
@@ -95,7 +93,6 @@ exclude = '''
 
 [tool.ruff]
 
-fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "EM", "ERA", "EXE", "FBT", "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"]
 exclude = [
     "sps_apps/hysteresis_prediction/generated",
     ".bzr",
@@ -121,35 +118,60 @@ exclude = [
 ]
 
 line-length = 79
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
+target-version = "py311"
 
-target-version = "py39"
-
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 10
 
-[tool.pylint.MASTER]
-extension-pkg-whitelist = ['torch']
-# ignore = ['timing_acquisition.py']
-
-[tool.pylint.REPORTS]
-reports = false
-score = false
-
-[tool.pylint.DESIGN]
-max-attributes = 14
-
-[tool.pylint.'MESSAGES CONTROL']
-disable = [
-    'fixme',
-    'duplicate-code',
-    'similarities',
-    'too-few-public-methods',
+[tool.ruff.lint]
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+fixable = [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "I",
+    "N",
+    "Q",
+    "S",
+    "T",
+    "W",
+    "ANN",
+    "ARG",
+    "BLE",
+    "COM",
+    "DJ",
+    "DTZ",
+    "EM",
+    "ERA",
+    "EXE",
+    "FBT",
+    "ICN",
+    "INP",
+    "ISC",
+    "NPY",
+    "PD",
+    "PGH",
+    "PIE",
+    "PL",
+    "PT",
+    "PTH",
+    "PYI",
+    "RET",
+    "RSE",
+    "RUF",
+    "SIM",
+    "SLF",
+    "TCH",
+    "TID",
+    "TRY",
+    "UP",
+    "YTT",
 ]
-
-[tool.pylint.FORMAT]
-ignore-long-lines = '<?https?://\S+>?$'
 
 [tool.mypy]
 disallow_untyped_defs = true
@@ -157,16 +179,17 @@ plugins = "numpy.typing.mypy_plugin"
 
 [[tool.mypy.overrides]]
 module = [
-    'accjapc.*',
-    'jpype.*',
-    'matplotlib.*',
-    'pjlsa.*',
-    'pyjapc.*',
-    'scipy.*',
-    # 'pyda.*',
-    'pyrbac.*'
+    "jpype.*",
+    "matplotlib.*",
+    "pjlsa.*",
+    "scipy.*",
+    # "pyda.*",
+    "pyrbac.*",
 ]
 ignore_missing_imports = true
 
 [tool.pyright]
 reportPrivateImportUsage = "none"
+reportGeneralTypeIssues = "none"
+reportAttributeAccessIssues = "none"
+reportArgumentType = "none"

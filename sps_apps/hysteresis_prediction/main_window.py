@@ -1,14 +1,15 @@
+from __future__ import annotations
+
 import logging
-from typing import Optional
 from uuid import uuid4
 
 import numpy as np
 from accwidgets.app_frame import ApplicationFrame
 from accwidgets.log_console import LogConsole
 from accwidgets.timing_bar import TimingBar, TimingBarDomain, TimingBarModel
+from op_app_context import context
 from qtpy import QtGui, QtWidgets
 
-from .core.application_context import context
 from .data import Acquisition, BufferData, CycleData
 from .generated.main_window_ui import Ui_main_window
 from .inference import Inference
@@ -35,7 +36,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
     def __init__(
         self,
         buffer_size: int = BUFFER_SIZE,
-        parent: Optional[QtWidgets.QWidget] = None,
+        parent: QtWidgets.QWidget | None = None,
     ):
         ApplicationFrame.__init__(self, parent)
         Ui_main_window.__init__(self)
@@ -50,7 +51,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         log_console.toggleExpandedMode()
 
         timing_model = TimingBarModel(
-            domain=TimingBarDomain.SPS, japc=context.japc
+            domain=TimingBarDomain.SPS, japc=context.japc_client
         )
         timing_bar = TimingBar(self, model=timing_model)
         self.timing_bar = timing_bar
@@ -168,18 +169,16 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
     def on_load_model_triggered(self) -> None:
         dialog = ModelLoadDialog(parent=self)
+        dialog.load_checkpoint.connect(self._inference.load_model.emit)
         result = dialog.exec()
 
         if result == QtWidgets.QDialog.Rejected:
             log.debug("Model load dialog cancelled.")
             return
-        elif result == QtWidgets.QDialog.Accepted:
-            ckpt_path = dialog.ckpt_path
-            device = dialog.device
 
-            self._inference.load_model.emit(ckpt_path, device)
-
-    def on_new_prediction(self, cycle_data: CycleData, prediction: np.ndarray):
+    def on_new_prediction(
+        self, cycle_data: CycleData, prediction: np.ndarray
+    ) -> None:
         try:
             self._acquisition.buffer.dispatch_data(
                 BufferData.REF_B,
@@ -187,7 +186,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
                 cycle_data.cycle_timestamp,
                 prediction,
             )
-        except:  # noqa: broad-except
+        except:  # noqa E722
             log.exception("An exception occurred while saving reference B.")
             return
 
@@ -223,9 +222,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             model = TrimModel()
             widget = TrimWidgetView(model=model, parent=None)
 
-            self._inference.cycle_predicted.connect(
-                model.newPredictedData.emit
-            )
+            self._inference.cycle_predicted.connect(model.on_new_prediction)
 
             uuid = str(uuid4())
             self._trim_wide_widgets[uuid] = widget
@@ -235,7 +232,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
                 widget.deleteLater()
 
                 self._inference.cycle_predicted.disconnect(
-                    model.newPredictedData.emit
+                    model.on_new_prediction
                 )
 
             widget.windowClosed.connect(on_close)

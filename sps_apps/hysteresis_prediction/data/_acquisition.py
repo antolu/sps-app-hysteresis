@@ -2,6 +2,7 @@
 This module implements the acquisition of data, both measured
 and reference, and publishes it for external use.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -13,14 +14,15 @@ from signal import SIGINT, SIGTERM, signal
 from threading import Thread
 from typing import Callable, Iterable, Optional, Union
 
+import pyda._metadata
+import pyda.providers
 from pyda import AsyncIOClient, SimpleClient
 from pyda.clients.asyncio import AsyncIOSubscription
 from pyda.data import PropertyRetrievalResponse
 
 try:
     from pyda_japc import JapcProvider
-    from pyjapc import PyJapc
-    from pyrbac import AuthenticationClient  # noqa: import-error
+    from pyrbac import AuthenticationClient  # noqa F401
 except ImportError:
     # for my macos laptop
     AuthenticationClient = None  # type: ignore
@@ -34,7 +36,6 @@ from ._acquisition_buffer import (
     InsufficientDataError,
 )
 from ._cycle_to_tgm import LSAContexts
-from ._pyjapc import PyJapc2Pyda, PyJapcEndpoint, SubscriptionCallback
 
 __all__ = ["Acquisition"]
 
@@ -45,7 +46,7 @@ DEV_LSA_I = "MBI/REF.TABLE.FUNC.VALUE"
 DEV_MEAS_I = "MBI/LOG.I.MEAS"
 DEV_MEAS_B = "SR.BMEAS-SP-B-SD/CycleSamples#samples"
 
-TRIGGER_EVENT = "XTIM.SX.FCY2500-CT/Acquisition"
+TRIGGER_EVENT = "SX.CZERO-CTML/CycleWarning"
 TRIGGER_DYNECO = "XTIM.SX.APECO-CT/Acquisition"
 START_CYCLE = "XTIM.SX.SCY-CT/Acquisition"
 START_SUPERCYCLE = "SX.CZERO-CTML/SuperCycle"
@@ -75,6 +76,20 @@ log = logging.getLogger(__name__)
 from_utc_ns: Callable[[Union[int, float]], datetime] = partial(
     from_timestamp, from_utc=True, unit="ns"
 )
+
+
+class JapcEndpoint(pyda.data.StandardEndpoint):
+    @classmethod
+    def from_str(cls, value: str) -> JapcEndpoint:
+        m = ENDPOINT_RE.match(value)
+
+        if not m:
+            raise ValueError(f"Not a valid endpoint: {value}.")
+
+        return cls(
+            device_name=m.group("device"),
+            property_name=m.group("property"),
+        )
 
 
 class Acquisition:
@@ -116,21 +131,25 @@ class Acquisition:
         )
 
         self._async_handles: dict[str, AsyncIOSubscription] = {}
-        self._subscribe_handles: dict[str, SubscriptionCallback] = {}
         self._main_task: Optional[asyncio.Task] = None
 
         if japc_provider is None:
             assert AuthenticationClient is not None
-            rbac_client = AuthenticationClient.create()
+            rbac_client = AuthenticationClient()
             log.info(
                 "JapcProvider not provided, logging into RBAC by location."
             )
             token = rbac_client.login_location()
             log.info(
-                "RBAC login successful. "
-                f"Identified as {token.get_user_name()}."
+                "RBAC login successful. " f"Identified as {token.user_name}."
             )
-            japc_provider = JapcProvider(rbac_token=token)
+            japc_provider = JapcProvider(
+                rbac_token=token,
+            )
+            japc_provider = pyda.providers.Provider(
+                data_source=japc_provider,
+                metadata_source=pyda._metadata.NoMetadataSource(),
+            )
 
         # Get mapped contextd
         self._pls_to_lsa: dict[str, str]
@@ -148,9 +167,6 @@ class Acquisition:
         # set up PyDA and PyJApc
         self._japc_simple = SimpleClient(provider=japc_provider)
         self._japc_async = AsyncIOClient(provider=japc_provider)
-        japc = PyJapc(incaAcceleratorName=None, selector="SPS.USER.ALL")
-        japc.rbacLogin()
-        self._japc = PyJapc2Pyda(japc)
 
         # Initialize signals, but don't start them
         self.data_acquired = Signal(PropertyRetrievalResponse)
@@ -174,6 +190,10 @@ class Acquisition:
         def wrapper() -> None:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
+
+            from pyda.clients.asyncio import _asyncio
+
+            _asyncio._get_loop = lambda *_: loop
 
             self._main_task = loop.create_task(self._run())
 
@@ -209,13 +229,9 @@ class Acquisition:
         Signal.start_all(asyncio.get_running_loop())
         try:
             handles = self._setup_subscriptions()
-        except:  # noqa
+        except:  # noqa F722
             log.exception("Error while setting up subscriptions.")
             return
-
-        for name, sub in self._subscribe_handles.items():
-            log.debug(f"Starting subscription {name}.")
-            sub.handle.startMonitoring()
 
         try:
             async for response in AsyncIOClient.merge_subscriptions(*handles):
@@ -224,7 +240,7 @@ class Acquisition:
 
                 try:
                     self._handle_acquisition(response)
-                except Exception as e:
+                except Exception as e:  # noqa F722
                     log.exception("Error handling acquisition event." + str(e))
         except asyncio.CancelledError:
             log.debug("Acquisition loop received cancel event.")
@@ -241,9 +257,6 @@ class Acquisition:
             ("PartialEconomy", TRIGGER_DYNECO, "SPS.USER.ALL"),
             ("MeasuredCurrent", DEV_MEAS_I, "SPS.USER.ALL"),
             ("MeasuredBField", DEV_MEAS_B, "SPS.USER.ALL"),
-        ]
-
-        pyjapc_subscriptions = [
             ("ProgrammedCurrent", DEV_LSA_I, "SPS.USER.ALL"),
             ("ProgrammedBField", DEV_LSA_B, "SPS.USER.ALL"),
         ]
@@ -255,23 +268,14 @@ class Acquisition:
             self._japc_simple.get(START_SUPERCYCLE, context="")
         )
 
-        handle: Union[SubscriptionCallback, AsyncIOSubscription]
         log.debug("Subscribing to events.")
         for name, endpoint, selector in pyda_subscriptions:
             log.debug(f"Subscribing to {endpoint} with selector {selector}.")
             handle = self._japc_async.subscribe(
-                PyJapcEndpoint.from_str(endpoint), context=selector
+                JapcEndpoint.from_str(endpoint), context=selector
             )
 
             self._async_handles[name] = handle
-
-        for name, endpoint, selector in pyjapc_subscriptions:
-            log.debug(f"Subscribing to {endpoint} with selector {selector}.")
-            handle = self._japc.subscribe(
-                endpoint, context=selector, callback=self.data_acquired.emit
-            )
-
-            self._subscribe_handles[name] = handle
 
         return list(self._async_handles.values())
 
@@ -397,12 +401,16 @@ class Acquisition:
             selector = self._lsa_to_pls[cycle]
             try:
                 self._handle_acquisition(
-                    self._japc.get(DEV_LSA_I, context=selector)
+                    self._japc_simple.get(
+                        JapcEndpoint.from_str(DEV_LSA_I), context=selector
+                    )
                 )
                 self._handle_acquisition(
-                    self._japc.get(DEV_LSA_B, context=selector)
+                    self._japc_simple.get(
+                        JapcEndpoint.from_str(DEV_LSA_B), context=selector
+                    )
                 )
-            except:  # noqa: broad-except
+            except:  # noqa E722
                 log.exception("Error fetching LSA programs.")
                 return
 
