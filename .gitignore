@@ -1,5 +1,6 @@
 IDEs
 .idea
+.vscode/
 test_scripts/
 sps_apps/hysteresis_prediction/_version.py
 
