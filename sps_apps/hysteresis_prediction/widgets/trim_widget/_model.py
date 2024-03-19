@@ -150,12 +150,14 @@ class TrimModel(QtCore.QObject):
             log.debug(f"[{cycle_data}] Sending trims to LSA.")
 
             with time_execution() as trim_time:
-                self.send_trim(time_axis, correction, comment)
+                trim_time_d = self.send_trim(time_axis, correction, comment)
 
             trim_time_diff = trim_time.duration
             log.debug(f"Trim applied in {trim_time_diff:.02f}s.")
 
-            self.trimApplied.emit((time_axis, correction), trim_time, comment)
+            self.trimApplied.emit(
+                (time_axis, correction), trim_time_d, comment
+            )
         except:  # noqa E722
             log.exception("Failed to apply trim to LSA.")
             raise
@@ -232,11 +234,10 @@ class TrimModel(QtCore.QObject):
         time_axis: np.ndarray,
         correction: np.ndarray,
         comment: str | None = None,
-    ) -> None:
+    ) -> datetime:
+        now = datetime.now()
         if comment is None:
-            comment = (
-                "Hysteresis prediction correction " + str(datetime.now())[:-7]
-            )
+            comment = "Hysteresis prediction correction " + str(now)[:-7]
 
         func: DiscreteFunction = DiscreteFunction(time_axis, correction)
         resp_set = self._lsa.set(
@@ -253,6 +254,8 @@ class TrimModel(QtCore.QObject):
 
         if resp_set.exception is not None:
             raise resp_set.exception
+
+        return now
 
     @property
     def selector(self) -> str | None:
@@ -298,11 +301,23 @@ def match_array_size(
     new_correction: tuple[np.ndarray, np.ndarray],
 ) -> tuple[tuple[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]]:
     if current_correction[0].size < new_correction[0].size:
-        # upsample LSA trim to match prediction
+        # upsample LSA trim to match prediction, keep BP edges
+        new_x = np.concatenate((new_correction[0], current_correction[0]))
+        new_x = np.sort(new_x)
         current_correction = (
-            new_correction[0],
+            new_x,
             np.interp(
-                new_correction[0], current_correction[0], current_correction[1]
+                new_x,
+                *current_correction,
+            ),
+        )
+
+        # upsample prediction to match new LSA trim
+        new_correction = (
+            new_x,
+            np.interp(
+                new_x,
+                *new_correction,
             ),
         )
     elif current_correction[0].size > new_correction[0].size:
@@ -310,7 +325,8 @@ def match_array_size(
         new_correction = (
             current_correction[0],
             np.interp(
-                current_correction[0], new_correction[0], new_correction[1]
+                current_correction[0],
+                *new_correction,
             ),
         )
 
