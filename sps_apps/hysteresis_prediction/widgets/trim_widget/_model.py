@@ -15,6 +15,7 @@ from pyda.data import DiscreteFunction
 from pyda_japc import JapcProvider
 from pyda_lsa import LsaCycleContext, LsaEndpoint, LsaProvider
 from qtpy import QtCore
+from transformertf.utils import signal
 
 from ...data import CycleData
 from ...utils import ThreadWorker, time_execution
@@ -100,7 +101,7 @@ class TrimModel(QtCore.QObject):
             raise ValueError(f"[{prediction}] No field prediction found.")
 
         # calc delta and smooth it
-        correction = prediction.field_pred - prediction.field_ref
+        correction = prediction.field_pred[1, :] - prediction.field_ref[1, :]
         # correction = signal.perona_malik_smooth(correction, 10.0, 5e-2, 5.0)
 
         time_margin = (prediction.cycle_time - datetime.now()).total_seconds()
@@ -111,6 +112,10 @@ class TrimModel(QtCore.QObject):
             )
             return
 
+        time_axis = (
+            prediction.field_pred[0, :] - prediction.field_pred[0, 0]
+        ) * 1e3
+        correction = np.stack((time_axis, correction), axis=0)
         worker = ThreadWorker(self.apply_correction, correction, prediction)
         worker.exception.connect(
             lambda e: log.exception("Failed to apply trim to LSA.")
@@ -176,30 +181,32 @@ class TrimModel(QtCore.QObject):
                 current_time_axis,
                 current_correction,
             ),
-            (time_axis, correction),
+            (new_time_axis, new_correction),
         ) = match_array_size(
             (current_time_axis, current_correction),
             (new_time_axis, new_correction),
         )
 
         # calculate correction
-        new_correction = (current_correction - correction).astype(np.float64)
+        new_correction = (current_correction - new_correction).astype(
+            np.float64
+        )
 
         # trim only part of beam that is before beam out
-        time_axis, new_correction = self.truncate_beam_in(
-            time_axis, new_correction
+        new_time_axis, new_correction = self.truncate_beam_in(
+            new_time_axis, new_correction
         )
 
         # smooth the correction
-        # new_correction = signal.perona_malik_smooth(
-        #     new_correction, 10.0, 5e-2, 2.0
-        # )
+        new_correction = signal.perona_malik_smooth(
+            new_correction, 10.0, 5e-2, 2.0
+        )
 
         new_correction = truncate_correction(
             new_correction, (TRIM_SOFT_THRESHOLD, TRIM_THRESHOLD)
         )
 
-        return time_axis, new_correction
+        return new_time_axis, new_correction
 
     def truncate_beam_in(
         self, time_axis: np.ndarray, correction: np.ndarray
@@ -303,7 +310,10 @@ def match_array_size(
     if current_correction[0].size < new_correction[0].size:
         # upsample LSA trim to match prediction, keep BP edges
         new_x = np.concatenate((new_correction[0], current_correction[0]))
-        new_x = np.sort(new_x)
+        new_x = np.sort(np.unique(new_x))
+        log.debug(f"New x: {new_x}")
+        log.debug(f"Old x (current correctoion): {current_correction[0]}")
+        log.debug(f"Old x (new correction): {new_correction[0]}")
         current_correction = (
             new_x,
             np.interp(
@@ -326,6 +336,25 @@ def match_array_size(
             current_correction[0],
             np.interp(
                 current_correction[0],
+                *new_correction,
+            ),
+        )
+    else:
+        new_x = np.concatenate((new_correction[0], current_correction[0]))
+        new_x = np.sort(np.unique(new_x))
+        log.debug(f"New x: {new_x}")
+        current_correction = (
+            new_x,
+            np.interp(
+                new_x,
+                *current_correction,
+            ),
+        )
+
+        new_correction = (
+            new_x,
+            np.interp(
+                new_x,
                 *new_correction,
             ),
         )
