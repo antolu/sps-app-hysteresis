@@ -64,6 +64,7 @@ class TrimInfoWidget(QtWidgets.QWidget):
 
 class TrimSettingsWidget(QtWidgets.QWidget):
     DryRunChanged = QtCore.Signal(bool)
+    FlattenChanged = QtCore.Signal(bool)
 
     def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent=parent)
@@ -88,6 +89,14 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         self.TrimTMaxSpinBox.setEnabled(False)
         self.TrimTMaxSpinBox.setMaximumWidth(80)
 
+        self.FlattenLabel = QtWidgets.QLabel("Flatten", parent=self)
+        self.FlattenCheckBox = QtWidgets.QCheckBox(parent=self)
+        self.FlattenCheckBox.setEnabled(False)
+        self.FlattenLabel.setToolTip(
+            "Flatten field between trim T min and trim T max, "
+            "with the value of the field at trim T min."
+        )
+
         self.setLayout(QtWidgets.QGridLayout(self))
         self.layout().addWidget(self.GainLabel, 0, 0)
         self.layout().addWidget(self.GainSpinBox, 0, 1)
@@ -97,16 +106,24 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.TrimTMinSpinBox, 2, 1)
         self.layout().addWidget(self.TrimTMaxLabel, 3, 0)
         self.layout().addWidget(self.TrimTMaxSpinBox, 3, 1)
+        self.layout().addWidget(self.FlattenLabel, 4, 0)
+        self.layout().addWidget(self.FlattenCheckBox, 4, 1)
 
         self.DryRunCheckBox.stateChanged.connect(self.on_dry_run_changed)
         self.GainSpinBox.valueChanged.connect(self.on_gain_changed)
         self.TrimTMinSpinBox.valueChanged.connect(self.on_min_value_changed)
         self.TrimTMaxSpinBox.valueChanged.connect(self.on_max_value_changed)
+        self.FlattenCheckBox.stateChanged.connect(self.on_flatten_changed)
 
     @QtCore.Slot(int)
     def on_dry_run_changed(self, state: QtCore.Qt.CheckState) -> None:
         value = state == QtCore.Qt.Checked
         self.DryRunChanged.emit(value)
+
+    @QtCore.Slot(int)
+    def on_flatten_changed(self, state: QtCore.Qt.CheckState) -> None:
+        value = state == QtCore.Qt.Checked
+        self.FlattenChanged.emit(value)
 
     @QtCore.Slot(float)
     def on_gain_changed(self, value: float) -> None:
@@ -120,6 +137,7 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         if not self.TrimTMinSpinBox.isEnabled():
             self.TrimTMinSpinBox.setEnabled(True)
             self.TrimTMaxSpinBox.setEnabled(True)
+            self.FlattenCheckBox.setEnabled(True)
 
         self.TrimTMinSpinBox.setMinimum(beam_in)
         self.TrimTMinSpinBox.setMaximum(beam_out)
@@ -246,6 +264,7 @@ class TrimWidgetView(QtWidgets.QWidget):
         self.TrimSettingsWidget.TrimTMinSpinBox.valueChanged.connect(
             model.set_trim_t_min
         )
+        self.TrimSettingsWidget.FlattenChanged.connect(model.set_flatten)
 
     def _disconnect_model(self, model: TrimModel) -> None:
         model.trimApplied.disconnect(self.TrimInfoWidget.on_trim_applied)
@@ -271,6 +290,7 @@ class TrimWidgetView(QtWidgets.QWidget):
         self.TrimSettingsWidget.TrimTMinSpinBox.valueChanged.disconnect(
             model.set_trim_t_min
         )
+        self.TrimSettingsWidget.FlattenChanged.disconnect(model.set_flatten)
 
     def _on_trim_applied(
         self,

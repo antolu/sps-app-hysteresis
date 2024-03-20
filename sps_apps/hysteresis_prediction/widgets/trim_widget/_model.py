@@ -71,15 +71,18 @@ class TrimModel(QtCore.QObject):
 
         self._beam_in: int = 0
         self._beam_out: int = 0
+        self._selector: str | None = None
+        self._reference_fields: dict[str, np.ndarray] = {}
+
+        # settable properties
         self._trim_t_min: int = 0
         self._trim_t_max: int = 100000
-        self._selector: str | None = None
         self._gain: float = 1.0
-        self._reference_fields: dict[str, np.ndarray] = {}
         self._dry_run = False
+        self._flatten = False
 
+        # states
         self._trim_enabled = False
-
         self._trim_lock = QtCore.QMutex()
 
     @QtCore.Slot(CycleData, typing.Any, name="on_new_prediction")
@@ -132,7 +135,7 @@ class TrimModel(QtCore.QObject):
         # trim in a new thread
         worker = ThreadWorker(self.apply_correction, correction, prediction)
         worker.exception.connect(
-            lambda e: log.exception("Failed to apply trim to LSA.")
+            lambda e: log.exception("Failed to apply trim to LSA.:\n" + str(e))
         )
 
         QtCore.QThreadPool.globalInstance().start(worker)
@@ -384,6 +387,23 @@ class TrimModel(QtCore.QObject):
                 f"Trim t_max {value} > beam out {self._beam_out}, not allowed."
             )
         self._trim_t_max = value
+
+    @property
+    def flatten(self) -> bool:
+        return self._flatten
+
+    @flatten.setter
+    def flatten(self, value: bool) -> None:
+        log.debug(f"Setting flatten to {value} for selector {self.selector}.")
+        self._flatten = value
+
+    def set_flatten(self, value: bool) -> None:
+        """
+        Set the flatten flag for the trim model.
+
+        Useful as a Qt slot.
+        """
+        self.flatten = value
 
     def enable_trim(self) -> None:
         """
