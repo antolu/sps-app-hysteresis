@@ -35,7 +35,24 @@ def test_send_trim() -> None:
     trim.selector = SELECTOR
 
     xs = np.arange(0, 3600 + 1, 1)[::DOWNSAMPLE].astype(np.float64)
-    ys = np.zeros_like(xs)
-    correction = np.stack([xs, ys], axis=0)
+    ys = np.zeros_like(xs) + 1e-5
 
-    trim.apply_correction(correction=correction, cycle_data=CYCLE_DATA)
+    trim.apply_correction(
+        correction_t=xs, correction_v=ys, cycle_data=CYCLE_DATA
+    )
+
+
+@pytest.mark.uses_virtual_device
+def test_send_trim_boundaries() -> None:
+    trim = TrimModel()
+    trim.selector = SELECTOR
+
+    trim.set_trim_t_max(2000)
+    trim.set_trim_t_min(1200)
+
+    xs = np.arange(0, 3600 + 1, 1)[::DOWNSAMPLE].astype(np.float64)
+    ys = np.zeros_like(xs) + 1e-5
+
+    trim.apply_correction(
+        correction_t=xs, correction_v=ys, cycle_data=CYCLE_DATA
+    )

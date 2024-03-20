@@ -244,11 +244,19 @@ class TrimModel(QtCore.QObject):
     ) -> tuple[np.ndarray, np.ndarray]:
         lower = max(self._beam_in, self._trim_t_min)
         upper = min(self._beam_out, self._trim_t_max)
-        valid_indices = (lower <= time_axis) & (time_axis <= upper)
-        time_axis = time_axis[valid_indices]
-        correction = correction[valid_indices]
 
-        return time_axis, correction
+        # add lower and upper bounds to the time axis
+        time_axis_new: np.ndarray = np.concatenate(
+            ([lower], time_axis, [upper])  # type: ignore[arg-type]
+        )
+        time_axis_new = np.sort(np.unique(time_axis))
+        correction = np.interp(time_axis, time_axis_new, correction)
+
+        valid_indices = (lower <= time_axis_new) & (time_axis_new <= upper)
+        time_axis_trunc = time_axis_new[valid_indices]
+        correction_trunc = correction[valid_indices]
+
+        return time_axis_trunc, correction_trunc
 
     def get_current_correction(self) -> DiscreteFunction:
         with time_execution() as t:
