@@ -746,6 +746,10 @@ def calc_dpp(
     return (reference - value) / reference * scale
 
 
+def calc_abs_diff(reference: np.ndarray, value: np.ndarray) -> np.ndarray:
+    return reference - value
+
+
 def calc_downsample(high: np.ndarray, low: np.ndarray) -> float:
     return len(high) // len(low)
 
@@ -783,7 +787,7 @@ def make_pred_vs_meas(
 
     downsample = cycle_data.num_samples // field_pred.size
 
-    y = calc_dpp(field_meas[::downsample], field_pred) * 1e4
+    y = calc_abs_diff(field_meas[::downsample], field_pred) * 1e4
     x = np.arange(0, cycle_data.num_samples, cycle_data.num_samples // y.size)
 
     return x, y
@@ -799,7 +803,7 @@ def make_pred_vs_ref(
     field_pred = cycle_data.field_pred[1, :]
     field_ref = reference.field_pred[1, :]
 
-    y = calc_dpp(field_ref, field_pred) * 1e4
+    y = calc_abs_diff(field_ref, field_pred) * 1e4
     x = np.arange(0, cycle_data.num_samples, cycle_data.num_samples // y.size)
 
     return x, y
@@ -815,7 +819,7 @@ def make_meas_vs_ref(
     field_meas = cycle_data.field_meas
     field_ref = reference.field_meas
 
-    y = calc_dpp(field_ref, field_meas) * 1e4
+    y = calc_abs_diff(field_ref, field_meas) * 1e4
     x = np.arange(0, cycle_data.num_samples)
 
     return x, y

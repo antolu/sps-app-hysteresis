@@ -98,7 +98,7 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.plotDiffWidget = pg.PlotItem()
         # self.plotPredWidget.setBackgroundColor("w")  # type: ignore
         # self.plotDiffWidget.setBackgroundColor("w")  # type: ignore
-        self.plotDiffWidget.setLabel("left", "E-4")
+        self.plotDiffWidget.setLabel("left", "E-4 T")
         self.plotDiffWidget.setMinimumHeight(100)
         self.plotDiffWidget.setMaximumHeight(300)
         self.plotDiffWidget.vb.setYRange(-10, 10)
