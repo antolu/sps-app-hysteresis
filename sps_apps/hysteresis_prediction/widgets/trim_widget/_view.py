@@ -20,8 +20,6 @@ from ._model import TrimModel
 
 
 class TrimInfoWidget(QtWidgets.QWidget):
-    DryRunChanged = QtCore.Signal(bool)
-
     def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent=parent)
 
@@ -41,13 +39,34 @@ class TrimInfoWidget(QtWidgets.QWidget):
         self.BeamInLineValue = QtWidgets.QLabel("N/A", parent=self)
         self.BeamInLineValue.setMinimumWidth(120)
 
-        # vertical spacer
-        spacer = QtWidgets.QSpacerItem(
-            10,
-            50,
-            QtWidgets.QSizePolicy.Minimum,
-            QtWidgets.QSizePolicy.Expanding,
+        grid_layout = QtWidgets.QGridLayout(self)
+        self.setLayout(grid_layout)
+        grid_layout.addWidget(self.LsaServerLabel, 0, 0)
+        grid_layout.addWidget(self.LsaServerLineValue, 0, 1)
+        grid_layout.addWidget(self.LastTrimLabel, 1, 0)
+        grid_layout.addWidget(self.LastTrimLineValue, 1, 1)
+        grid_layout.addWidget(self.LastCommentLabel, 2, 0)
+        grid_layout.addWidget(self.LastCommentLineValue, 2, 1)
+        grid_layout.addWidget(self.BeamInLabel, 3, 0)
+        grid_layout.addWidget(self.BeamInLineValue, 3, 1)
+
+    def on_trim_applied(
+        self, _: typing.Any, trim_time: datetime.datetime, trim_comment: str
+    ) -> None:
+        self.LastTrimLineValue.setText(
+            trim_time.strftime("%Y%m%d-%H:%M:%S:%f")[:-4]
         )
+        self.LastCommentLineValue.setText(trim_comment)
+
+    def on_new_beam_in_time(self, beam_in: int, beam_out: int) -> None:
+        self.BeamInLineValue.setText(f"C{beam_in} - C{beam_out}")
+
+
+class TrimSettingsWidget(QtWidgets.QWidget):
+    DryRunChanged = QtCore.Signal(bool)
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
+        super().__init__(parent=parent)
 
         self.GainLabel = QtWidgets.QLabel("Gain", parent=self)
         self.GainSpinBox = QtWidgets.QDoubleSpinBox(parent=self)
@@ -59,32 +78,30 @@ class TrimInfoWidget(QtWidgets.QWidget):
         self.DryRunLabel = QtWidgets.QLabel("Dry Run", parent=self)
         self.DryRunCheckBox = QtWidgets.QCheckBox(parent=self)
 
-        grid_layout = QtWidgets.QGridLayout(self)
-        self.setLayout(grid_layout)
-        grid_layout.addWidget(self.LsaServerLabel, 0, 0)
-        grid_layout.addWidget(self.LsaServerLineValue, 0, 1)
-        grid_layout.addWidget(self.LastTrimLabel, 1, 0)
-        grid_layout.addWidget(self.LastTrimLineValue, 1, 1)
-        grid_layout.addWidget(self.LastCommentLabel, 2, 0)
-        grid_layout.addWidget(self.LastCommentLineValue, 2, 1)
-        grid_layout.addWidget(self.BeamInLabel, 3, 0)
-        grid_layout.addWidget(self.BeamInLineValue, 3, 1)
-        grid_layout.addItem(spacer, 4, 0, 1, 1)
-        grid_layout.addWidget(self.GainLabel, 5, 0)
-        grid_layout.addWidget(self.GainSpinBox, 5, 1)
-        grid_layout.addWidget(self.DryRunLabel, 6, 0)
-        grid_layout.addWidget(self.DryRunCheckBox, 6, 1)
+        self.TrimTMinLabel = QtWidgets.QLabel("Trim T Min", parent=self)
+        self.TrimTMinSpinBox = QtWidgets.QSpinBox(parent=self)
+        self.TrimTMinSpinBox.setEnabled(False)
+        self.TrimTMinSpinBox.setMaximumWidth(80)
+
+        self.TrimTMaxLabel = QtWidgets.QLabel("Trim T Max", parent=self)
+        self.TrimTMaxSpinBox = QtWidgets.QSpinBox(parent=self)
+        self.TrimTMaxSpinBox.setEnabled(False)
+        self.TrimTMaxSpinBox.setMaximumWidth(80)
+
+        self.setLayout(QtWidgets.QGridLayout(self))
+        self.layout().addWidget(self.GainLabel, 0, 0)
+        self.layout().addWidget(self.GainSpinBox, 0, 1)
+        self.layout().addWidget(self.DryRunLabel, 1, 0)
+        self.layout().addWidget(self.DryRunCheckBox, 1, 1)
+        self.layout().addWidget(self.TrimTMinLabel, 2, 0)
+        self.layout().addWidget(self.TrimTMinSpinBox, 2, 1)
+        self.layout().addWidget(self.TrimTMaxLabel, 3, 0)
+        self.layout().addWidget(self.TrimTMaxSpinBox, 3, 1)
 
         self.DryRunCheckBox.stateChanged.connect(self.on_dry_run_changed)
         self.GainSpinBox.valueChanged.connect(self.on_gain_changed)
-
-    def on_trim_applied(
-        self, _: typing.Any, trim_time: datetime.datetime, trim_comment: str
-    ) -> None:
-        self.LastTrimLineValue.setText(
-            trim_time.strftime("%Y%m%d-%H:%M:%S:%f")[:-4]
-        )
-        self.LastCommentLineValue.setText(trim_comment)
+        self.TrimTMinSpinBox.valueChanged.connect(self.on_min_value_changed)
+        self.TrimTMaxSpinBox.valueChanged.connect(self.on_max_value_changed)
 
     @QtCore.Slot(int)
     def on_dry_run_changed(self, state: QtCore.Qt.CheckState) -> None:
@@ -98,8 +115,33 @@ class TrimInfoWidget(QtWidgets.QWidget):
         else:
             self.GainSpinBox.setSingleStep(0.2)
 
+    @QtCore.Slot(int, int)
     def on_new_beam_in_time(self, beam_in: int, beam_out: int) -> None:
-        self.BeamInLineValue.setText(f"C{beam_in} - C{beam_out}")
+        if not self.TrimTMinSpinBox.isEnabled():
+            self.TrimTMinSpinBox.setEnabled(True)
+            self.TrimTMaxSpinBox.setEnabled(True)
+
+        self.TrimTMinSpinBox.setMinimum(beam_in)
+        self.TrimTMinSpinBox.setMaximum(beam_out)
+        self.TrimTMaxSpinBox.setMinimum(beam_in)
+        self.TrimTMaxSpinBox.setMaximum(beam_out)
+
+        self.TrimTMaxSpinBox.setValue(beam_out)
+        self.TrimTMinSpinBox.setValue(beam_in)
+
+    @QtCore.Slot(int)
+    def on_min_value_changed(self, value: int) -> None:
+        self.TrimTMaxSpinBox.setMinimum(value + 1)
+
+        if value > self.TrimTMaxSpinBox.value():
+            self.TrimTMaxSpinBox.setValue(value)
+
+    @QtCore.Slot(int)
+    def on_max_value_changed(self, value: int) -> None:
+        self.TrimTMinSpinBox.setMaximum(value - 1)
+
+        if value < self.TrimTMinSpinBox.value():
+            self.TrimTMinSpinBox.setValue(value)
 
 
 class TrimWidgetView(QtWidgets.QWidget):
@@ -119,6 +161,7 @@ class TrimWidgetView(QtWidgets.QWidget):
         self.LsaSelector = LsaSelector(model=selector_model, parent=self)
 
         self.TrimInfoWidget = TrimInfoWidget(parent=self)
+        self.TrimSettingsWidget = TrimSettingsWidget(parent=self)
 
         self.toggle_button = ToggleButton(parent=self)
         self.toggle_button.initializeState(
@@ -133,6 +176,7 @@ class TrimWidgetView(QtWidgets.QWidget):
         self.left_frame.layout().setAlignment(QtCore.Qt.AlignLeft)
         self.left_frame.layout().addWidget(self.LsaSelector)
         self.left_frame.layout().addWidget(self.TrimInfoWidget)
+        self.left_frame.layout().addWidget(self.TrimSettingsWidget)
         self.left_frame.layout().addWidget(self.toggle_button)
         self.left_frame.setMaximumSize(300, 16777215)
         self.left_frame.setSizePolicy(
@@ -185,12 +229,23 @@ class TrimWidgetView(QtWidgets.QWidget):
         model.trimApplied.connect(self.TrimInfoWidget.on_trim_applied)
         model.trimApplied.connect(self._on_trim_applied)
         model.beamInRetrieved.connect(self.TrimInfoWidget.on_new_beam_in_time)
+        model.beamInRetrieved.connect(
+            self.TrimSettingsWidget.on_new_beam_in_time
+        )
 
         self.toggle_button.state1Activated.connect(model.enable_trim)
         self.toggle_button.state2Activated.connect(model.disable_trim)
 
-        self.TrimInfoWidget.DryRunChanged.connect(model.set_dry_run)
-        self.TrimInfoWidget.GainSpinBox.valueChanged.connect(model.set_gain)
+        self.TrimSettingsWidget.DryRunChanged.connect(model.set_dry_run)
+        self.TrimSettingsWidget.GainSpinBox.valueChanged.connect(
+            model.set_gain
+        )
+        self.TrimSettingsWidget.TrimTMaxSpinBox.valueChanged.connect(
+            model.set_trim_t_max
+        )
+        self.TrimSettingsWidget.TrimTMinSpinBox.valueChanged.connect(
+            model.set_trim_t_min
+        )
 
     def _disconnect_model(self, model: TrimModel) -> None:
         model.trimApplied.disconnect(self.TrimInfoWidget.on_trim_applied)
@@ -198,14 +253,24 @@ class TrimWidgetView(QtWidgets.QWidget):
         model.beamInRetrieved.disconnect(
             self.TrimInfoWidget.on_new_beam_in_time
         )
+        model.beamInRetrieved.disconnect(
+            self.TrimSettingsWidget.on_new_beam_in_time
+        )
 
         self.toggle_button.state1Activated.disconnect(model.enable_trim)
         self.toggle_button.state2Activated.disconnect(model.disable_trim)
         self.toggle_button.setEnabled(False)
 
-        self.TrimInfoWidget.DryRunChanged.disconnect(model.set_dry_run)
-
-        self.TrimInfoWidget.GainSpinBox.valueChanged.disconnect(model.set_gain)
+        self.TrimSettingsWidget.DryRunChanged.disconnect(model.set_dry_run)
+        self.TrimSettingsWidget.GainSpinBox.valueChanged.disconnect(
+            model.set_gain
+        )
+        self.TrimSettingsWidget.TrimTMaxSpinBox.valueChanged.disconnect(
+            model.set_trim_t_max
+        )
+        self.TrimSettingsWidget.TrimTMinSpinBox.valueChanged.disconnect(
+            model.set_trim_t_min
+        )
 
     def _on_trim_applied(
         self,

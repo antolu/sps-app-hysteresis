@@ -71,6 +71,8 @@ class TrimModel(QtCore.QObject):
 
         self._beam_in: int = 0
         self._beam_out: int = 0
+        self._trim_t_min: int = 0
+        self._trim_t_max: int = 100000
         self._selector: str | None = None
         self._gain: float = 1.0
         self._reference_fields: dict[str, np.ndarray] = {}
@@ -240,9 +242,9 @@ class TrimModel(QtCore.QObject):
     def truncate_beam_in(
         self, time_axis: np.ndarray, correction: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
-        valid_indices = (self._beam_in <= time_axis) & (
-            time_axis <= self._beam_out
-        )
+        lower = max(self._beam_in, self._trim_t_min)
+        upper = min(self._beam_out, self._trim_t_max)
+        valid_indices = (lower <= time_axis) & (time_axis <= upper)
         time_axis = time_axis[valid_indices]
         correction = correction[valid_indices]
 
@@ -361,18 +363,32 @@ class TrimModel(QtCore.QObject):
     def reset_reference_fields(self) -> None:
         self._reference_fields.clear()
 
+    def set_trim_t_min(self, value: int) -> None:
+        if value < self._beam_in:
+            raise ValueError(
+                f"Trim t_min {value} < beam in {self._beam_in}, not allowed."
+            )
+        self._trim_t_min = value
+
+    def set_trim_t_max(self, value: int) -> None:
+        if value > self._beam_out:
+            raise ValueError(
+                f"Trim t_max {value} > beam out {self._beam_out}, not allowed."
+            )
+        self._trim_t_max = value
+
     def enable_trim(self) -> None:
         """
         Enable trim.
         """
-        log.debug("Enabling trim.")
+        log.debug(f"Enabling trim for selector {self.selector}.")
         self._trim_enabled = True
 
     def disable_trim(self) -> None:
         """
         Disable trim.
         """
-        log.debug("Disabling trim.")
+        log.debug(f"Disabling trim for selector {self.selector}")
         self._trim_enabled = False
 
 
