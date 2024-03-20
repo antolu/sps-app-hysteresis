@@ -69,6 +69,9 @@ class TrimModel(QtCore.QObject):
         self._beam_in: int = 0
         self._beam_out: int = 0
         self._selector: str | None = None
+        self._gain: float = 1.0
+        self._reference_fields: dict[str, np.ndarray] = {}
+        self._dry_run = False
 
         self._trim_enabled = False
 
@@ -91,18 +94,21 @@ class TrimModel(QtCore.QObject):
             )
             return
 
-        if prediction.field_ref is None:
-            log.info(
-                f"[{prediction}] No field reference found, skipping trim."
-            )
-            return
-
         if prediction.field_pred is None:
             raise ValueError(f"[{prediction}] No field prediction found.")
 
+        if prediction.cycle not in self._reference_fields:
+            log.info(
+                f"[{prediction}] No field reference found, skipping "
+                "trim but saving prediction as reference."
+            )
+            self._reference_fields[prediction.cycle] = prediction.field_pred
+            return
+
+        field_ref = self._reference_fields[prediction.cycle]
+
         # calc delta and smooth it
-        correction = prediction.field_pred[1, :] - prediction.field_ref[1, :]
-        # correction = signal.perona_malik_smooth(correction, 10.0, 5e-2, 5.0)
+        correction = prediction.field_pred[1, :] - field_ref[1, :]
 
         time_margin = (prediction.cycle_time - datetime.now()).total_seconds()
         if time_margin < 1.0:
@@ -112,10 +118,13 @@ class TrimModel(QtCore.QObject):
             )
             return
 
+        # time axis in predictions are in timestamps, convert to ms
         time_axis = (
             prediction.field_pred[0, :] - prediction.field_pred[0, 0]
         ) * 1e3
         correction = np.stack((time_axis, correction), axis=0)
+
+        # trim in a new thread
         worker = ThreadWorker(self.apply_correction, correction, prediction)
         worker.exception.connect(
             lambda e: log.exception("Failed to apply trim to LSA.")
@@ -124,7 +133,10 @@ class TrimModel(QtCore.QObject):
         QtCore.QThreadPool.globalInstance().start(worker)
 
     def apply_correction(
-        self, correction: np.ndarray, cycle_data: CycleData
+        self,
+        correction_t: np.ndarray,
+        correction_v: np.ndarray,
+        cycle_data: CycleData,
     ) -> None:
         if not self._trim_lock.tryLock():
             log.warning("Already applying trim, skipping.")
@@ -136,7 +148,8 @@ class TrimModel(QtCore.QObject):
         )
 
         if self.selector is None:
-            return
+            # this should not happen, but just in case
+            raise RuntimeError("No selector set, cannot apply trim.")
 
         try:
             current_correction_df = self.get_current_correction()
@@ -144,21 +157,31 @@ class TrimModel(QtCore.QObject):
             current_time_axis = current_correction_df.xs
             current_correction = current_correction_df.ys
 
-            # downsample to match prediction
-            time_axis = correction[0, :]
-            correction = correction[1, :]
-
             time_axis, correction = self.calc_new_correction(
-                current_time_axis, current_correction, time_axis, correction
+                current_time_axis,
+                current_correction,
+                correction_t,
+                correction_v,
             )
 
-            log.debug(f"[{cycle_data}] Sending trims to LSA.")
+            log.debug(
+                f"[{cycle_data}] Sending trims to LSA with {time_axis.size} points."
+            )
 
-            with time_execution() as trim_time:
-                trim_time_d = self.send_trim(time_axis, correction, comment)
+            if self.dry_run:
+                with time_execution() as trim_time:
+                    trim_time_d = self.send_trim(
+                        time_axis, correction, comment
+                    )
 
-            trim_time_diff = trim_time.duration
-            log.debug(f"Trim applied in {trim_time_diff:.02f}s.")
+                trim_time_diff = trim_time.duration
+                log.debug(f"Trim applied in {trim_time_diff:.02f}s.")
+            else:
+                log.debug(
+                    f"[{cycle_data}] Dry run is enabled, skipping LSA trim."
+                )
+
+                trim_time_d = datetime.now()
 
             self.trimApplied.emit(
                 (time_axis, correction), trim_time_d, comment
@@ -196,6 +219,9 @@ class TrimModel(QtCore.QObject):
         new_time_axis, new_correction = self.truncate_beam_in(
             new_time_axis, new_correction
         )
+
+        # apply gain
+        new_correction *= self.gain
 
         # smooth the correction
         new_correction = signal.perona_malik_smooth(
@@ -287,6 +313,47 @@ class TrimModel(QtCore.QObject):
         self._selector = value
 
         log.info(f"Setting beam in/out to C{self._beam_in}/C{self._beam_out}.")
+
+    @property
+    def gain(self) -> float:
+        return self._gain
+
+    @gain.setter
+    def gain(self, value: float) -> None:
+        if value > 1.0:
+            log.warning(f"Gain {value} > 1.0, this may cause instability.")
+        elif value < 0.0:
+            raise ValueError(f"Gain {value} < 0.0, this is not allowed.")
+
+        self._gain = value
+
+    def set_gain(self, value: float) -> None:
+        """
+        Set the gain for the trim model.
+
+        Useful as a Qt slot.
+        """
+        self.gain = value
+
+    @property
+    def dry_run(self) -> bool:
+        return self._dry_run
+
+    @dry_run.setter
+    def dry_run(self, value: bool) -> None:
+        self._dry_run = value
+
+    def set_dry_run(self, value: bool) -> None:
+        """
+        Set the dry run flag for the trim model.
+
+        Useful as a Qt slot.
+        """
+        self.dry_run = value
+
+    @QtCore.Slot()
+    def reset_reference_fields(self) -> None:
+        self._reference_fields.clear()
 
     def enable_trim(self) -> None:
         """

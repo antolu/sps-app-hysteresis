@@ -223,6 +223,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             widget = TrimWidgetView(model=model, parent=None)
 
             self._inference.cycle_predicted.connect(model.on_new_prediction)
+            self.action_Clear_Reference.triggered.connect(
+                model.reset_reference_fields
+            )
 
             uuid = str(uuid4())
             self._trim_wide_widgets[uuid] = widget
@@ -233,6 +236,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
                 self._inference.cycle_predicted.disconnect(
                     model.on_new_prediction
+                )
+                self.action_Clear_Reference.triggered.disconnect(
+                    model.reset_reference_fields
                 )
 
             widget.windowClosed.connect(on_close)
