@@ -39,13 +39,14 @@ class TrimInfoWidget(QtWidgets.QWidget):
 
         # vertical spacer
         spacer = QtWidgets.QSpacerItem(
-            20,
-            20,
+            10,
+            50,
             QtWidgets.QSizePolicy.Minimum,
             QtWidgets.QSizePolicy.Expanding,
         )
 
         self.GainLabel = QtWidgets.QLabel("Gain", parent=self)
+        self.GainLabel.setMaximumWidth(100)
         self.GainSpinBox = QtWidgets.QDoubleSpinBox(parent=self)
         self.GainSpinBox.setRange(0.0, 5.0)
         self.GainSpinBox.setSingleStep(0.1)
@@ -53,6 +54,7 @@ class TrimInfoWidget(QtWidgets.QWidget):
         self.GainSpinBox.setMaximumWidth(50)
 
         self.DryRunLabel = QtWidgets.QLabel("Dry Run", parent=self)
+        self.DryRunLabel.setMaximumWidth(100)
         self.DryRunCheckBox = QtWidgets.QCheckBox(parent=self)
 
         grid_layout = QtWidgets.QGridLayout(self)
@@ -63,7 +65,7 @@ class TrimInfoWidget(QtWidgets.QWidget):
         grid_layout.addWidget(self.LastTrimLineValue, 1, 1)
         grid_layout.addWidget(self.LastCommentLabel, 2, 0)
         grid_layout.addWidget(self.LastCommentLineValue, 2, 1)
-        grid_layout.addItem(spacer, 3, 0, 2, 0)
+        grid_layout.addItem(spacer, 3, 0, 1, 0)
         grid_layout.addWidget(self.GainLabel, 4, 0)
         grid_layout.addWidget(self.GainSpinBox, 4, 1)
         grid_layout.addWidget(self.DryRunLabel, 5, 0)
