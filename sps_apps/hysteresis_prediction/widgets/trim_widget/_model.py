@@ -321,10 +321,11 @@ class TrimModel(QtCore.QObject):
     @gain.setter
     def gain(self, value: float) -> None:
         if value > 1.0:
-            log.warning(f"Gain {value} > 1.0, this may cause instability.")
+            log.warning(f"Gain {value:.2f} > 1.0, this may cause instability.")
         elif value < 0.0:
-            raise ValueError(f"Gain {value} < 0.0, this is not allowed.")
+            raise ValueError(f"Gain {value:.2f} < 0.0, this is not allowed.")
 
+        log.debug(f"Setting gain to {value:.2f} for selector {self.selector}.")
         self._gain = value
 
     def set_gain(self, value: float) -> None:
@@ -341,6 +342,7 @@ class TrimModel(QtCore.QObject):
 
     @dry_run.setter
     def dry_run(self, value: bool) -> None:
+        log.debug(f"Setting dry run to {value} for selector {self.selector}.")
         self._dry_run = value
 
     def set_dry_run(self, value: bool) -> None:
@@ -378,9 +380,6 @@ def match_array_size(
         # upsample LSA trim to match prediction, keep BP edges
         new_x = np.concatenate((new_correction[0], current_correction[0]))
         new_x = np.sort(np.unique(new_x))
-        log.debug(f"New x: {new_x}")
-        log.debug(f"Old x (current correctoion): {current_correction[0]}")
-        log.debug(f"Old x (new correction): {new_correction[0]}")
         current_correction = (
             new_x,
             np.interp(
@@ -409,7 +408,6 @@ def match_array_size(
     else:
         new_x = np.concatenate((new_correction[0], current_correction[0]))
         new_x = np.sort(np.unique(new_x))
-        log.debug(f"New x: {new_x}")
         current_correction = (
             new_x,
             np.interp(

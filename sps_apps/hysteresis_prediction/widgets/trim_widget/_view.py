@@ -20,6 +20,8 @@ from ._model import TrimModel
 
 
 class TrimInfoWidget(QtWidgets.QWidget):
+    DryRunChanged = QtCore.Signal(bool)
+
     def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent=parent)
 
@@ -35,6 +37,24 @@ class TrimInfoWidget(QtWidgets.QWidget):
         self.LastCommentLineValue = QtWidgets.QLabel("N/A", parent=self)
         self.LastCommentLineValue.setWordWrap(True)
 
+        # vertical spacer
+        spacer = QtWidgets.QSpacerItem(
+            20,
+            20,
+            QtWidgets.QSizePolicy.Minimum,
+            QtWidgets.QSizePolicy.Expanding,
+        )
+
+        self.GainLabel = QtWidgets.QLabel("Gain", parent=self)
+        self.GainSpinBox = QtWidgets.QDoubleSpinBox(parent=self)
+        self.GainSpinBox.setRange(0.0, 5.0)
+        self.GainSpinBox.setSingleStep(0.1)
+        self.GainSpinBox.setValue(1.0)
+        self.GainSpinBox.setMaximumWidth(50)
+
+        self.DryRunLabel = QtWidgets.QLabel("Dry Run", parent=self)
+        self.DryRunCheckBox = QtWidgets.QCheckBox(parent=self)
+
         grid_layout = QtWidgets.QGridLayout(self)
         self.setLayout(grid_layout)
         grid_layout.addWidget(self.LsaServerLabel, 0, 0)
@@ -43,6 +63,14 @@ class TrimInfoWidget(QtWidgets.QWidget):
         grid_layout.addWidget(self.LastTrimLineValue, 1, 1)
         grid_layout.addWidget(self.LastCommentLabel, 2, 0)
         grid_layout.addWidget(self.LastCommentLineValue, 2, 1)
+        grid_layout.addItem(spacer, 3, 0, 2, 0)
+        grid_layout.addWidget(self.GainLabel, 4, 0)
+        grid_layout.addWidget(self.GainSpinBox, 4, 1)
+        grid_layout.addWidget(self.DryRunLabel, 5, 0)
+        grid_layout.addWidget(self.DryRunCheckBox, 5, 1)
+
+        self.DryRunCheckBox.stateChanged.connect(self.on_dry_run_changed)
+        self.GainSpinBox.valueChanged.connect(self.on_gain_changed)
 
     def on_trim_applied(
         self, _: typing.Any, trim_time: datetime.datetime, trim_comment: str
@@ -51,6 +79,18 @@ class TrimInfoWidget(QtWidgets.QWidget):
             trim_time.strftime("%Y%m%d-%H:%M:%S:%f")[:-4]
         )
         self.LastCommentLineValue.setText(trim_comment)
+
+    @QtCore.Slot(int)
+    def on_dry_run_changed(self, state: QtCore.Qt.CheckState) -> None:
+        value = state == QtCore.Qt.Checked
+        self.DryRunChanged.emit(value)
+
+    @QtCore.Slot(float)
+    def on_gain_changed(self, value: float) -> None:
+        if value <= 1.0:
+            self.GainSpinBox.setSingleStep(0.02)
+        else:
+            self.GainSpinBox.setSingleStep(0.2)
 
 
 class TrimWidgetView(QtWidgets.QWidget):
@@ -138,6 +178,9 @@ class TrimWidgetView(QtWidgets.QWidget):
         self.toggle_button.state1Activated.connect(model.enable_trim)
         self.toggle_button.state2Activated.connect(model.disable_trim)
 
+        self.TrimInfoWidget.DryRunChanged.connect(model.set_dry_run)
+        self.TrimInfoWidget.GainSpinBox.valueChanged.connect(model.set_gain)
+
     def _disconnect_model(self, model: TrimModel) -> None:
         model.trimApplied.disconnect(self.TrimInfoWidget.on_trim_applied)
         model.trimApplied.disconnect(self._on_trim_applied)
@@ -145,6 +188,10 @@ class TrimWidgetView(QtWidgets.QWidget):
         self.toggle_button.state1Activated.disconnect(model.enable_trim)
         self.toggle_button.state2Activated.disconnect(model.disable_trim)
         self.toggle_button.setEnabled(False)
+
+        self.TrimInfoWidget.DryRunChanged.disconnect(model.set_dry_run)
+
+        self.TrimInfoWidget.GainSpinBox.valueChanged.disconnect(model.set_gain)
 
     def _on_trim_applied(
         self,
