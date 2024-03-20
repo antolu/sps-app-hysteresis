@@ -39,6 +39,7 @@ class TrimInfoWidget(QtWidgets.QWidget):
 
         self.BeamInLabel = QtWidgets.QLabel("Beam In", parent=self)
         self.BeamInLineValue = QtWidgets.QLabel("N/A", parent=self)
+        self.BeamInLineValue.setMinimumWidth(120)
 
         # vertical spacer
         spacer = QtWidgets.QSpacerItem(
