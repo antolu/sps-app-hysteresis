@@ -15,7 +15,6 @@ from pyda.data import DiscreteFunction
 from pyda_japc import JapcProvider
 from pyda_lsa import LsaCycleContext, LsaEndpoint, LsaProvider
 from qtpy import QtCore
-from transformertf.utils import signal
 
 from ...data import CycleData
 from ...utils import ThreadWorker, time_execution
@@ -116,7 +115,7 @@ class TrimModel(QtCore.QObject):
         field_ref = self._reference_fields[prediction.cycle]
 
         # calc delta and smooth it
-        correction = prediction.field_pred[1, :] - field_ref[1, :]
+        correction = field_ref[1, :] - prediction.field_pred[1, :]
 
         time_margin = (prediction.cycle_time - datetime.now()).total_seconds()
         if time_margin < 1.0:
@@ -130,10 +129,11 @@ class TrimModel(QtCore.QObject):
         time_axis = (
             prediction.field_pred[0, :] - prediction.field_pred[0, 0]
         ) * 1e3
-        correction = np.stack((time_axis, correction), axis=0)
 
         # trim in a new thread
-        worker = ThreadWorker(self.apply_correction, correction, prediction)
+        worker = ThreadWorker(
+            self.apply_correction, time_axis, correction, prediction
+        )
         worker.exception.connect(
             lambda e: log.exception("Failed to apply trim to LSA.:\n" + str(e))
         )
@@ -176,7 +176,7 @@ class TrimModel(QtCore.QObject):
                 f"[{cycle_data}] Sending trims to LSA with {time_axis.size} points."
             )
 
-            if self.dry_run:
+            if not self.dry_run:
                 with time_execution() as trim_time:
                     trim_time_d = self.send_trim(
                         time_axis, correction, comment
@@ -219,7 +219,7 @@ class TrimModel(QtCore.QObject):
         )
 
         # calculate correction
-        new_correction = (current_correction - new_correction).astype(
+        new_correction = (current_correction + new_correction).astype(
             np.float64
         )
 
@@ -232,9 +232,9 @@ class TrimModel(QtCore.QObject):
         new_correction *= self.gain
 
         # smooth the correction
-        new_correction = signal.perona_malik_smooth(
-            new_correction, 10.0, 5e-2, 2.0
-        )
+        # new_correction = signal.perona_malik_smooth(
+        #     new_correction, 10.0, 5e-2, 2.0
+        # )
 
         new_correction = truncate_correction(
             new_correction, (TRIM_SOFT_THRESHOLD, TRIM_THRESHOLD)
