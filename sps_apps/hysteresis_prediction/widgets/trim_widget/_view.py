@@ -37,6 +37,9 @@ class TrimInfoWidget(QtWidgets.QWidget):
         self.LastCommentLineValue = QtWidgets.QLabel("N/A", parent=self)
         self.LastCommentLineValue.setWordWrap(True)
 
+        self.BeamInLabel = QtWidgets.QLabel("Beam In", parent=self)
+        self.BeamInLineValue = QtWidgets.QLabel("N/A", parent=self)
+
         # vertical spacer
         spacer = QtWidgets.QSpacerItem(
             10,
@@ -46,7 +49,6 @@ class TrimInfoWidget(QtWidgets.QWidget):
         )
 
         self.GainLabel = QtWidgets.QLabel("Gain", parent=self)
-        self.GainLabel.setMaximumWidth(100)
         self.GainSpinBox = QtWidgets.QDoubleSpinBox(parent=self)
         self.GainSpinBox.setRange(0.0, 5.0)
         self.GainSpinBox.setSingleStep(0.1)
@@ -54,7 +56,6 @@ class TrimInfoWidget(QtWidgets.QWidget):
         self.GainSpinBox.setMaximumWidth(50)
 
         self.DryRunLabel = QtWidgets.QLabel("Dry Run", parent=self)
-        self.DryRunLabel.setMaximumWidth(100)
         self.DryRunCheckBox = QtWidgets.QCheckBox(parent=self)
 
         grid_layout = QtWidgets.QGridLayout(self)
@@ -65,11 +66,13 @@ class TrimInfoWidget(QtWidgets.QWidget):
         grid_layout.addWidget(self.LastTrimLineValue, 1, 1)
         grid_layout.addWidget(self.LastCommentLabel, 2, 0)
         grid_layout.addWidget(self.LastCommentLineValue, 2, 1)
-        grid_layout.addItem(spacer, 3, 0, 1, 0)
-        grid_layout.addWidget(self.GainLabel, 4, 0)
-        grid_layout.addWidget(self.GainSpinBox, 4, 1)
-        grid_layout.addWidget(self.DryRunLabel, 5, 0)
-        grid_layout.addWidget(self.DryRunCheckBox, 5, 1)
+        grid_layout.addWidget(self.BeamInLabel, 3, 0)
+        grid_layout.addWidget(self.BeamInLineValue, 3, 1)
+        grid_layout.addItem(spacer, 4, 0, 1, 1)
+        grid_layout.addWidget(self.GainLabel, 5, 0)
+        grid_layout.addWidget(self.GainSpinBox, 5, 1)
+        grid_layout.addWidget(self.DryRunLabel, 6, 0)
+        grid_layout.addWidget(self.DryRunCheckBox, 6, 1)
 
         self.DryRunCheckBox.stateChanged.connect(self.on_dry_run_changed)
         self.GainSpinBox.valueChanged.connect(self.on_gain_changed)
@@ -93,6 +96,9 @@ class TrimInfoWidget(QtWidgets.QWidget):
             self.GainSpinBox.setSingleStep(0.02)
         else:
             self.GainSpinBox.setSingleStep(0.2)
+
+    def on_new_beam_in_time(self, beam_in: int, beam_out: int) -> None:
+        self.BeamInLineValue.setText(f"C{beam_in} - C{beam_out}")
 
 
 class TrimWidgetView(QtWidgets.QWidget):
@@ -123,6 +129,7 @@ class TrimWidgetView(QtWidgets.QWidget):
         self.left_frame = QtWidgets.QFrame(parent=self)
         self.left_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.left_frame.setLayout(QtWidgets.QVBoxLayout(self.left_frame))
+        self.left_frame.layout().setAlignment(QtCore.Qt.AlignLeft)
         self.left_frame.layout().addWidget(self.LsaSelector)
         self.left_frame.layout().addWidget(self.TrimInfoWidget)
         self.left_frame.layout().addWidget(self.toggle_button)
@@ -176,6 +183,7 @@ class TrimWidgetView(QtWidgets.QWidget):
     def _connect_model(self, model: TrimModel) -> None:
         model.trimApplied.connect(self.TrimInfoWidget.on_trim_applied)
         model.trimApplied.connect(self._on_trim_applied)
+        model.beamInRetrieved.connect(self.TrimInfoWidget.on_new_beam_in_time)
 
         self.toggle_button.state1Activated.connect(model.enable_trim)
         self.toggle_button.state2Activated.connect(model.disable_trim)
@@ -186,6 +194,9 @@ class TrimWidgetView(QtWidgets.QWidget):
     def _disconnect_model(self, model: TrimModel) -> None:
         model.trimApplied.disconnect(self.TrimInfoWidget.on_trim_applied)
         model.trimApplied.disconnect(self._on_trim_applied)
+        model.beamInRetrieved.disconnect(
+            self.TrimInfoWidget.on_new_beam_in_time
+        )
 
         self.toggle_button.state1Activated.disconnect(model.enable_trim)
         self.toggle_button.state2Activated.disconnect(model.disable_trim)

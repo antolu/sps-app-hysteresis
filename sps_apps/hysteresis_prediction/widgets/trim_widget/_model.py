@@ -38,6 +38,9 @@ class TrimModel(QtCore.QObject):
     trimApplied = QtCore.Signal(tuple, datetime, str)
     """ Signal emitted when a trim has been applied. (corr_x, corr_y), time, comment """
 
+    beamInRetrieved = QtCore.Signal(int, int)
+    """ Signal emitted when beam in/out has been retrieved. (beam_in, beam_out) """
+
     def __init__(self, parent: QtCore.QObject | None = None):
         """
         The TrimModel is responsible for the logic of the TrimWidget.
@@ -313,6 +316,7 @@ class TrimModel(QtCore.QObject):
         self._selector = value
 
         log.info(f"Setting beam in/out to C{self._beam_in}/C{self._beam_out}.")
+        self.beamInRetrieved.emit(self._beam_in, self._beam_out)
 
     @property
     def gain(self) -> float:
