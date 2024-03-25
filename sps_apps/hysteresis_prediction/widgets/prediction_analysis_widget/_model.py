@@ -12,7 +12,7 @@ import pyda_japc
 from qtpy import QtCore
 
 from ...data import CycleData
-from ._dataclass import DiffPlotMode
+from ._dataclass import DiffPlotMode, MeasPlotMode
 from ._list_model import PredictionListModel
 from ._plot_model import PredictionPlotModel
 
@@ -48,7 +48,7 @@ class PredictionAnalysisModel(QtCore.QObject):
     diffPlotModeChanged = QtCore.Signal(DiffPlotMode)
     """ Triggered when the diff plot mode changes """
 
-    measPlotModeChanged = QtCore.Signal(DiffPlotMode)
+    measPlotModeChanged = QtCore.Signal(MeasPlotMode)
     """ Triggered when the meas plot mode changes """
 
     def __init__(
@@ -77,7 +77,8 @@ class PredictionAnalysisModel(QtCore.QObject):
         self.newData.connect(self._on_new_data_received)
         self.superCycleChanged.connect(self._on_supercycle_changed)
         self.diffPlotModeChanged.connect(self._on_plot_mode_changed)
-        self.list_model.itemRemoved.connect(self.plot_model.removePlot.emit)
+        self.measPlotModeChanged.connect(self._on_plot_mode_changed)
+        self.list_model.itemRemoved.connect(self.plot_model.remove_cycle)
         self.list_model.modelReset.connect(self.plot_model.remove_all)
 
         self._da = pyda.SimpleClient(provider=pyda_japc.JapcProvider())
@@ -211,7 +212,7 @@ class PredictionAnalysisModel(QtCore.QObject):
     def item_clicked(self, index: QtCore.QModelIndex) -> None:
         item = self._list_model.itemAt(index)
         if item.is_shown:
-            self._plot_model.remove_cycle.emit(item)
+            self._plot_model.remove_cycle(item)
         else:
             self._plot_model.show_cycle(item)
 

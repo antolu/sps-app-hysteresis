@@ -110,13 +110,6 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
 
         self.spinBoxNumPredictions.setMaximum(20)
 
-        self.plotDiffWidget.addItem(
-            pg.InfiniteLine(
-                pos=None, angle=0, pen=pg.mkPen(style=QtCore.Qt.DashLine)
-            )
-        )
-        self.buttonReference.hide()
-
         self._model: PredictionAnalysisModel | None = None
         self.model = model or PredictionAnalysisModel()
 
@@ -158,14 +151,21 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         The widgets for measured values can show raw values or downsampled.
         """
         self.plotDiffWidget.setLabel("left", "E-4 T")
+        self.plotDiffWidget.setTitle("Difference [T]")
         self.plotDiffWidget.vb.setYRange(-10, 10)
 
+        self.plotPredWidget.setLabel("left", "T")
+        self.plotPredWidget.setTitle("Predicted field [T]")
         self.plotPredWidget.vb.setXLink(self.plotDiffWidget.vb)
         self.plotPredWidget.vb.setYRange(0.0, 2.1)
 
+        self.plotIMeasWidget.setLabel("left", "A")
+        self.plotIMeasWidget.setTitle("Measured current [A]")
         self.plotIMeasWidget.vb.setXLink(self.plotDiffWidget.vb)
         self.plotIMeasWidget.vb.setYRange(0.0, 6000)
 
+        self.plotBMeasWidget.setLabel("left", "T")
+        self.plotBMeasWidget.setTitle("Measured field [T]")
         self.plotBMeasWidget.vb.setXLink(self.plotDiffWidget.vb)
         self.plotBMeasWidget.vb.setYRange(0.0, 2.1)
 
@@ -175,6 +175,12 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.widget.addItem(self.plotPredWidget, row=0, col=1)
         self.widget.addItem(self.plotIMeasWidget, row=1, col=0)
         self.widget.addItem(self.plotBMeasWidget, row=1, col=1)
+
+        self.plotDiffWidget.addItem(
+            pg.InfiniteLine(
+                pos=None, angle=0, pen=pg.mkPen(style=QtCore.Qt.DashLine)
+            )
+        )
 
     def _connect_slots(self) -> None:
         self.checkBox.stateChanged.connect(self.spinBoxSCPatience.setEnabled)
@@ -233,16 +239,16 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
                 model.diffPlotModeChanged.emit(DiffPlotMode.PredVsRef)
 
         self.radioPredVPred.clicked.connect(on_diff_radio_changed)
-        self.radioMeasVMeas.clicked.connect(on_diff_radio_changed)
+        self.radioPredVMeas.clicked.connect(on_diff_radio_changed)
         self.radioPredVRef.clicked.connect(on_diff_radio_changed)
 
         def on_meas_radio_changed(*_: typing.Any) -> None:
-            if self.radioRawMeas.isChecked():
+            if self.radioMeas.isChecked():
                 model.measPlotModeChanged.emit(MeasPlotMode.RawMeas)
             elif self.radioDownsampledMeas.isChecked():
                 model.measPlotModeChanged.emit(MeasPlotMode.DownsampledMeas)
 
-        self.radioRawMeas.clicked.connect(on_meas_radio_changed)
+        self.radioMeas.clicked.connect(on_meas_radio_changed)
         self.radioDownsampledMeas.clicked.connect(on_meas_radio_changed)
 
         self.actionClear_Buffer.triggered.connect(model.clear)

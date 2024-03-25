@@ -338,16 +338,19 @@
              <number>0</number>
             </property>
             <item>
-             <widget class="QRadioButton" name="radioButtonDownsampled">
+             <widget class="QRadioButton" name="radioMeas">
               <property name="text">
-               <string>Downsampled</string>
+               <string>Raw measured</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QRadioButton" name="radioButtonMeasured">
+             <widget class="QRadioButton" name="radioDownsampledMeas">
               <property name="text">
-               <string>Raw measured</string>
+               <string>Downsampled</string>
               </property>
              </widget>
             </item>
@@ -373,7 +376,7 @@
          <item>
           <widget class="QPushButton" name="buttonReference">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
            </property>
            <property name="text">
             <string>Select Reference</string>

@@ -68,6 +68,7 @@ class PredictionPlotModel(QtCore.QObject):
             return
 
         color = item.color or self._color_pool.get_color()
+        item.color = color
 
         try:
             x, y = _make_diff_curve(
@@ -125,7 +126,9 @@ class PredictionPlotModel(QtCore.QObject):
             return
 
         try:
-            x, y = self._make_diff_curve(item)
+            x, y = _make_diff_curve(
+                item, self._reference, self._diff_plot_mode
+            )
 
             # only add if not already plotted
             if item.diff_plot_item is None:
@@ -138,6 +141,7 @@ class PredictionPlotModel(QtCore.QObject):
             else:
                 _update_curve(x, y, item.diff_plot_item)
         except ValueError:  # missing reference
+            log.exception("Reference not set, not updating main plot.")
             log.debug("Reference not set, not updating main plot.")
 
     @QtCore.Slot(PredictionItem)
@@ -243,7 +247,7 @@ class PredictionPlotModel(QtCore.QObject):
 
         self._reference = item
 
-        if current_reference is not None:
+        if current_reference is item:
             self.update_all_diff()
 
     def set_plot_mode(self, mode: DiffPlotMode | MeasPlotMode) -> None:
@@ -353,9 +357,11 @@ def make_pred_vs_pred(
     assert cycle_data.field_pred is not None
     y = cycle_data.field_pred[1, :]
 
-    x = np.arange(0, cycle_data.num_samples, cycle_data.num_samples // y.size)
+    time_axis = _make_time_axis(cycle_data)
+    x = time_axis[:: calc_downsample(time_axis, y)]
+    y = np.interp(time_axis, x, y)
 
-    return x, y
+    return time_axis, y
 
 
 def make_meas_vs_meas(
@@ -378,12 +384,14 @@ def make_pred_vs_meas(
     field_pred = cycle_data.field_pred[1, :]
     field_meas = cycle_data.field_meas
 
-    downsample = calc_downsample(field_pred, field_meas)
+    downsample = calc_downsample(field_meas, field_pred)
 
-    y = calc_abs_diff(field_meas[::downsample], field_pred) * 1e4
-    x = _make_time_axis(cycle_data)[::downsample]
+    time_axis = _make_time_axis(cycle_data)
+    time_axis_downsampled = time_axis[::downsample]
+    field_pred = np.interp(time_axis, time_axis_downsampled, field_pred)
+    y = calc_abs_diff(field_meas, field_pred) * 1e4
 
-    return x, y
+    return time_axis, y
 
 
 def make_pred_vs_ref(
@@ -396,10 +404,11 @@ def make_pred_vs_ref(
     field_pred = cycle_data.field_pred[1, :]
     field_ref = reference.field_pred[1, :]
 
+    time_axis = _make_time_axis(cycle_data)
     y = calc_abs_diff(field_ref, field_pred) * 1e4
-    x = _make_time_axis(cycle_data)[:: calc_downsample(field_ref, field_pred)]
+    x = time_axis[:: calc_downsample(time_axis, field_pred)]
 
-    return x, y
+    return time_axis, np.interp(time_axis, x, y)
 
 
 def make_meas_vs_ref(
@@ -437,20 +446,23 @@ def _make_diff_curve(
     :raises ValueError: If the plot mode or reference is not set.
     """
     log.debug(
-        "Creating/updating plot for cycle " f"{item.cycle_data.cycle_time}"
+        "Creating/updating plot for cycle "
+        f"{item.cycle_data.cycle_time}"
+        " with mode "
+        f"{diff_mode.name}"
     )
     cycle_data = item.cycle_data
 
-    if diff_mode == DiffPlotMode.PredVsPred:
+    if diff_mode is DiffPlotMode.PredVsPred:
         return make_pred_vs_pred(cycle_data)
-    elif diff_mode == DiffPlotMode.PredVsMeas:
+    elif diff_mode is DiffPlotMode.PredVsMeas:
         return make_pred_vs_meas(cycle_data)
-    elif diff_mode == DiffPlotMode.PredVsRef:
+    elif diff_mode is DiffPlotMode.PredVsRef:
         if reference is None:
             raise ValueError("No reference set.")
         return make_pred_vs_ref(cycle_data, reference.cycle_data)
     else:
-        raise ValueError(f"Invalid plot mode {diff_mode.name}")
+        raise TypeError(f"Invalid plot mode {diff_mode}")
 
 
 def _make_pred_curve(item: PredictionItem) -> tuple[np.ndarray, np.ndarray]:
@@ -466,10 +478,11 @@ def _make_pred_curve(item: PredictionItem) -> tuple[np.ndarray, np.ndarray]:
 
     time_axis = _make_time_axis(item)
     field_pred = data.field_pred[1, :]
+    x = time_axis[:: calc_downsample(time_axis, data.field_pred[1, :])]
 
-    x = time_axis[:: calc_downsample(time_axis, field_pred)]
+    field_pred = np.interp(time_axis, x, field_pred)
 
-    return x, field_pred
+    return time_axis, field_pred
 
 
 def _make_curve_item(
@@ -511,7 +524,7 @@ def _update_curve(
     :param y: The y data.
     :param curve: The curve to update.
     """
-    curve.updateData(x=x, y=y)
+    curve.setData(x=x, y=y)
 
 
 def _make_time_axis(item: PredictionItem | CycleData) -> np.ndarray:
