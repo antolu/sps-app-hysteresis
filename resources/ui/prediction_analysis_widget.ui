@@ -231,26 +231,6 @@
        </spacer>
       </item>
       <item row="2" column="0" colspan="2">
-       <widget class="QPushButton" name="buttonZoomFT">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Zoom Flat Top</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0" colspan="2">
-       <widget class="QPushButton" name="buttonZoomFB">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Zoom Flat Bottom</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="0" colspan="2">
        <widget class="QPushButton" name="buttonZoomBI">
         <property name="enabled">
          <bool>true</bool>
