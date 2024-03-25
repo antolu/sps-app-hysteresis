@@ -20,7 +20,8 @@ from ...generated.prediction_analysis_widget_ui import (
 from ...generated.reference_selector_dialog_ui import (
     Ui_ReferenceSelectorDialog,
 )
-from ._model import PlotMode, PredictionAnalysisModel
+from ._model import PredictionAnalysisModel
+from ._dataclass import Plot, DiffPlotMode, MeasPlotMode
 
 log = logging.getLogger(__name__)
 
@@ -80,30 +81,13 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         super().__init__(parent=parent)
         self.setupUi(self)
 
-        selector_model = lsa_selector.LsaSelectorModel(
-            accelerator=lsa_selector.LsaSelectorAccelerator.SPS,
-            lsa=context.lsa_client,
-            categories={
-                lsa_selector.AbstractLsaSelectorContext.Category.MD,
-                lsa_selector.AbstractLsaSelectorContext.Category.OPERATIONAL,
-            },
-        )
-        self.LsaSelector = lsa_selector.LsaSelector(
-            model=selector_model, parent=parent
-        )
-        self.frame.layout().replaceWidget(self._LsaSelector, self.LsaSelector)
-        self._LsaSelector.deleteLater()
+        self.LsaSelector = self._setup_lsa_selector()
 
         self.plotPredWidget = pg.PlotItem()
         self.plotDiffWidget = pg.PlotItem()
-        # self.plotPredWidget.setBackgroundColor("w")  # type: ignore
-        # self.plotDiffWidget.setBackgroundColor("w")  # type: ignore
-        self.plotDiffWidget.setLabel("left", "E-4 T")
-        self.plotDiffWidget.setMinimumHeight(100)
-        self.plotDiffWidget.setMaximumHeight(300)
-        self.plotDiffWidget.vb.setYRange(-10, 10)
-        self.plotPredWidget.vb.setXLink(self.plotDiffWidget.vb)
-        self.widget.setBackground("w")
+        self.plotIMeasWidget = pg.PlotItem()
+        self.plotBMeasWidget = pg.PlotItem()
+        self._setup_plots()
 
         self.menubar = QtWidgets.QMenuBar(self)
         self.horizontalLayout.setMenuBar(self.menubar)
@@ -122,9 +106,6 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.actionResetAxes.setText("&Reset Axes")
         view_menu.addAction(self.actionResetAxes)
 
-        self.widget.addItem(self.plotDiffWidget, row=0, col=0)
-        self.widget.addItem(self.plotPredWidget, row=1, col=0, rowspan=3)
-
         self.buttonStartStop.initializeState("Start", "Stop")
 
         self.spinBoxNumPredictions.setMaximum(20)
@@ -134,8 +115,6 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
                 pos=None, angle=0, pen=pg.mkPen(style=QtCore.Qt.DashLine)
             )
         )
-        self.buttonZoomFB.setEnabled(True)
-        self.buttonZoomFT.setEnabled(True)
         self.buttonReference.hide()
 
         self._model: PredictionAnalysisModel | None = None
@@ -143,30 +122,61 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
 
         self._connect_slots()
 
+    def _setup_lsa_selector(self) -> lsa_selector.LsaSelector:
+        selector_model = lsa_selector.LsaSelectorModel(
+            accelerator=lsa_selector.LsaSelectorAccelerator.SPS,
+            lsa=context.lsa_client,
+            categories={
+                lsa_selector.AbstractLsaSelectorContext.Category.MD,
+                lsa_selector.AbstractLsaSelectorContext.Category.OPERATIONAL,
+            },
+        )
+        LsaSelector = lsa_selector.LsaSelector(
+            model=selector_model, parent=self
+        )
+        self.frame.layout().replaceWidget(self._LsaSelector, LsaSelector)
+        self._LsaSelector.deleteLater()
+
+        return LsaSelector
+
+    def _setup_plots(self) -> None:
+        """
+        ┌─────────┬──────────┐
+        │  Diff   │  B pred  │
+        │  Widget │  Widget  │
+        ├─────────┼──────────┤
+        │  I meas │  B meas  │
+        │  Widget │  widget  │
+        └─────────┴──────────┘
+
+        All widgets are pg.PlotItem and have shared x-axis.
+
+        The diff widget can switch show difference between
+        predictions and measurements or show the difference
+        between the reference and predictions.
+
+        The widgets for measured values can show raw values or downsampled.
+        """
+        self.plotDiffWidget.setLabel("left", "E-4 T")
+        self.plotDiffWidget.vb.setYRange(-10, 10)
+
+        self.plotPredWidget.vb.setXLink(self.plotDiffWidget.vb)
+        self.plotPredWidget.vb.setYRange(0.0, 2.1)
+
+        self.plotIMeasWidget.vb.setXLink(self.plotDiffWidget.vb)
+        self.plotIMeasWidget.vb.setYRange(0.0, 6000)
+
+        self.plotBMeasWidget.vb.setXLink(self.plotDiffWidget.vb)
+        self.plotBMeasWidget.vb.setYRange(0.0, 2.1)
+
+        self.widget.setBackground("w")
+
+        self.widget.addItem(self.plotDiffWidget, row=0, col=0)
+        self.widget.addItem(self.plotPredWidget, row=0, col=1)
+        self.widget.addItem(self.plotIMeasWidget, row=1, col=0)
+        self.widget.addItem(self.plotBMeasWidget, row=1, col=1)
+
     def _connect_slots(self) -> None:
-        def num_predictions_changed() -> None:
-            num_predictions = self.spinBoxNumPredictions.value()
-            self.model.set_max_buffer_samples(num_predictions)
-
-            self.spinBoxSCPatience.setMaximum(num_predictions)
-            if self.checkBox.isEnabled():
-                self.spinBoxSCPatience.editingFinished.emit()
-
-        self.spinBoxNumPredictions.editingFinished.connect(
-            num_predictions_changed
-        )
-
-        self.spinBoxYMax.valueChanged.connect(
-            lambda value: self.plotPredWidget.setYRange(
-                (self.spinBoxYMin.value(), value)
-            )
-        )
-        self.spinBoxYMin.valueChanged.connect(
-            lambda value: self.plotPredWidget.setYRange(
-                (value, self.spinBoxYMax.value())
-            )
-        )
-
         self.checkBox.stateChanged.connect(self.spinBoxSCPatience.setEnabled)
         self.buttonReference.clicked.connect(self._on_select_new_reference)
 
@@ -214,89 +224,68 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
 
         self.listPredictions.clicked.connect(model.item_clicked)
 
-        def radio_changed(*_: typing.Any) -> None:
-            def _set_mode_reference() -> None:
-                self.buttonReference.setEnabled(True)
-                self.buttonReference.show()
-
-                self.buttonZoomFT.setEnabled(False)
-                self.buttonZoomFB.setEnabled(False)
-                self.buttonZoomFT.hide()
-                self.buttonZoomFB.hide()
-
-            def _set_mode_raw() -> None:
-                self.buttonReference.setEnabled(False)
-                self.buttonReference.hide()
-
-                self.buttonZoomFT.setEnabled(True)
-                self.buttonZoomFB.setEnabled(True)
-                self.buttonZoomFT.show()
-                self.buttonZoomFB.show()
-
+        def on_diff_radio_changed(*_: typing.Any) -> None:
             if self.radioPredVPred.isChecked():
-                model.plotModeChanged.emit(PlotMode.PredVsPred)
-
-                _set_mode_raw()
-            elif self.radioMeasVMeas.isChecked():
-                model.plotModeChanged.emit(PlotMode.MeasVsMeas)
-
-                _set_mode_raw()
+                model.diffPlotModeChanged.emit(DiffPlotMode.PredVsPred)
             elif self.radioPredVMeas.isChecked():
-                model.plotModeChanged.emit(PlotMode.PredVsMeas)
-
-                _set_mode_reference()
+                model.diffPlotModeChanged.emit(DiffPlotMode.PredVsMeas)
             elif self.radioPredVRef.isChecked():
-                model.plotModeChanged.emit(PlotMode.PredVsRef)
+                model.diffPlotModeChanged.emit(DiffPlotMode.PredVsRef)
 
-                _set_mode_reference()
-            else:
-                model.plotModeChanged.emit(PlotMode.MeasVsRef)
-                _set_mode_reference()
+        self.radioPredVPred.clicked.connect(on_diff_radio_changed)
+        self.radioMeasVMeas.clicked.connect(on_diff_radio_changed)
+        self.radioPredVRef.clicked.connect(on_diff_radio_changed)
 
-        self.radioPredVPred.clicked.connect(radio_changed)
-        self.radioMeasVMeas.clicked.connect(radio_changed)
-        self.radioPredVMeas.clicked.connect(radio_changed)
-        self.radioPredVRef.clicked.connect(radio_changed)
-        self.radioMeasVRef.clicked.connect(radio_changed)
+        def on_meas_radio_changed(*_: typing.Any) -> None:
+            if self.radioRawMeas.isChecked():
+                model.measPlotModeChanged.emit(MeasPlotMode.RawMeas)
+            elif self.radioDownsampledMeas.isChecked():
+                model.measPlotModeChanged.emit(MeasPlotMode.DownsampledMeas)
+
+        self.radioRawMeas.clicked.connect(on_meas_radio_changed)
+        self.radioDownsampledMeas.clicked.connect(on_meas_radio_changed)
 
         self.actionClear_Buffer.triggered.connect(model.clear)
 
         self.buttonStartStop.state1Activated.connect(model.disable_acquisition)
         self.buttonStartStop.state2Activated.connect(model.enable_acquisition)
-        self.buttonZoomFT.clicked.connect(model.plot_model.zoomFlatTop.emit)
-        self.buttonZoomFB.clicked.connect(model.plot_model.zoomFlatBottom.emit)
         self.buttonZoomBI.clicked.connect(model.plot_model.zoomBeamIn.emit)
         self.actionResetAxes.triggered.connect(model.plot_model.resetAxes.emit)
 
-        def _enable_spinbox(*_: typing.Any) -> None:
-            self.spinBoxYMin.setEnabled(True)
-            self.spinBoxYMax.setEnabled(True)
+        model.plot_model.plotAdded.connect(self.onPlotAdded)
+        model.plot_model.plotRemoved.connect(self.onPlotRemoved)
 
-        model.plot_model.plotAdded.connect(_enable_spinbox)
-        model.plot_model.plotAdded.connect(self.plotPredWidget.addItem)
-        model.plot_model.plotRemoved.connect(self.plotPredWidget.removeItem)
-        model.plot_model.plotAdded_dpp.connect(self.plotDiffWidget.addItem)
-        model.plot_model.plotRemoved_dpp.connect(
-            self.plotDiffWidget.removeItem
-        )
         model.plot_model.setXRange.connect(
             partial(self.plotPredWidget.vb.setXRange, padding=0)
         )
 
-        def set_y_range(min_: float, max_: float) -> None:
-            self.spinBoxYMin.blockSignals(True)
-            self.spinBoxYMin.setValue(min_)
-            self.spinBoxYMin.blockSignals(False)
-
-            self.spinBoxYMax.blockSignals(True)
-            self.spinBoxYMax.setValue(max_)
-            self.spinBoxYMax.blockSignals(False)
-
-            assert self.plotPredWidget.vb is not None
-            self.plotPredWidget.vb.setYRange(min_, max_)
-
-        model.plot_model.setYRange.connect(set_y_range)
         model.userChanged.connect(self.LsaSelector.select_user)
+
+    @QtCore.Slot(pg.PlotCurveItem, Plot)
+    def onPlotAdded(self, plot: pg.PlotCurveItem, plot_type: Plot) -> None:
+        if plot_type == Plot.Diff:
+            self.plotDiffWidget.addItem(plot)
+        elif plot_type == Plot.Pred:
+            self.plotPredWidget.addItem(plot)
+        elif plot_type == Plot.MeasI:
+            self.plotIMeasWidget.addItem(plot)
+        elif plot_type == Plot.MeasB:
+            self.plotBMeasWidget.addItem(plot)
+        else:
+            raise ValueError(f"Invalid plot type: {plot_type}")
+
+    @QtCore.Slot(pg.PlotCurveItem, Plot)
+    def onPlotRemoved(self, plot: pg.PlotCurveItem, plot_type: Plot) -> None:
+        if plot_type == Plot.Diff:
+            self.plotDiffWidget.removeItem(plot)
+        elif plot_type == Plot.Pred:
+            self.plotPredWidget.removeItem(plot)
+        elif plot_type == Plot.MeasI:
+            self.plotIMeasWidget.removeItem(plot)
+        elif plot_type == Plot.MeasB:
+            self.plotBMeasWidget.removeItem(plot)
+        else:
+            raise ValueError(f"Invalid plot type: {plot_type}")
 
     def _disconnect_model(self, model: PredictionAnalysisModel) -> None:
         raise NotImplementedError("Disconnect model not implemented.")

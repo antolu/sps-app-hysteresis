@@ -217,6 +217,19 @@
       <enum>QFrame::Raised</enum>
      </property>
      <layout class="QGridLayout" name="gridLayout">
+      <item row="0" column="0" colspan="2">
+       <spacer name="verticalSpacer">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>221</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
       <item row="2" column="0" colspan="2">
        <widget class="QPushButton" name="buttonZoomFT">
         <property name="enabled">
@@ -227,10 +240,23 @@
         </property>
        </widget>
       </item>
-      <item row="5" column="0" rowspan="2">
-       <widget class="QLabel" name="labelYAxis">
+      <item row="3" column="0" colspan="2">
+       <widget class="QPushButton" name="buttonZoomFB">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
-         <string>Y-axis</string>
+         <string>Zoom Flat Bottom</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0" colspan="2">
+       <widget class="QPushButton" name="buttonZoomBI">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="text">
+         <string>Zoom Beam In</string>
         </property>
        </widget>
       </item>
@@ -266,41 +292,86 @@
           </widget>
          </item>
          <item>
-          <widget class="QRadioButton" name="radioPredVPred">
-           <property name="text">
-            <string>Pred. vs. Pred.</string>
+          <widget class="QGroupBox" name="groupBoxDiff">
+           <property name="title">
+            <string>Diff plot</string>
            </property>
-           <property name="checked">
-            <bool>true</bool>
-           </property>
+           <layout class="QVBoxLayout" name="verticalLayout_5">
+            <property name="spacing">
+             <number>0</number>
+            </property>
+            <property name="leftMargin">
+             <number>4</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>4</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QRadioButton" name="radioPredVPred">
+              <property name="text">
+               <string>Pred. vs. Pred.</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QRadioButton" name="radioPredVRef">
+              <property name="text">
+               <string>Pred vs. Ref.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QRadioButton" name="radioPredVMeas">
+              <property name="text">
+               <string>Pred. vs. Meas.</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </widget>
          </item>
          <item>
-          <widget class="QRadioButton" name="radioMeasVMeas">
-           <property name="text">
-            <string>Meas. vs. Meas.</string>
+          <widget class="QGroupBox" name="groupBoxMeasured">
+           <property name="title">
+            <string>Current &amp;&amp; Field</string>
            </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QRadioButton" name="radioPredVMeas">
-           <property name="text">
-            <string>Pred. vs. Meas.</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QRadioButton" name="radioPredVRef">
-           <property name="text">
-            <string>Pred vs. Ref.</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QRadioButton" name="radioMeasVRef">
-           <property name="text">
-            <string>Meas vs. Ref.</string>
-           </property>
+           <layout class="QVBoxLayout" name="verticalLayout_6">
+            <property name="leftMargin">
+             <number>4</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>4</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QRadioButton" name="radioButtonDownsampled">
+              <property name="text">
+               <string>Downsampled</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QRadioButton" name="radioButtonMeasured">
+              <property name="text">
+               <string>Raw measured</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </widget>
          </item>
          <item>
@@ -330,53 +401,6 @@
           </widget>
          </item>
         </layout>
-       </widget>
-      </item>
-      <item row="3" column="0" colspan="2">
-       <widget class="QPushButton" name="buttonZoomFB">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Zoom Flat Bottom</string>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="1">
-       <widget class="QDoubleSpinBox" name="spinBoxYMin">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0" colspan="2">
-       <spacer name="verticalSpacer">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>221</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item row="5" column="1">
-       <widget class="QDoubleSpinBox" name="spinBoxYMax">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="0" colspan="2">
-       <widget class="QPushButton" name="buttonZoomBI">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="text">
-         <string>Zoom Beam In</string>
-        </property>
        </widget>
       </item>
      </layout>
