@@ -57,6 +57,7 @@ class BufferData(Enum):
     PROG_I = "programmed_I"
     PROG_B = "programmed_B"
     REF_B = "reference_B"
+    CORR_B = "correction_B"
 
 
 class BufferSignal(Enum):
@@ -87,6 +88,7 @@ class AcquisitionBuffer:
         self._i_ref: dict[str, np.ndarray] = {}
         self._b_meas: dict[str, np.ndarray] = {}
         self._b_ref: dict[str, np.ndarray] = {}
+        self._corr_b: dict[str, np.ndarray] = {}
 
         self._i_prog: dict[str, np.ndarray] = {}
         self._b_prog: dict[str, np.ndarray] = {}
@@ -115,6 +117,7 @@ class AcquisitionBuffer:
             BufferData.PROG_I: self._new_programmed_I,
             BufferData.PROG_B: self._new_programmed_B,
             BufferData.REF_B: self._new_reference_B,
+            BufferData.CORR_B: self._new_correction_B,
         }
 
         self._SIGNAL_MAP: dict[
@@ -352,6 +355,7 @@ class AcquisitionBuffer:
                         )
                         raise InsufficientDataError(msg)
                     cycle_data.current_input = self._i_ref[cycle_data.cycle]
+                    cycle_data.correction = self._corr_b[cycle_data.cycle]
 
                     if cycle_data.field_meas is None:
                         log_cycle(
@@ -539,6 +543,33 @@ class AcquisitionBuffer:
             cycle_data.field_meas = value
 
         self._check_move_to_buffer(cycle_data)
+
+    def _new_correction_B(
+        self,
+        cycle: str,
+        cycle_timestamp: Union[int, float],
+        value: pyda.data.DiscreteFunction,
+    ) -> None:
+        array = np.stack([value.xs * 1e3, value.ys], axis=0)
+
+        log_cycle("Buffer received new correction B.", cycle, cycle_timestamp)
+
+        if cycle_timestamp not in self._cycles_next_index:
+            log_cycle(
+                "NEXT buffered cycle data not found.", cycle, cycle_timestamp
+            )
+            return
+
+        with self._lock:
+            cycle_data = self._cycles_next_index[cycle_timestamp]
+            cycle_data.correction = array
+
+            log_cycle(
+                "Setting correction B for cycle data in NEXT buffer and saving as reference.",
+                cycle,
+                cycle_timestamp,
+            )
+            self._corr_b[cycle] = array
 
     def _new_programmed_I(
         self,

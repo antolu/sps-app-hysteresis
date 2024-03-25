@@ -15,7 +15,10 @@ from threading import Thread
 from typing import Callable, Iterable, Optional, Union
 
 import pyda._metadata
+import pyda.data
 import pyda.providers
+import pyda_lsa
+from op_app_context import context
 from pyda import AsyncIOClient, SimpleClient
 from pyda.clients.asyncio import AsyncIOSubscription
 from pyda.data import PropertyRetrievalResponse
@@ -42,6 +45,7 @@ __all__ = ["Acquisition"]
 DEV_LSA_B = "rmi://virtual_sps/SPSBEAM/B"
 DEV_LSA_BDOT = "rmi://virtual_sps/SPSBEAM/BDOT"
 DEV_LSA_I = "MBI/REF.TABLE.FUNC.VALUE"
+DEV_LSA_BHYS_CORRECTION = "SPSBEAM/BHYS@correction"
 
 DEV_MEAS_I = "MBI/LOG.I.MEAS"
 DEV_MEAS_B = "SR.BMEAS-SP-B-SD/CycleSamples#samples"
@@ -57,6 +61,7 @@ ENDPOINT2BF = {
     DEV_MEAS_B: BufferData.MEAS_B,
     DEV_LSA_I: BufferData.PROG_I,
     DEV_LSA_B: BufferData.PROG_B,
+    DEV_LSA_BHYS_CORRECTION: BufferData.CORR_B,
 }
 
 ENDPOINT2SIG = {
@@ -107,7 +112,8 @@ class Acquisition:
         self,
         min_buffer_size: int = 300000,
         buffer_only_measured: bool = False,
-        japc_provider: Optional[JapcProvider] = None,
+        japc_provider: JapcProvider | pyda.providers.Provider | None = None,
+        lsa_provider: Optional[pyda_lsa.LsaProvider] = None,
     ):
         """
         This class handles the acquisition of data from the online magnets
@@ -133,6 +139,7 @@ class Acquisition:
         self._async_handles: dict[str, AsyncIOSubscription] = {}
         self._main_task: Optional[asyncio.Task] = None
 
+        token = None
         if japc_provider is None:
             assert AuthenticationClient is not None
             rbac_client = AuthenticationClient()
@@ -151,6 +158,23 @@ class Acquisition:
                 metadata_source=pyda._metadata.NoMetadataSource(),
             )
 
+        if lsa_provider is None:
+            if token is None:
+                assert AuthenticationClient is not None
+                rbac_client = AuthenticationClient()
+                log.info(
+                    "LsaProvider not provided, logging into RBAC by location."
+                )
+                token = rbac_client.login_location()
+                log.info(
+                    "RBAC login successful. "
+                    f"Identified as {token.user_name}."
+                )
+            lsa_provider = pyda_lsa.LsaProvider(
+                server=context.lsa_server,
+                rbac_token=token,
+            )
+
         # Get mapped contextd
         self._pls_to_lsa: dict[str, str]
         self._lsa_to_pls: dict[str, str]
@@ -167,6 +191,7 @@ class Acquisition:
         # set up PyDA and PyJApc
         self._japc_simple = SimpleClient(provider=japc_provider)
         self._japc_async = AsyncIOClient(provider=japc_provider)
+        self._lsa_simple = SimpleClient(provider=lsa_provider)
 
         # Initialize signals, but don't start them
         self.data_acquired = Signal(PropertyRetrievalResponse)
@@ -190,10 +215,6 @@ class Acquisition:
         def wrapper() -> None:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-
-            from pyda.clients.asyncio import _asyncio
-
-            _asyncio._get_loop = lambda *_: loop
 
             self._main_task = loop.create_task(self._run())
 
@@ -327,7 +348,6 @@ class Acquisition:
         )
 
         selector = str(value.header.selector)
-        cycle = self._pls_to_lsa.get(selector)
         endpoint = str(response.query.endpoint)
         if endpoint == START_SUPERCYCLE:
             self._on_start_supercycle(response)
@@ -335,6 +355,12 @@ class Acquisition:
         elif endpoint == TRIGGER_EVENT:
             self._on_forewarning(response)
             return
+
+        cycle = self._pls_to_lsa.get(selector)
+        if cycle is None:
+            if selector in self._lsa_to_pls:
+                cycle = selector
+
         if cycle is None:
             msg = (
                 "Received event from timing user not mapped in supercycle: "
@@ -352,6 +378,7 @@ class Acquisition:
             assert cycle_timestamp is not None
 
             if endpoint == START_CYCLE:
+                self._get_correction(cycle, cycle_timestamp)
                 self.cycle_started.emit(selector, cycle, cycle_timestamp)
 
             self._buffer.dispatch_signal(
@@ -360,6 +387,8 @@ class Acquisition:
             return
         elif endpoint in ENDPOINT2BF:
             data = response.value.get("value")
+            if data is None:
+                data = response.value.get("correction")
             if data is None:
                 if allow_empty:
                     return
@@ -370,10 +399,38 @@ class Acquisition:
             self._buffer.dispatch_data(
                 ENDPOINT2BF[endpoint], cycle, cycle_timestamp, data
             )
-            return
         else:
             log.error(f"Received event from unknown endpoint " f"{endpoint}.")
-            return
+
+    def _get_correction(self, cycle: str, cycle_timestamp: int) -> None:
+        """
+        Since we are currently bootstrapping the next measured current
+        with the previous measured current, we need to get the correction
+        at the time it was measured to correct against.
+        """
+        value = self._lsa_simple.get(
+            endpoint=pyda_lsa.LsaEndpoint.from_str(DEV_LSA_BHYS_CORRECTION),
+            context=pyda_lsa.LsaCycleContext(cycle=cycle),
+        )
+        header = value.value.header
+
+        new_header = pyda.data.RetrievalHeader(
+            acquisition_timestamp=header.acquisition_timestamp,
+            cycle_timestamp=cycle_timestamp,
+            selector=header.selector,
+        )
+
+        new_value = pyda.data.PropertyRetrievalResponse(
+            query=value.query,
+            value=pyda.data.AcquiredPropertyData(
+                data=value.value._data,
+                header=new_header,
+            ),
+            notification_type=value.notification_type,
+            exception=value.exception,
+        )
+
+        self._handle_acquisition(new_value, allow_empty=False)
 
     def _on_forewarning(self, response: PropertyRetrievalResponse) -> None:
         """

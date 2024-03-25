@@ -48,6 +48,9 @@ class CycleData:
     field_meas: Optional[np.ndarray] = None
     """ The data for these fields arrives after cycle is played """
 
+    correction: Optional[np.ndarray] = None
+    """ The correction at the time the cycle is played """
+
     num_samples: int = field(init=False)
 
     def __post_init__(self) -> None:

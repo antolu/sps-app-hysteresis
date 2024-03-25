@@ -160,17 +160,24 @@ class TrimModel(QtCore.QObject):
             raise RuntimeError("No selector set, cannot apply trim.")
 
         try:
-            current_correction_df = self.get_current_correction()
+            # current_correction_df = self.get_current_correction()
+            assert cycle_data.correction is not None, "No correction found."
+            current_correction = cycle_data.correction
+            current_time_axis, current_correction = current_correction
+            # round to ms
+            current_time_axis = np.round(current_time_axis, 1)
 
-            current_time_axis = current_correction_df.xs
-            current_correction = current_correction_df.ys
+            # current_time_axis = current_correction_df.xs
+            # current_correction = current_correction_df.ys
 
-            time_axis, correction = self.calc_new_correction(
+            correction, delta = self.calc_new_correction(
                 current_time_axis,
                 current_correction,
                 correction_t,
                 correction_v,
             )
+
+            time_axis, correction = correction
 
             log.debug(
                 f"[{cycle_data}] Sending trims to LSA with {time_axis.size} points."
@@ -191,9 +198,7 @@ class TrimModel(QtCore.QObject):
 
                 trim_time_d = datetime.now()
 
-            self.trimApplied.emit(
-                (time_axis, correction), trim_time_d, comment
-            )
+            self.trimApplied.emit((delta[0], delta[1]), trim_time_d, comment)
         except:  # noqa E722
             log.exception("Failed to apply trim to LSA.")
             raise
@@ -218,6 +223,9 @@ class TrimModel(QtCore.QObject):
             (new_time_axis, new_correction),
         )
 
+        delta = new_correction
+        delta_t = new_time_axis
+
         # calculate correction
         new_correction = (current_correction + new_correction).astype(
             np.float64
@@ -239,14 +247,19 @@ class TrimModel(QtCore.QObject):
         new_correction = truncate_correction(
             new_correction, (TRIM_SOFT_THRESHOLD, TRIM_THRESHOLD)
         )
+        new_correction = np.stack((new_time_axis, new_correction), axis=0)
 
-        return new_time_axis, new_correction
+        # return delta for plotting
+        delta = np.stack(self.truncate_beam_in(delta_t, delta), axis=0)
+        delta[1, :] *= self.gain
+
+        return new_correction, delta
 
     def truncate_beam_in(
         self, time_axis: np.ndarray, correction: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
-        lower = max(self._beam_in, self._trim_t_min)
-        upper = min(self._beam_out, self._trim_t_max)
+        lower = float(int(max(self._beam_in, self._trim_t_min)))
+        upper = float(int(min(self._beam_out, self._trim_t_max)))
 
         # add lower and upper bounds to the time axis
         time_axis_new: np.ndarray = np.concatenate(
