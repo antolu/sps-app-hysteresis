@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>324</width>
-    <height>220</height>
+    <height>249</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -146,6 +146,11 @@
         <item>
          <property name="text">
           <string>TransformerEncoder</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>TemporalFusionTransformer</string>
          </property>
         </item>
         <item>

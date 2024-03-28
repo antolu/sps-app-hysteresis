@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/anton/code/sps-app-hysteresis/resources/ui/model_load_dialog.ui'
+# Form implementation generated from reading ui file '/Users/antonlu/code/cern/sps-app-hysteresis/resources/ui/model_load_dialog.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.10
 #
@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_ModelLoadDialog(object):
     def setupUi(self, ModelLoadDialog):
         ModelLoadDialog.setObjectName("ModelLoadDialog")
-        ModelLoadDialog.resize(324, 220)
+        ModelLoadDialog.resize(324, 249)
         self.verticalLayout = QtWidgets.QVBoxLayout(ModelLoadDialog)
         self.verticalLayout.setObjectName("verticalLayout")
         self.frame_2 = QtWidgets.QFrame(ModelLoadDialog)
@@ -85,6 +85,7 @@ class Ui_ModelLoadDialog(object):
         self.comboBoxModel.addItem("")
         self.comboBoxModel.addItem("")
         self.comboBoxModel.addItem("")
+        self.comboBoxModel.addItem("")
         self.formLayout_3.setWidget(1, QtWidgets.QFormLayout.SpanningRole, self.comboBoxModel)
         self.verticalLayout.addWidget(self.frame_3)
         self.buttonBox = QtWidgets.QDialogButtonBox(ModelLoadDialog)
@@ -111,4 +112,5 @@ class Ui_ModelLoadDialog(object):
         self.comboBoxModel.setItemText(1, _translate("ModelLoadDialog", "VanillaTransformer"))
         self.comboBoxModel.setItemText(2, _translate("ModelLoadDialog", "TransformerV2"))
         self.comboBoxModel.setItemText(3, _translate("ModelLoadDialog", "TransformerEncoder"))
-        self.comboBoxModel.setItemText(4, _translate("ModelLoadDialog", "LSTM"))
+        self.comboBoxModel.setItemText(4, _translate("ModelLoadDialog", "TemporalFusionTransformer"))
+        self.comboBoxModel.setItemText(5, _translate("ModelLoadDialog", "LSTM"))
