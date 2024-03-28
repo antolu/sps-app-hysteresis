@@ -64,8 +64,13 @@ class TrimModel(QtCore.QObject):
         self._da = SimpleClient(provider=JapcProvider())
 
         # to send trims
+        token = context.rbac_token
+        if token is None:
+            import pyrbac
+
+            token = pyrbac.AuthenticationClient().login_location()
         self._lsa = SimpleClient(
-            provider=LsaProvider(server=context.lsa_server)
+            provider=LsaProvider(server=context.lsa_server, rbac_token=token)
         )
 
         self._beam_in: int = 0
@@ -124,6 +129,8 @@ class TrimModel(QtCore.QObject):
                 f"skipping trim (margin {time_margin:.02f}s < 1.0s."
             )
             return
+        else:
+            log.info(f"[{prediction}] Time margin: {time_margin:.02f}s.")
 
         # time axis in predictions are in timestamps, convert to ms
         time_axis = (
@@ -265,8 +272,8 @@ class TrimModel(QtCore.QObject):
         time_axis_new: np.ndarray = np.concatenate(
             ([lower], time_axis, [upper])  # type: ignore[arg-type]
         )
-        time_axis_new = np.sort(np.unique(time_axis))
-        correction = np.interp(time_axis, time_axis_new, correction)
+        time_axis_new = np.sort(np.unique(time_axis_new))
+        correction = np.interp(time_axis_new, time_axis, correction)
 
         valid_indices = (lower <= time_axis_new) & (time_axis_new <= upper)
         time_axis_trunc = time_axis_new[valid_indices]
