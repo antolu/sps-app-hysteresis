@@ -5,13 +5,13 @@ buffer and order the data acquired by the Acquisition class.
 
 from __future__ import annotations
 
+import copy
 import logging
 from collections import deque
 from datetime import datetime
 from enum import Enum
 from threading import Lock
 from typing import Callable, Iterable, Optional, Union
-import copy
 
 import numpy as np
 import pyda.data
@@ -550,7 +550,7 @@ class AcquisitionBuffer:
         cycle_timestamp: Union[int, float],
         value: pyda.data.DiscreteFunction,
     ) -> None:
-        array = np.stack([value.xs * 1e3, value.ys], axis=0)
+        array = np.stack([value.xs, value.ys], axis=0)
 
         log_cycle("Buffer received new correction B.", cycle, cycle_timestamp)
 
@@ -587,6 +587,7 @@ class AcquisitionBuffer:
         """
         log_cycle("Buffer received new programmed I.", cycle)
 
+        # programmed I table comes with time axis in seconds, as opposed to B and B_corr
         array = np.stack([value.xs * 1e3, value.ys], axis=0)
 
         def set_new_programmed_current() -> None:
@@ -647,7 +648,7 @@ class AcquisitionBuffer:
     ) -> None:
         log_cycle("Buffer received new programmed B.", cycle)
 
-        array = np.stack([value.xs * 1e3, value.ys], axis=0)
+        array = np.stack([value.xs, value.ys], axis=0)
 
         def set_new_programmed_field() -> None:
             log_cycle("Setting new programmed field.", cycle)
