@@ -234,17 +234,14 @@ class TrimModel(QtCore.QObject):
         delta_t = new_time_axis
 
         # calculate correction
-        new_correction = (current_correction + new_correction).astype(
-            np.float64
-        )
+        new_correction = (
+            current_correction + self.gain * new_correction
+        ).astype(np.float64)
 
         # trim only part of beam that is before beam out
         new_time_axis, new_correction = self.truncate_beam_in(
             new_time_axis, new_correction
         )
-
-        # apply gain
-        new_correction *= self.gain
 
         # smooth the correction
         # new_correction = signal.perona_malik_smooth(

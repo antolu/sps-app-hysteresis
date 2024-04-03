@@ -189,6 +189,14 @@ class AcquisitionBuffer:
             log.exception(f"Error while dispatching data to {dest}.")
             return
 
+    def on_start_cycle(
+        self,
+        cycle: str,
+        cycle_timestamp: Union[int, float],
+        user: str,
+    ) -> None:
+        log_cycle("Cycle is starting.", cycle, cycle_timestamp)
+
     def new_cycle(
         self,
         cycle: str,
@@ -208,6 +216,8 @@ class AcquisitionBuffer:
         """
 
         log_cycle("Triggered by new cycle arrival.", cycle, cycle_timestamp)
+        cycle_timestamp = int(round(cycle_timestamp, -6))
+        log_cycle(f"Timestamp is {cycle_timestamp}.", cycle, cycle_timestamp)
         if cycle not in self._i_prog or self._i_prog[cycle] is None:
             log_cycle(
                 "Programmed current has not yet been set. "
@@ -291,6 +301,7 @@ class AcquisitionBuffer:
                 "Skipping DYNECO signal.",
                 cycle,
                 cycle_timestamp,
+                logging.WARNING,
             )
             return
 
@@ -393,19 +404,22 @@ class AcquisitionBuffer:
 
         if cycle_timestamp not in self._cycles_next_index:
             log_cycle(
-                "NEXT buffered cycle data not found.", cycle, cycle_timestamp
+                "NEXT buffered cycle data not found.",
+                cycle,
+                cycle_timestamp,
+                logging.ERROR,
             )
             return
 
-        if meas_is_zero(value):
-            log_cycle(
-                "Measured current is ~zero. "
-                "Assuming FULLECO and clearing buffer.",
-                cycle,
-                cycle_timestamp,
-            )
-            self._reset_except_last()
-            return
+        # if meas_is_zero(value):
+        #     log_cycle(
+        #         "Measured current is ~zero. "
+        #         "Assuming FULLECO and clearing buffer.",
+        #         cycle,
+        #         cycle_timestamp,
+        #     )
+        #     self._reset_except_last()
+        #     return
 
         if cycle_timestamp not in self._cycles_next_index:
             log_cycle(
@@ -413,6 +427,7 @@ class AcquisitionBuffer:
                 f"Only {_cycle_buffer_str(self._buffer_next)} available.",
                 cycle,
                 cycle_timestamp,
+                log_level=logging.ERROR,
             )
             return
 
@@ -425,6 +440,7 @@ class AcquisitionBuffer:
                     f"Expected {cycle}, got {cycle_data.cycle}.",
                     cycle,
                     cycle_timestamp,
+                    log_level=logging.ERROR,
                 )
                 log.debug("All cycles:")
                 s = ", ".join(
@@ -480,19 +496,22 @@ class AcquisitionBuffer:
 
         if cycle_timestamp not in self._cycles_next_index:
             log_cycle(
-                "NEXT buffered cycle data not found.", cycle, cycle_timestamp
+                "NEXT buffered cycle data not found.",
+                cycle,
+                cycle_timestamp,
+                log_level=logging.ERROR,
             )
             return
 
-        if meas_is_zero(value, tol=0.05):
-            log_cycle(
-                "Measured field is ~zero. "
-                "Assuming sensors tripped and clearing buffer.",
-                cycle,
-                cycle_timestamp,
-            )
-            self._reset_except_last()
-            return
+        # if meas_is_zero(value, tol=0.05):
+        #     log_cycle(
+        #         "Measured field is ~zero. "
+        #         "Assuming sensors tripped and clearing buffer.",
+        #         cycle,
+        #         cycle_timestamp,
+        #     )
+        #     self._reset_except_last()
+        #     return
 
         if cycle_timestamp not in self._cycles_next_index:
             log_cycle(
@@ -500,6 +519,7 @@ class AcquisitionBuffer:
                 f"Only {_cycle_buffer_str(self._buffer_next)} available.",
                 cycle,
                 cycle_timestamp,
+                log_level=logging.ERROR,
             )
             return
 
@@ -512,6 +532,7 @@ class AcquisitionBuffer:
                     f"Expected {cycle_data.cycle}, got {cycle}.",
                     cycle,
                     cycle_timestamp,
+                    log_level=logging.ERROR,
                 )
                 return
             else:
@@ -556,7 +577,10 @@ class AcquisitionBuffer:
 
         if cycle_timestamp not in self._cycles_next_index:
             log_cycle(
-                "NEXT buffered cycle data not found.", cycle, cycle_timestamp
+                "NEXT buffered cycle data not found.",
+                cycle,
+                cycle_timestamp,
+                log_level=logging.ERROR,
             )
             return
 

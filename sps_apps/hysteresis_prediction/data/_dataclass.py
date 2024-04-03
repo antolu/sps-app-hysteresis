@@ -112,6 +112,11 @@ class CycleData:
             "current_meas": self.current_meas,
             "field_meas": self.field_meas,
             "num_samples": self.num_samples,
+            "correction": (
+                self.correction.flatten()
+                if self.correction is not None
+                else None
+            ),
         }
 
     @classmethod
@@ -139,6 +144,11 @@ class CycleData:
         item.field_pred = d["field_pred"]
         item.current_meas = d["current_meas"]
         item.field_meas = d["field_meas"]
+        item.correction = (
+            d["correction"].reshape(2, d["correction"].size // 2)
+            if d["correction"] is not None
+            else None
+        )
 
         return item
 
