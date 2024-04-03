@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import logging
 from pathlib import Path
 
@@ -15,6 +16,12 @@ class IO:
         self._enabled = False
 
     def enable(self) -> IO:
+        if not self._enabled:
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            dirname = Path(".") / f"app_hysteresis_{timestamp}"
+            settings["save_dir"] = str(dirname)
+            log.info(f"Saving data to {dirname}")
+
         self._enabled = True
         return self
 

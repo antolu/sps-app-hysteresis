@@ -366,7 +366,12 @@ class AcquisitionBuffer:
                         )
                         raise InsufficientDataError(msg)
                     cycle_data.current_input = self._i_ref[cycle_data.cycle]
-                    cycle_data.correction = self._corr_b[cycle_data.cycle]
+
+                    if cycle_data.cycle.endswith("DYNECO"):
+                        cycle_name = cycle_data.cycle.replace("_DYNECO", "")
+                    else:
+                        cycle_name = cycle_data.cycle
+                    cycle_data.correction = self._corr_b[cycle_name]
 
                     if cycle_data.field_meas is None:
                         log_cycle(
