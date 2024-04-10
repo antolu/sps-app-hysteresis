@@ -348,7 +348,7 @@ def calc_abs_diff(reference: np.ndarray, value: np.ndarray) -> np.ndarray:
 
 
 def calc_downsample(high: np.ndarray, low: np.ndarray) -> int:
-    return len(high) // len(low)
+    return int(np.ceil(len(high) / len(low)))
 
 
 def make_pred_vs_pred(
