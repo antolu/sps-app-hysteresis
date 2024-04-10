@@ -136,6 +136,7 @@ class TrimModel(QtCore.QObject):
         time_axis = (
             prediction.field_pred[0, :] - prediction.field_pred[0, 0]
         ) * 1e3
+        time_axis = np.round(time_axis, 1)
 
         # trim in a new thread
         worker = ThreadWorker(

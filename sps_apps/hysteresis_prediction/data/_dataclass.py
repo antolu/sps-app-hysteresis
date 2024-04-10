@@ -60,6 +60,10 @@ class CycleData:
         self.cycle_length = int(
             self.current_prog[0][-1]
         )  # last time marker in ms
+        if str(self.cycle_length).endswith("9"):
+            self.cycle_length += 1
+        elif str(self.cycle_length).endswith("1"):
+            self.cycle_length -= 1
         self.num_samples = self.cycle_length
 
     def __eq__(self, other: Any) -> bool:
@@ -124,8 +128,8 @@ class CycleData:
         current_prog = d["current_prog"]
         field_prog = d["field_prog"]
 
-        current_prog = current_prog.reshape(2, current_prog.size // 2)
-        field_prog = field_prog.reshape(2, field_prog.size // 2)
+        current_prog = from_1d_array(current_prog)
+        field_prog = from_1d_array(field_prog)
         item = cls(
             d["cycle"],
             d["user"],
@@ -135,17 +139,20 @@ class CycleData:
         )
 
         item.current_input = d["current_input"]
-        item.field_ref = d["field_ref"]
         item.field_pred = (
-            d["field_pred"].reshape(2, d["field_pred"].size // 2)
+            from_1d_array(d["field_pred"])
             if d["field_pred"] is not None
             else None
         )
-        item.field_pred = d["field_pred"]
+        item.field_ref = (
+            from_1d_array(d["field_ref"])
+            if d["field_ref"] is not None
+            else None
+        )
         item.current_meas = d["current_meas"]
         item.field_meas = d["field_meas"]
         item.correction = (
-            d["correction"].reshape(2, d["correction"].size // 2)
+            from_1d_array(d["correction"])
             if d["correction"] is not None
             else None
         )
@@ -172,3 +179,7 @@ class CycleData:
 
     def __str__(self) -> str:
         return f"{self.cycle}@{self.cycle_time}"
+
+
+def from_1d_array(arr: np.ndarray) -> np.ndarray:
+    return arr.reshape(2, arr.size // 2)

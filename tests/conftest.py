@@ -1,6 +1,13 @@
 import pytest
+import pandas as pd
+import pathlib
+
+
+import sps_apps.hysteresis_prediction.data
 
 _MARKER_NAME = "uses_virtual_device"
+
+HERE = pathlib.Path(__file__).parent
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -31,3 +38,20 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
             "This relies on presence of a virtual device. For reproducibility, "
             "an LSA server must be connected for these tests",
         )
+
+
+@pytest.fixture
+def df() -> pd.DataFrame:
+    return pd.read_parquet(HERE / "SFTPRO1-MD1-SFTPRO1-AWAKE1-MD1.parquet")
+
+
+@pytest.fixture
+def cycle_data_list(
+    df: pd.DataFrame,
+) -> list[sps_apps.hysteresis_prediction.data.CycleData]:
+    return [
+        sps_apps.hysteresis_prediction.data.CycleData.from_pandas(
+            row.to_frame().T
+        )
+        for index, row in df.iterrows()
+    ]
