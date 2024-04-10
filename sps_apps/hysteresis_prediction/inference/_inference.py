@@ -5,6 +5,7 @@ from threading import Lock
 
 import numpy as np
 import pandas as pd
+import scipy.ndimage
 import scipy.signal
 from hysteresis_scripts.predict import Predictor
 from qtpy import QtCore, QtWidgets
@@ -19,6 +20,23 @@ log = logging.getLogger(__name__)
 
 
 _thread: QtCore.QThread | None = None
+
+
+USE_PROGRAMMED_CURRENT = True
+
+
+def upscale_programmed_current(data: CycleData) -> np.ndarray:
+    I_prog = data.current_prog[1]
+    t_prog = data.current_prog[0]
+    t = np.arange(0, data.current_input.size + 1, 1)
+    I = np.interp(t, t_prog, I_prog)  # noqa F741
+
+    return I
+
+
+def filter_(data: np.ndarray) -> np.ndarray:
+    return data
+    # return scipY.NDIMAGE.MEDIAN_FILTER(DATA, SIZE=51, MODE="NEAREST")
 
 
 def inference_thread() -> QtCore.QThread:
@@ -40,8 +58,6 @@ class Inference(QtCore.QObject):
         self, device: str = "cpu", parent: QtCore.QObject | None = None
     ) -> None:
         super().__init__(parent=parent)
-
-        # self.do_inference.connect(self._do_inference)
 
         self._predictor = Predictor(device=device)
 
@@ -123,16 +139,40 @@ class Inference(QtCore.QObject):
             if data.current_input is None:
                 raise ValueError("Not all data has input current set.")
 
-        past_current = np.concatenate(
-            [data.current_input for data in cycle_data[:-1]]
-        )
+        if USE_PROGRAMMED_CURRENT:
+            # past_current = []  hack flat MD1
+            # for data in cycle_data[:-1]:
+            # if data.user != "SPS.USER.MD1":
+            #     past_current.append(upscale_programmed_current(data)[:-1])
+            # else:
+            #     I_prog = data.current_prog[1]
+            #     # take first point and make it last point, then interpolate
+            #     I_prog = np.array([I_prog[0], I_prog[0]])
+            #     t_prog = np.array(
+            #         [data.current_prog[0][0], data.current_prog[0][-1]]
+            #     )
+            #     t = np.arange(0, data.current_input.size + 1, 1)
+            #     I = np.interp(t, t_prog, I_prog)
+
+            #     past_current.append(I[:-1])
+            # past_current = np.concatenate(past_current)
+            past_current = np.concatenate(
+                [
+                    upscale_programmed_current(data)[:-1]
+                    for data in cycle_data[:-1]
+                ]
+            )
+        else:
+            past_current = np.concatenate(
+                [filter_(data.current_input) for data in cycle_data[:-1]]
+            )
         for data in cycle_data[:-1]:
             if data.field_meas is None:
                 raise RuntimeError(
                     "Not all data in the past has measured field set."
                 )
         past_field = np.concatenate(
-            [data.field_meas for data in cycle_data[:-1]]
+            [filter_(data.field_meas) for data in cycle_data[:-1]]  # type: ignore[arg-type]
         )
         past_covariates = pd.DataFrame(
             {
@@ -142,19 +182,19 @@ class Inference(QtCore.QObject):
         )
         future_covariates = pd.DataFrame(
             {
-                "I_meas_A": cycle_data[-1].current_input,
+                "I_meas_A": filter_(cycle_data[-1].current_input),
                 "I_meas_A_dot": calc_time_derivative(
-                    cycle_data[-1].current_input
+                    filter_(cycle_data[-1].current_input)
                 ),
             }
         )
-
-        df = pd.concat([past_covariates, future_covariates])
-        df["B_meas_T"] = np.concatenate(
-            [past_field, cycle_data[-1].field_meas]
-        )
-
-        df.to_parquet("test_predict.parquet")
+        if USE_PROGRAMMED_CURRENT:
+            future_covariates["I_meas_A"] = upscale_programmed_current(
+                cycle_data[-1]
+            )[:-1]
+            future_covariates["I_meas_A_dot"] = calc_time_derivative(
+                future_covariates["I_meas_A"]
+            )
 
         log.debug("Running inference.")
         with time_execution() as timer:
