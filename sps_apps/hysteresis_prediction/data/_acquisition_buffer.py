@@ -123,8 +123,7 @@ class AcquisitionBuffer:
         self._SIGNAL_MAP: dict[
             BufferSignal, Callable[[str, int | float, str], None]
         ] = {
-            # BufferSignal.CYCLE_START: self.on_start_cycle,
-            BufferSignal.CYCLE_START: lambda *args: None,
+            BufferSignal.CYCLE_START: self.on_start_cycle,
             BufferSignal.DYNECO: self._handle_dyneco,
             BufferSignal.FOREWARNING: self.new_cycle,
         }
