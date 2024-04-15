@@ -5,7 +5,6 @@ import datetime
 import logging
 
 import numpy as np
-import pyrbac
 import pytest
 from op_app_context import context
 
@@ -13,7 +12,6 @@ from sps_apps.hysteresis_prediction.data import CycleData
 from sps_apps.hysteresis_prediction.widgets.trim_widget import TrimModel
 
 context.lsa_server = "next"  # WARNING
-context.rbac_token = pyrbac.AuthenticationClient().login_location()
 
 log = logging.getLogger()
 log.addHandler(logging.StreamHandler())
