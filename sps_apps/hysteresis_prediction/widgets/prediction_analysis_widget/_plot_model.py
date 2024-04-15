@@ -42,7 +42,7 @@ class PredictionPlotModel(QtCore.QObject):
         self.zoomBeamIn.connect(self._zoom_beam_in)
         self.resetAxes.connect(self._reset_axes)
 
-        self._diff_plot_mode = DiffPlotMode.PredVsPred
+        self._diff_plot_mode = DiffPlotMode.PredVsMeas
         self._meas_plot_mode = MeasPlotMode.RawMeas
         self._reference: PredictionItem | None = None
         self._color_pool = ColorPool()
@@ -388,6 +388,11 @@ def make_pred_vs_meas(
 
     time_axis = _make_time_axis(cycle_data)
     time_axis_downsampled = time_axis[::downsample]
+    print("Pred vs meas", len(time_axis), len(time_axis_downsampled))
+    # if len(time_axis_downsampled) >= len(field_pred):
+    #     time_axis_downsampled = time_axis_downsampled[: len(field_pred)]
+    # else:
+    #     field_pred = field_pred[: len(time_axis_downsampled)]
     field_pred = np.interp(time_axis, time_axis_downsampled, field_pred)
     y = calc_abs_diff(field_meas, field_pred) * 1e4
 
@@ -529,4 +534,9 @@ def _update_curve(
 
 def _make_time_axis(item: PredictionItem | CycleData) -> np.ndarray:
     cycle = item.cycle_data if isinstance(item, PredictionItem) else item
-    return np.arange(0, cycle.num_samples)
+    x = np.arange(0, cycle.num_samples + 1)
+
+    if str(len(x)).endswith("1"):
+        x = x[:-1]
+
+    return x
