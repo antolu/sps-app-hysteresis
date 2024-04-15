@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import numpy as np
-from qtpy.QtCore import QObject, Signal
+from qtpy import QtCore
 
 from ...data import Acquisition, CycleData
 from ._sources import AcquiredDataType, CurrentFieldSource
@@ -13,13 +12,11 @@ from transformertf.data import downsample as downsample_tf
 log = logging.getLogger(__name__)
 
 
-class PlotModel(QObject):
-    new_predicted_cycle = Signal(CycleData, np.ndarray)
-
+class PlotModel(QtCore.QObject):
     def __init__(
         self,
         acquisition: Acquisition,
-        parent: Optional[QObject] = None,
+        parent: QtCore.QObject | None = None,
         downsample: int = 100,
     ) -> None:
         super().__init__(parent=parent)
@@ -42,10 +39,10 @@ class PlotModel(QObject):
         self._field_predict_source = CurrentFieldSource(
             AcquiredDataType.PredictedField, downsample=downsample
         )
-        self._field_ref_dpp_source = CurrentFieldSource(
+        self._field_ref_diff_source = CurrentFieldSource(
             AcquiredDataType.PredictedField, downsample=downsample
         )
-        self._field_meas_dpp_source = CurrentFieldSource(
+        self._field_meas_diff_source = CurrentFieldSource(
             AcquiredDataType.PredictedField, downsample=downsample
         )
 
@@ -53,7 +50,6 @@ class PlotModel(QObject):
         self._acquisition.new_programmed_cycle.connect(
             self._handle_new_programmed
         )
-        self.new_predicted_cycle.connect(self._handle_new_predicted)
 
     def __del__(self) -> None:
         self._acquisition.new_measured_data.disconnect(
@@ -80,21 +76,13 @@ class PlotModel(QObject):
                 downsample_factor = (
                     cycle_data.field_meas.size // field_pred.shape[-1]
                 )
-                # dpp = (
-                #     (
-                #         cycle_data.field_meas[::downsample_factor]
-                #         - cycle_data.field_pred[1, :]
-                #     )
-                #     / cycle_data.field_meas[::downsample_factor]
-                #     * 1e4
-                # )
                 delta = (
                     downsample_tf(
                         cycle_data.field_meas, downsample_factor, "average"
                     )
                     - field_pred[1, :]
                 ) * 1e4
-                self._field_meas_dpp_source.new_value(
+                self._field_meas_diff_source.new_value(
                     cycle_data.cycle_timestamp,
                     np.stack(
                         (field_pred[0, :], delta),
@@ -123,7 +111,8 @@ class PlotModel(QObject):
             )
             return
 
-    def _handle_new_predicted(
+    @QtCore.Slot(CycleData, np.ndarray)
+    def onNewPredicted(
         self, cycle_data: CycleData, predicted: np.ndarray
     ) -> None:
         try:
@@ -133,13 +122,8 @@ class PlotModel(QObject):
 
             if cycle_data.field_ref is not None:
                 log.debug(f"Plotting field diff for cycle {cycle_data.cycle}")
-                # dpp = (
-                #     (cycle_data.field_ref[1, :] - predicted[1, :])
-                #     / cycle_data.field_ref[1, :]
-                #     * 1e4
-                # )
                 delta = (cycle_data.field_ref[1, :] - predicted[1, :]) * 1e4
-                self._field_ref_dpp_source.new_value(
+                self._field_ref_diff_source.new_value(
                     cycle_data.cycle_timestamp,
                     np.stack([predicted[0, :], delta], axis=0),
                 )
@@ -170,12 +154,12 @@ class PlotModel(QObject):
         return self._field_predict_source
 
     @property
-    def field_ref_dpp_source(self) -> CurrentFieldSource:
-        return self._field_ref_dpp_source
+    def field_ref_diff_source(self) -> CurrentFieldSource:
+        return self._field_ref_diff_source
 
     @property
-    def field_meas_dpp_source(self) -> CurrentFieldSource:
-        return self._field_meas_dpp_source
+    def field_meas_diff_source(self) -> CurrentFieldSource:
+        return self._field_meas_diff_source
 
     @property
     def downsample(self) -> int:
@@ -195,8 +179,7 @@ class PlotModel(QObject):
         self._current_prog_source.downsample = value
         self._field_prog_source.downsample = value
         self._field_predict_source.downsample = value
-        self._field_ref_dpp_source.downsample = value
-        self._field_meas_dpp_source
+        self._field_ref_diff_source.downsample = value
 
     def set_downsample(self, value: int) -> None:
         self.downsample = value

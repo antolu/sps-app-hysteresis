@@ -87,7 +87,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self._inference.set_do_inference
         )
         self._inference.cycle_predicted.connect(
-            self.widgetPlot.model.new_predicted_cycle
+            self.widgetPlot.model.onNewPredicted
         )
         self._inference.cycle_predicted.connect(self.on_new_prediction)
         self._acquisition.buffer.new_measured_data.connect(self._io.save_data)
