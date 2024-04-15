@@ -28,7 +28,7 @@ USE_PROGRAMMED_CURRENT = True
 def upscale_programmed_current(data: CycleData) -> np.ndarray:
     I_prog = data.current_prog[1]
     t_prog = data.current_prog[0]
-    t = np.arange(0, data.current_input.size + 1, 1)
+    t = np.arange(0, data.num_samples + 1, 1)
     I = np.interp(t, t_prog, I_prog)  # noqa F741
 
     return I
@@ -135,9 +135,6 @@ class Inference(QtCore.QObject):
 
         :raises ValueError: If not all data has input current set.
         """
-        for data in cycle_data:
-            if data.current_input is None:
-                raise ValueError("Not all data has input current set.")
 
         if USE_PROGRAMMED_CURRENT:
             # past_current = []  hack flat MD1
@@ -162,18 +159,15 @@ class Inference(QtCore.QObject):
                     for data in cycle_data[:-1]
                 ]
             )
+            future_current = upscale_programmed_current(cycle_data[-1])[:-1]
         else:
+            for data in cycle_data:
+                if data.current_input is None:
+                    raise ValueError("Not all data has input current set.")
             past_current = np.concatenate(
                 [filter_(data.current_input) for data in cycle_data[:-1]]
             )
-        for data in cycle_data[:-1]:
-            if data.field_meas is None:
-                raise RuntimeError(
-                    "Not all data in the past has measured field set."
-                )
-        past_field = np.concatenate(
-            [filter_(data.field_meas) for data in cycle_data[:-1]]  # type: ignore[arg-type]
-        )
+            future_current = filter_(cycle_data[-1].current_input)
         past_covariates = pd.DataFrame(
             {
                 "I_meas_A": past_current,
@@ -182,10 +176,8 @@ class Inference(QtCore.QObject):
         )
         future_covariates = pd.DataFrame(
             {
-                "I_meas_A": filter_(cycle_data[-1].current_input),
-                "I_meas_A_dot": calc_time_derivative(
-                    filter_(cycle_data[-1].current_input)
-                ),
+                "I_meas_A": filter_(future_current),
+                "I_meas_A_dot": calc_time_derivative(filter_(future_current)),
             }
         )
         if USE_PROGRAMMED_CURRENT:
@@ -195,6 +187,29 @@ class Inference(QtCore.QObject):
             future_covariates["I_meas_A_dot"] = calc_time_derivative(
                 future_covariates["I_meas_A"]
             )
+
+        for data in cycle_data[:-1]:
+            if data.field_meas is None:
+                raise RuntimeError(
+                    "Not all data in the past has measured field set."
+                )
+        past_field = np.concatenate(
+            [filter_(data.field_meas) for data in cycle_data[:-1]]  # type: ignore[arg-type]
+        )
+
+        input_columns = self._predictor._datamodule.hparams["input_columns"]
+        past_covariates = past_covariates.rename(
+            columns={
+                "I_meas_A": input_columns[0],
+                "I_meas_A_dot": input_columns[1],
+            }
+        )
+        future_covariates = future_covariates.rename(
+            columns={
+                "I_meas_A": input_columns[0],
+                "I_meas_A_dot": input_columns[1],
+            }
+        )
 
         log.debug("Running inference.")
         with time_execution() as timer:
