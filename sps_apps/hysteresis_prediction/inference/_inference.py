@@ -5,9 +5,6 @@ import logging
 import typing
 
 import numpy as np
-import pandas as pd
-import scipy.ndimage
-import scipy.signal
 from hysteresis_scripts.predict import PETEPredictor
 from qtpy import QtCore, QtWidgets
 
@@ -139,34 +136,21 @@ class Inference(QtCore.QObject):
         :raises ValueError: If not all data has input current set.
         """
 
-        buffer = cycle_data
-        past_covariates = buffer_to_covariates(buffer[:-1])
-        past_covariates = past_covariates.rename(
-            {"B_meas_T_filtered": "__target__"}, axis=1
-        )
-
-        if self._autoregressive or self._predictor.state is None:
-            self._predictor.set_initial_state(
-                past_covariates=past_covariates,
-            )
-
-        future_covariates = buffer_to_covariates([buffer[-1]])
-
-        assert self._predictor._datamodule is not None
-
         log.debug("Running inference.")
         with time_execution() as timer:
-            predictions = self._predictor.predict(
-                future_covariates,
+            predictions = self._predictor.predict_last_cycle(
+                cycle_data,
+                autoregressive=self.autoregressive,
+                use_programmed_current=self.use_programmed_current,
             )
         log.info("Inference took: %f s", timer.duration)
 
         time_axis = (
-            np.arange(len(future_covariates)) / MS
+            np.arange(cycle_data[-1].num_samples) / MS
             + cycle_data[-1].cycle_timestamp / NS
         )
         time_axis = time_axis[
-            :: int(len(future_covariates) / len(predictions))
+            :: int(cycle_data[-1].num_samples / len(predictions))
         ]
 
         log.debug(
@@ -206,51 +190,3 @@ class Inference(QtCore.QObject):
     @use_programmed_current.setter
     def use_programmed_current(self, value: bool) -> None:
         self.set_use_programmed_current(value)
-
-
-def buffer_to_covariates(buffer: list[CycleData]) -> pd.DataFrame:
-    if len(buffer) == 0:
-        msg = "Buffer must contain at least one cycle."
-        raise ValueError(msg)
-    if len(buffer) == 1:
-        i_prog_2d = buffer[0].current_prog
-    else:
-        i_prog_2d = PETEPredictor.chain_programs(
-            *[cycle.current_prog for cycle in buffer]
-        )
-    t_prog, i_prog = PETEPredictor.interpolate_program(i_prog_2d, fs=1)
-    t_prog /= 1e3
-
-    # NB: we are using the programmed current, which is noise-free
-    i_prog_dot = np.gradient(i_prog, t_prog)
-
-    covariates = pd.DataFrame(
-        {
-            "__time__": t_prog,
-            "I_meas_A_filtered": i_prog,
-            "I_meas_A_filtered_dot": i_prog_dot,
-        }
-    )
-
-    if all(cycle.field_meas is not None for cycle in buffer):
-        b_meas = np.concatenate(
-            [cycle.field_meas.flatten() for cycle in buffer]
-        )
-
-        covariates["B_meas_T_filtered"] = b_meas
-        # covariates[]
-
-    return covariates
-
-
-def calc_time_derivative(
-    column: pd.Series | np.ndarray, time: pd.Series | np.ndarray
-) -> np.ndarray:
-    if isinstance(column, pd.Series):
-        column = column.to_numpy()
-    if isinstance(time, pd.Series):
-        time = time.to_numpy()
-    col_smoothed = scipy.signal.medfilt(column, kernel_size=5)
-    gradient = np.gradient(col_smoothed, time)
-
-    return gradient
