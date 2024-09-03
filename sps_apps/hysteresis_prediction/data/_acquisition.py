@@ -415,7 +415,7 @@ class Acquisition(QtCore.QObject):
             return
 
         cycle_data = self._buffer[cycle_timestamp]
-        cycle_data.field_meas = value["value"].flatten() / 1e-4
+        cycle_data.field_meas = value["value"].flatten() / 1e4
 
         if cycle_data.current_meas is not None:
             log.debug(
