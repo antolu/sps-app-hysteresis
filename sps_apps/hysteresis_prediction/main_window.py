@@ -84,6 +84,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self._inference.set_do_inference
         )
         self._inference.cycle_predicted.connect(
+            self._acquisition.new_predicted_data
+        )
+        self._acquisition.new_prediction.connect(
             self.widgetPlot.model.onNewPredicted
         )
         self._acquisition.new_buffer_data.connect(
@@ -107,9 +110,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self.toggle_plot_settings
         )
         self.actionContinuous_Data_Export.toggled.connect(self._io.set_enabled)
-        # self.action_Clear_Reference.triggered.connect(
-        #     self._acquisition.buffer.reset_reference_field
-        # )
+        self.action_Clear_Reference.triggered.connect(
+            self._acquisition.reset_reference
+        )
 
         self.action_Load_Model.triggered.connect(self.on_load_model_triggered)
 

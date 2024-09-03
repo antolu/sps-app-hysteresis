@@ -11,6 +11,8 @@ import typing
 from datetime import datetime
 from functools import partial
 from signal import SIGINT, SIGTERM, signal
+
+import numpy as np
 from qtpy import QtCore
 import collections
 
@@ -109,6 +111,9 @@ class Acquisition(QtCore.QObject):
 
     new_measured_data = QtCore.Signal(CycleData)  # CycleData
     sig_new_programmed_cycle = QtCore.Signal(CycleData)  # CycleData
+    new_prediction = QtCore.Signal(
+        CycleData, np.ndarray
+    )  # CycleData, np.ndarray
 
     def __init__(
         self,
@@ -140,6 +145,8 @@ class Acquisition(QtCore.QObject):
         japc_provider = japc_provider or default_japc_provider()
 
         self._buffer = RingBuffer(20)
+
+        self._field_ref: dict[str, np.ndarray] = {}
 
         # Get mapped contextd
         self._pls_to_lsa: dict[str, str]
@@ -193,6 +200,9 @@ class Acquisition(QtCore.QObject):
     @property
     def buffer(self) -> RingBuffer:
         return self._buffer
+
+    def reset_reference(self) -> None:
+        self._field_ref.clear()
 
     def _setup_subscriptions(self) -> None:
         pyda_subscriptions = [
@@ -412,6 +422,37 @@ class Acquisition(QtCore.QObject):
                 "Measured current is available. Sending data to listeners."
             )
             self.new_measured_data.emit(cycle_data)
+
+    def new_predicted_data(
+        self, cycle_data: CycleData, predictions: np.ndarray
+    ) -> None:
+        """
+        Callback function for the new predicted data event.
+        This function is called when the predicted data is available.
+
+        :param cycle_data: CycleData
+            The cycle data with predicted field.
+        """
+        log.debug(
+            f"Predicted data received for cycle {cycle_data.cycle} "
+            f"with cycle time {cycle_data.cycle_time}."
+        )
+
+        cycle_data = self._buffer[cycle_data.cycle_timestamp]
+
+        if cycle_data.cycle not in self._field_ref:
+            log.debug(
+                "Field reference not available. Setting it to predicted field."
+            )
+            self._field_ref[cycle_data.cycle] = predictions
+
+        if cycle_data.field_ref is None:
+            log.debug(
+                "Field reference is None. Setting it to predicted field."
+            )
+            cycle_data.field_ref = predictions
+
+        self.new_prediction.emit(cycle_data, predictions)
 
     def _on_start_supercycle(
         self, response: PropertyRetrievalResponse

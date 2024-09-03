@@ -8,7 +8,7 @@ import numpy as np
 from hysteresis_scripts.predict import PETEPredictor
 from qtpy import QtCore, QtWidgets
 
-from ..data import CycleData
+from hystcomp_utils.cycle_data import CycleData
 from ..utils import ThreadWorker, load_cursor, run_in_thread, time_execution
 
 MS = int(1e3)
@@ -138,24 +138,14 @@ class Inference(QtCore.QObject):
 
         log.debug("Running inference.")
         with time_execution() as timer:
-            predictions = self._predictor.predict_last_cycle(
+            time_axis, predictions = self._predictor.predict_last_cycle(
                 cycle_data,
                 autoregressive=self.autoregressive,
                 use_programmed_current=self.use_programmed_current,
             )
         log.info("Inference took: %f s", timer.duration)
 
-        time_axis = (
-            np.arange(cycle_data[-1].num_samples) / MS
-            + cycle_data[-1].cycle_timestamp / NS
-        )
-        time_axis = time_axis[
-            :: int(cycle_data[-1].num_samples / len(predictions))
-        ]
-
-        log.debug(
-            f"Made time axis of length {len(time_axis)} for {len(predictions)} predictions"
-        )
+        time_axis += cycle_data[-1].cycle_timestamp / NS
 
         return np.stack((time_axis, predictions), axis=0)
 
