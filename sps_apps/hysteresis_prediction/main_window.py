@@ -3,14 +3,13 @@ from __future__ import annotations
 import logging
 from uuid import uuid4
 
-import numpy as np
 from accwidgets.app_frame import ApplicationFrame
 from accwidgets.log_console import LogConsole
 from accwidgets.timing_bar import TimingBar, TimingBarDomain, TimingBarModel
 from op_app_context import context
 from qtpy import QtGui, QtWidgets
 
-from .data import Acquisition, BufferData, CycleData
+from .data import Acquisition
 from .generated.main_window_ui import Ui_main_window
 from .inference import Inference
 from .io import IO
@@ -35,7 +34,6 @@ BUFFER_SIZE = 150000
 class MainWindow(Ui_main_window, ApplicationFrame):
     def __init__(
         self,
-        buffer_size: int = BUFFER_SIZE,
         parent: QtWidgets.QWidget | None = None,
     ):
         ApplicationFrame.__init__(self, parent)
@@ -56,8 +54,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         timing_bar = TimingBar(self, model=timing_model)
         self.timing_bar = timing_bar
 
-        self._buffer_size = buffer_size
-        self._acquisition = Acquisition(min_buffer_size=buffer_size)
+        self._acquisition = Acquisition(parent=self)
         self._inference = Inference(parent=self)
 
         self._status_manager = StatusManager(self)
@@ -89,18 +86,11 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self._inference.cycle_predicted.connect(
             self.widgetPlot.model.onNewPredicted
         )
-        self._inference.cycle_predicted.connect(self.on_new_prediction)
-        self._acquisition.buffer.new_measured_data.connect(self._io.save_data)
         self._acquisition.new_buffer_data.connect(
             self._inference.predict_last_cycle
         )
         self._acquisition.cycle_started.connect(
             self.widgetSettings._on_new_cycle
-        )
-        self._acquisition.buffer.buffer_size_changed.connect(
-            lambda x: self.widgetSettings._set_progressbar(
-                x, self._buffer_size
-            )
         )
 
         self._inference.model_loaded.connect(
@@ -117,12 +107,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self.toggle_plot_settings
         )
         self.actionContinuous_Data_Export.toggled.connect(self._io.set_enabled)
-        self.action_Clear_Buffer.triggered.connect(
-            self._acquisition.buffer.reset_buffer
-        )
-        self.action_Clear_Reference.triggered.connect(
-            self._acquisition.buffer.reset_reference_field
-        )
+        # self.action_Clear_Reference.triggered.connect(
+        #     self._acquisition.buffer.reset_reference_field
+        # )
 
         self.action_Load_Model.triggered.connect(self.on_load_model_triggered)
 
@@ -157,13 +144,6 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self._status_manager.setStatus.connect(
             self.widgetSettings.status_changed.emit
         )
-        self._acquisition.buffer.buffer_size_changed.connect(
-            lambda size, *_: self._status_manager.statusChanged.emit(
-                AppStatus.BUFFER_WAITING
-                if size < BUFFER_SIZE
-                else AppStatus.BUFFER_FULL
-            )
-        )
 
         self._status_manager.statusChanged.emit(AppStatus.NO_MODEL)
 
@@ -174,20 +154,6 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         if result == QtWidgets.QDialog.Rejected:
             log.debug("Model load dialog cancelled.")
-            return
-
-    def on_new_prediction(
-        self, cycle_data: CycleData, prediction: np.ndarray
-    ) -> None:
-        try:
-            self._acquisition.buffer.dispatch_data(
-                BufferData.REF_B,
-                cycle_data.cycle,
-                cycle_data.cycle_timestamp,
-                prediction,
-            )
-        except:  # noqa E722
-            log.exception("An exception occurred while saving reference B.")
             return
 
     def toggle_plot_settings(self) -> None:

@@ -49,10 +49,10 @@ class StatusManager(QObject):
             if AppStatus.INFERENCE_DISABLED in self._current_state:
                 self._current_state.remove(AppStatus.INFERENCE_DISABLED)
 
-                if AppStatus.BUFFER_WAITING in self._current_state:
-                    self.setStatus.emit(AppStatus.BUFFER_WAITING)
-                else:
-                    self.setStatus.emit(AppStatus.INFERENCE_IDLE)
+                # if AppStatus.BUFFER_WAITING in self._current_state:
+                #     self.setStatus.emit(AppStatus.BUFFER_WAITING)
+                # else:
+                self.setStatus.emit(AppStatus.INFERENCE_IDLE)
             if AppStatus.INFERENCE_IDLE in self._current_state:
                 self.setStatus.emit(AppStatus.INFERENCE_IDLE)
 
@@ -79,21 +79,17 @@ class StatusManager(QObject):
 
         elif status == AppStatus.MODEL_LOADED:
             self._current_state.add(status)
-            if AppStatus.BUFFER_FULL in self._current_state:
-                if AppStatus.INFERENCE_ENABLED in self._current_state:
-                    self._current_state.add(AppStatus.INFERENCE_IDLE)
-                    self.setStatus.emit(AppStatus.INFERENCE_IDLE)
-                else:
-                    self._current_state.add(AppStatus.INFERENCE_DISABLED)
-                    self.setStatus.emit(AppStatus.INFERENCE_DISABLED)
-            elif AppStatus.BUFFER_WAITING in self._current_state:
-                self.setStatus.emit(AppStatus.BUFFER_WAITING)
+            if AppStatus.INFERENCE_ENABLED in self._current_state:
+                self._current_state.add(AppStatus.INFERENCE_IDLE)
+                self.setStatus.emit(AppStatus.INFERENCE_IDLE)
+            else:
+                self._current_state.add(AppStatus.INFERENCE_DISABLED)
+                self.setStatus.emit(AppStatus.INFERENCE_DISABLED)
 
         elif status == AppStatus.NO_MODEL:  # start of application
             self._current_state.clear()
             self._current_state.add(AppStatus.NO_MODEL)
             self._current_state.add(AppStatus.INFERENCE_DISABLED)
-            self._current_state.add(AppStatus.BUFFER_WAITING)
             self.setStatus.emit(status)
         else:
             raise NotImplementedError(f"Unknown status: {status}")

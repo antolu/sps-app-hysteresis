@@ -5,22 +5,20 @@ and reference, and publishes it for external use.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import re
+import typing
 from datetime import datetime
 from functools import partial
 from signal import SIGINT, SIGTERM, signal
-from threading import Thread
-from typing import Callable, Iterable, Optional, Union
+from qtpy import QtCore
+import collections
 
 import pyda._metadata
 import pyda.data
 import pyda.providers
-import pyda_lsa
-from op_app_context import context
-from pyda import AsyncIOClient, SimpleClient
-from pyda.clients.asyncio import AsyncIOSubscription
+import pyda.clients.callback
+from hystcomp_utils.cycle_data import unflatten_cycle_data, CycleData
 from pyda.data import PropertyRetrievalResponse
 
 try:
@@ -30,22 +28,15 @@ except ImportError:
     # for my macos laptop
     AuthenticationClient = None  # type: ignore
 
-from ..async_utils import Signal
 from ..utils import from_timestamp
-from ._acquisition_buffer import (
-    AcquisitionBuffer,
-    BufferData,
-    BufferSignal,
-    InsufficientDataError,
-)
+
 from ._cycle_to_tgm import LSAContexts
 
 __all__ = ["Acquisition"]
 
-DEV_LSA_B = "rmi://virtual_sps/SPSBEAM/B"
-DEV_LSA_BDOT = "rmi://virtual_sps/SPSBEAM/BDOT"
-DEV_LSA_I = "MBI/REF.TABLE.FUNC.VALUE"
-DEV_LSA_BHYS_CORRECTION = "SPSBEAM/BHYS@correction"
+DEV_BUFFER = (
+    "rda3://UCAP-NODE-CSS-DSB-TEST/SPS.HYSTCOMP.MBI.EVENT/CycleWarning"
+)
 
 DEV_MEAS_I = "MBI/LOG.I.MEAS"
 DEV_MEAS_B = "SR.BMEAS-SP-B-SD/CycleSamples#samples"
@@ -59,21 +50,6 @@ START_CYCLE = "XTIM.SX.SCY-CT/Acquisition"
 START_SUPERCYCLE = "SX.CZERO-CTML/SuperCycle"
 
 
-ENDPOINT2BF = {
-    DEV_MEAS_I: BufferData.MEAS_I,
-    DEV_MEAS_B: BufferData.MEAS_B,
-    DEV_LSA_I: BufferData.PROG_I,
-    DEV_LSA_B: BufferData.PROG_B,
-    DEV_LSA_BHYS_CORRECTION: BufferData.CORR_B,
-}
-
-ENDPOINT2SIG = {
-    TRIGGER_EVENT: BufferSignal.FOREWARNING,
-    START_CYCLE: BufferSignal.CYCLE_START,
-    TRIGGER_DYNECO: BufferSignal.DYNECO,
-}
-
-
 ENDPOINT_RE = re.compile(
     r"^(?P<device>(?P<protocol>.+:\/\/)?[\w\/\.-]+)/(?P<property>[\w\#\.-]+)$"
 )  # noqa: E501
@@ -81,9 +57,35 @@ ENDPOINT_RE = re.compile(
 
 log = logging.getLogger(__name__)
 
-from_utc_ns: Callable[[Union[int, float]], datetime] = partial(
+from_utc_ns: typing.Callable[[int | float], datetime] = partial(
     from_timestamp, from_utc=True, unit="ns"
 )
+
+
+class RingBuffer:
+    def __init__(self, size: int):
+        self.size = size
+        self.buffer: collections.deque[CycleData] = collections.deque(
+            maxlen=size
+        )
+        self.timestamp_index: dict[float, CycleData] = {}
+
+    def add(self, cycle_data: CycleData):
+        if len(self.buffer) == self.size:
+            oldest_data = self.buffer.popleft()
+            del self.timestamp_index[oldest_data.cycle_timestamp]
+        self.buffer.append(cycle_data)
+        self.timestamp_index[cycle_data.cycle_timestamp] = cycle_data
+
+    def __getitem__(self, cycle_timestamp: float) -> CycleData:
+        if cycle_timestamp in self.timestamp_index:
+            return self.timestamp_index[cycle_timestamp]
+        else:
+            msg = f"CycleData with timestamp {cycle_timestamp} not found."
+            raise KeyError(msg)
+
+    def __contains__(self, cycle_timestamp: float) -> bool:
+        return cycle_timestamp in self.timestamp_index
 
 
 class JapcEndpoint(pyda.data.StandardEndpoint):
@@ -100,23 +102,18 @@ class JapcEndpoint(pyda.data.StandardEndpoint):
         )
 
 
-class Acquisition:
-    data_acquired: Signal  # PropertyRetrievalResponse
-    new_buffer_data: Signal  # list[CycleData]
-    cycle_mapping_changed: Signal  # str
-    cycle_started: Signal  # str, str, int
-    supercycle_started: Signal  # int, str
-    supercycle_changed: Signal  # no argument
+class Acquisition(QtCore.QObject):
+    new_buffer_data = QtCore.Signal(list)  # list[CycleData]
 
-    new_measured_data: Signal  # CycleData
-    new_programmed_cycle: Signal  # CycleData
+    cycle_started = QtCore.Signal(str, str, float)  # str, str, int
+
+    new_measured_data = QtCore.Signal(CycleData)  # CycleData
+    sig_new_programmed_cycle = QtCore.Signal(CycleData)  # CycleData
 
     def __init__(
         self,
-        min_buffer_size: int = 300000,
-        buffer_only_measured: bool = False,
         japc_provider: JapcProvider | pyda.providers.Provider | None = None,
-        lsa_provider: Optional[pyda_lsa.LsaProvider] = None,
+        parent: QtCore.QObject | None = None,
     ):
         """
         This class handles the acquisition of data from the online magnets
@@ -134,49 +131,15 @@ class Acquisition:
             data. The provider must have an RBAC role for reading measured
             and reference currents.
         """
-        self._min_buffer_size = min_buffer_size
-        self._buffer = AcquisitionBuffer(
-            min_buffer_size, buffer_only_measured=buffer_only_measured
-        )
+        super().__init__(parent=parent)
 
-        self._async_handles: dict[str, AsyncIOSubscription] = {}
-        self._main_task: Optional[asyncio.Task] = None
+        self._callback_handles: dict[
+            str, pyda.clients.callback.CallbackSubscription
+        ] = {}
 
-        token = None
-        if japc_provider is None:
-            assert AuthenticationClient is not None
-            rbac_client = AuthenticationClient()
-            log.info(
-                "JapcProvider not provided, logging into RBAC by location."
-            )
-            token = rbac_client.login_location()
-            log.info(
-                "RBAC login successful. " f"Identified as {token.user_name}."
-            )
-            japc_provider = JapcProvider(
-                rbac_token=token,
-            )
-            japc_provider = pyda.providers.Provider(
-                data_source=japc_provider,
-                metadata_source=pyda._metadata.NoMetadataSource(),
-            )
+        japc_provider = japc_provider or default_japc_provider()
 
-        if lsa_provider is None:
-            if token is None:
-                assert AuthenticationClient is not None
-                rbac_client = AuthenticationClient()
-                log.info(
-                    "LsaProvider not provided, logging into RBAC by location."
-                )
-                token = rbac_client.login_location()
-                log.info(
-                    "RBAC login successful. "
-                    f"Identified as {token.user_name}."
-                )
-            lsa_provider = pyda_lsa.LsaProvider(
-                server=context.lsa_server,
-                rbac_token=token,
-            )
+        self._buffer = RingBuffer(20)
 
         # Get mapped contextd
         self._pls_to_lsa: dict[str, str]
@@ -189,100 +152,56 @@ class Acquisition:
         self._pls_to_lsa = self._lsa_contexts.pls_to_lsa
         self._lsa_to_pls = self._lsa_contexts.lsa_to_pls
 
-        self._stop_execution = False
-
         # set up PyDA and PyJApc
-        self._japc_simple = SimpleClient(provider=japc_provider)
-        self._japc_async = AsyncIOClient(provider=japc_provider)
-        self._lsa_simple = SimpleClient(provider=lsa_provider)
-
-        # Initialize signals, but don't start them
-        self.data_acquired = Signal(PropertyRetrievalResponse)
-        self.new_buffer_data = self._buffer.new_buffered_data
-        self.cycle_mapping_changed = Signal(str)  # LSA cycle name
-        self.cycle_started = Signal(str, str, float)  # PLS, LSA, timestamp
-
-        self.supercycle_started = Signal(int, str)  # ID, name
-        self.supercycle_changed = Signal()
-
-        # add buffer signals
-        self.new_measured_data = self._buffer.new_measured_data
-        self.new_programmed_cycle = self._buffer.new_programmed_cycle
-        self.data_acquired.connect(self._handle_acquisition)
+        self._japc_simple = pyda.SimpleClient(provider=japc_provider)
+        self._japc = pyda.CallbackClient(provider=japc_provider)
 
         # This must be executed in the main thread (I think)
         signal(SIGINT, lambda *_: self.stop())
         signal(SIGTERM, lambda *_: self.stop())  # noqa
 
-    def run(self) -> Thread:
-        def wrapper() -> None:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-            self._main_task = loop.create_task(self._run())
-
-            loop.run_until_complete(self._main_task)
-
-        th = Thread(target=wrapper)
-        log.debug("Starting acquisition in new thread: " + th.name)
-        th.start()
-
-        return th
+    # def run(self) -> Thread:
+    #     th = Thread(target=self._run)
+    #     log.debug("Starting acquisition in new thread: " + th.name)
+    #     th.start()
+    #
+    #     return th
 
     def stop(self) -> None:
         """
         Stops the acquisition task and consequently the thread.
         """
-        if self._main_task is None:
-            log.warning(
-                "Acquisition event loop has not yet been started. "
-                "Nothing to cancel."
-            )
-            return
 
         log.debug("Acquisition received stop signal.")
 
-        self._main_task.cancel()
-        Signal.cancel_all()
-
-    async def _run(self) -> None:
+    def _run(self) -> None:
         """
         Starts the acquisition process in a separate thread.
         """
         # TODO: perform synchronous GETS to initialize the buffer
-        Signal.start_all(asyncio.get_running_loop())
         try:
-            handles = self._setup_subscriptions()
+            self._setup_subscriptions()
         except:  # noqa F722
             log.exception("Error while setting up subscriptions.")
             return
 
-        try:
-            async for response in AsyncIOClient.merge_subscriptions(*handles):
-                if self._stop_execution:
-                    break
+        for key, handle in self._callback_handles.items():
+            handle.start()
 
-                try:
-                    self._handle_acquisition(response)
-                except Exception as e:  # noqa F722
-                    log.exception("Error handling acquisition event." + str(e))
-        except asyncio.CancelledError:
-            log.debug("Acquisition loop received cancel event.")
+    run = _run
 
     @property
-    def buffer(self) -> AcquisitionBuffer:
+    def buffer(self) -> RingBuffer:
         return self._buffer
 
-    def _setup_subscriptions(self) -> list[AsyncIOSubscription]:
+    def _setup_subscriptions(self) -> None:
         pyda_subscriptions = [
             ("StartSuperCycle", START_SUPERCYCLE, ""),
             ("StartCycle", START_CYCLE, "SPS.USER.ALL"),
-            ("Forewarning", TRIGGER_EVENT, "SPS.USER.ALL"),
-            ("PartialEconomy", TRIGGER_DYNECO, "SPS.USER.ALL"),
+            ("Buffer", DEV_BUFFER, "SPS.USER.ALL"),
+            # ("PartialEconomy", TRIGGER_DYNECO, "SPS.USER.ALL"),
             ("MeasuredCurrent", DEV_MEAS_I, "SPS.USER.ALL"),
             ("MeasuredBField", DEV_MEAS_B, "SPS.USER.ALL"),
-            ("ProgrammedCurrent", DEV_LSA_I, "SPS.USER.ALL"),
-            ("ProgrammedBField", DEV_LSA_B, "SPS.USER.ALL"),
         ]
 
         log.debug("Setting up subscriptions.")
@@ -295,13 +214,22 @@ class Acquisition:
         log.debug("Subscribing to events.")
         for name, endpoint, selector in pyda_subscriptions:
             log.debug(f"Subscribing to {endpoint} with selector {selector}.")
-            handle = self._japc_async.subscribe(
-                JapcEndpoint.from_str(endpoint), context=selector
+            handle = self._japc.subscribe(
+                JapcEndpoint.from_str(endpoint),
+                context=selector,
+                callback=self._handle_with_error,
+                receive_first_updates=False,
             )
 
-            self._async_handles[name] = handle
+            self._callback_handles[name] = handle
 
-        return list(self._async_handles.values())
+    def _handle_with_error(self, response: PropertyRetrievalResponse) -> None:
+        try:
+            self._handle_acquisition(response)
+        except Exception:  # noqa: E722
+            log.exception(
+                "An exception occurred while handling acquisition event."
+            )
 
     def _handle_acquisition(
         self, response: PropertyRetrievalResponse, allow_empty: bool = False
@@ -315,12 +243,7 @@ class Acquisition:
                 "Received first update for "
                 f"{response.query.endpoint}@{response.query.context}. "
             )
-            if str(response.query.endpoint) not in (DEV_LSA_I, DEV_LSA_B):
-                msg += "Discarding it."
-                log.debug(msg)
-                return
-            else:
-                log.debug(msg)
+            log.debug(msg)
 
         log.debug(f"Received acquisition event: {response.query.endpoint}.")
         if response.exception is not None:
@@ -350,90 +273,25 @@ class Acquisition:
             f"{cycle_time}."
         )
 
-        selector = str(value.header.selector)
         endpoint = str(response.query.endpoint)
         if endpoint == START_SUPERCYCLE:
             self._on_start_supercycle(response)
             return
-        elif endpoint == TRIGGER_EVENT:
+        elif endpoint == DEV_BUFFER:
             self._on_forewarning(response)
             return
-
-        cycle = self._pls_to_lsa.get(selector)
-        if cycle is None:
-            if selector in self._lsa_to_pls:
-                cycle = selector
-
-        if cycle is None:
-            msg = (
-                "Received event from timing user not mapped in supercycle: "
-                f"{value.header.selector}."
-            )
-            if response.notification_type == "FIRST_UPDATE":
-                log.debug("First update: " + msg)
-            else:
-                log.error(msg)
-
+        elif endpoint == START_CYCLE:
+            self._on_start_cycle(response)
             return
-
-        if endpoint in ENDPOINT2SIG:
-            assert cycle is not None
-            assert cycle_timestamp is not None
-
-            if endpoint == START_CYCLE:
-                self._get_correction(cycle, cycle_timestamp)
-                self.cycle_started.emit(selector, cycle, cycle_timestamp)
-
-            self._buffer.dispatch_signal(
-                ENDPOINT2SIG[endpoint], cycle, cycle_timestamp, selector
-            )
+        elif endpoint == DEV_MEAS_I:
+            self._on_measured_current(response)
             return
-        elif endpoint in ENDPOINT2BF:
-            data = response.value.get("value")
-            if data is None:
-                data = response.value.get("correction")
-            if data is None:
-                if allow_empty:
-                    return
-                log.error(f"Received event with no data from {endpoint}.")
-                return
-
-            assert cycle_timestamp is not None
-            self._buffer.dispatch_data(
-                ENDPOINT2BF[endpoint], cycle, cycle_timestamp, data
-            )
+        elif endpoint == DEV_MEAS_B:
+            self._on_measured_field(response)
+            return
         else:
-            log.error(f"Received event from unknown endpoint " f"{endpoint}.")
-
-    def _get_correction(self, cycle: str, cycle_timestamp: int) -> None:
-        """
-        Since we are currently bootstrapping the next measured current
-        with the previous measured current, we need to get the correction
-        at the time it was measured to correct against.
-        """
-        value = self._lsa_simple.get(
-            endpoint=pyda_lsa.LsaEndpoint.from_str(DEV_LSA_BHYS_CORRECTION),
-            context=pyda_lsa.LsaCycleContext(cycle=cycle),
-        )
-        header = value.value.header
-
-        new_header = pyda.data.RetrievalHeader(
-            acquisition_timestamp=header.acquisition_timestamp,
-            cycle_timestamp=cycle_timestamp,
-            selector=header.selector,
-        )
-
-        new_value = pyda.data.PropertyRetrievalResponse(
-            query=value.query,
-            value=pyda.data.AcquiredPropertyData(
-                data=value.value._data,
-                header=new_header,
-            ),
-            notification_type=value.notification_type,
-            exception=value.exception,
-        )
-
-        self._handle_acquisition(new_value, allow_empty=False)
+            msg = f"Unknown endpoint {endpoint}."
+            log.error(msg)
 
     def _on_forewarning(self, response: PropertyRetrievalResponse) -> None:
         """
@@ -443,7 +301,14 @@ class Acquisition:
         This function notify the buffer that a new cycle is about to start,
         and then retrieve the latest buffered data if it is available.
         """
-        cycle = response.value.get("lsaCycleName")
+        selector = str(response.value.header.selector)
+        cycle = self._pls_to_lsa.get(selector, "N/A")
+        if cycle == "N/A":
+            log.warning(
+                f"User {selector} is not mapped to any LSA cycle. "
+                "Skipping this cycle."
+            )
+            return
         cycle_timestamp = response.value.header.cycle_timestamp
         assert cycle_timestamp is not None
         assert cycle is not None
@@ -452,41 +317,101 @@ class Acquisition:
             "start. Notifying buffer."
         )
 
-        if cycle not in self.buffer.known_cycles:
-            log.debug(
-                f"Cycle {cycle} is not known to the buffer. "
-                "Fetching LSA programs."
-            )
-
-            selector = self._lsa_to_pls[cycle]
-            try:
-                self._handle_acquisition(
-                    self._japc_simple.get(
-                        JapcEndpoint.from_str(DEV_LSA_I), context=selector
-                    )
-                )
-                self._handle_acquisition(
-                    self._japc_simple.get(
-                        JapcEndpoint.from_str(DEV_LSA_B), context=selector
-                    )
-                )
-            except:  # noqa E722
-                log.exception("Error fetching LSA programs.")
-                return
-
-        self.buffer.new_cycle(cycle, cycle_timestamp, self._lsa_to_pls[cycle])
-
         log.debug("Query buffer for latest buffered data.")
+        buffer_dict = dict(response.value)
+        buffer: list[CycleData] = unflatten_cycle_data(buffer_dict)
 
-        try:
-            buffer = self._buffer.collate_samples()
-        except InsufficientDataError as e:
-            log.debug(str(e))
-            return
+        last_cycle = buffer[-1]
+        last_cycle.field_meas = None
+        last_cycle.current_meas = None
+        self._buffer.add(last_cycle)
 
         log.debug("Buffered data available. Sending it to listeners.")
 
+        log.debug("Notifying listeners of new programmed cycle.")
+        self.sig_new_programmed_cycle.emit(buffer[-1])
+
         self.new_buffer_data.emit(buffer)
+
+    def _on_start_cycle(self, response: PropertyRetrievalResponse) -> None:
+        """
+        Handler for the cycle start event. This is triggered when the cycle
+        starts playing.
+
+        This function notifies the buffer that a new cycle has started, and
+        then retrieves the latest buffered data if it is available.
+        """
+
+        cycle_timestamp = response.value.header.cycle_timestamp
+        user = str(response.value.header.selector)
+        cycle = self._pls_to_lsa.get(user, "N/A")
+        self.cycle_started.emit(user, cycle, cycle_timestamp)
+
+    def _on_measured_current(
+        self, response: PropertyRetrievalResponse
+    ) -> None:
+        """
+        Add measured current. If measured field is available, send the
+        combined data to listeners.
+
+        Parameters
+        ----------
+        response : PropertyRetrievalResponse
+            The response container on retrieval.
+        """
+        value = response.value
+        cycle_timestamp = value.header.cycle_timestamp
+        assert cycle_timestamp is not None
+        cycle_time = from_utc_ns(cycle_timestamp)
+        log.debug(f"Measured current received at {cycle_time}.")
+
+        if cycle_timestamp not in self._buffer:
+            log.warning(
+                "Cycle data not available. This is probably the first "
+                "cycle of the acquisition."
+            )
+            return  # skip this cycle
+
+        cycle_data = self._buffer[cycle_timestamp]
+        cycle_data.current_meas = value["value"].flatten()
+
+        if cycle_data.field_meas is not None:
+            log.debug(
+                "Measured field is available. Sending data to listeners."
+            )
+            self.new_measured_data.emit(cycle_data)
+
+    def _on_measured_field(self, response: PropertyRetrievalResponse) -> None:
+        """
+        Add measured field. If measured current is available, send the
+        combined data to listeners.
+
+        Parameters
+        ----------
+        response : PropertyRetrievalResponse
+            The response container on retrieval.
+        """
+        value = response.value
+        cycle_timestamp = value.header.cycle_timestamp
+        assert cycle_timestamp is not None
+        cycle_time = from_utc_ns(cycle_timestamp)
+        log.debug(f"Measured field received at {cycle_time}.")
+
+        if cycle_timestamp not in self._buffer:
+            log.debug(
+                "Cycle data not available. This is probably the first "
+                "cycle of the acquisition."
+            )
+            return
+
+        cycle_data = self._buffer[cycle_timestamp]
+        cycle_data.field_meas = value["value"].flatten()
+
+        if cycle_data.current_meas is not None:
+            log.debug(
+                "Measured current is available. Sending data to listeners."
+            )
+            self.new_measured_data.emit(cycle_data)
 
     def _on_start_supercycle(
         self, response: PropertyRetrievalResponse
@@ -508,7 +433,8 @@ class Acquisition:
         mappings_changed = []
 
         def parse_mappings(
-            users: Iterable[str] | None, cycles: Iterable[str] | None
+            users: typing.Iterable[str] | None,
+            cycles: typing.Iterable[str] | None,
         ) -> tuple[dict[str, str], dict[str, str]]:
             lsa_to_pls = {}
             pls_to_lsa = {}
@@ -576,15 +502,28 @@ class Acquisition:
                 "LSA cycle mappings changed for users {}. "
                 "Notifying listeners.".format(", ".join(mappings_changed))
             )
-            for user in mappings_changed:
-                self.cycle_mapping_changed.emit(new_pls_to_lsa[user])
 
         supercycle_id = value["bcdId"]
         supercycle_name = value["bcdName"]
 
         log.debug(f"Supercycle {supercycle_id} ({supercycle_name}) started.")
-        if supercycle_id != self._current_supercycle:
-            self.supercycle_started.emit(supercycle_id, supercycle_name)
-            self.supercycle_changed.emit()
 
-            self._current_supercycle = supercycle_id
+
+def default_japc_provider() -> JapcProvider:
+    """
+    Returns the default JAPC provider for the acquisition module.
+    """
+    assert AuthenticationClient is not None
+    rbac_client = AuthenticationClient()
+    log.info("JapcProvider not provided, logging into RBAC by location.")
+    token = rbac_client.login_location()
+    log.info("RBAC login successful. " f"Identified as {token.user_name}.")
+    japc_provider = JapcProvider(
+        rbac_token=token,
+    )
+    japc_provider = pyda.providers.Provider(
+        data_source=japc_provider,
+        metadata_source=pyda._metadata.NoMetadataSource(),
+    )
+
+    return japc_provider

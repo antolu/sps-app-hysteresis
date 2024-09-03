@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import logging
+import typing
 from threading import Lock
 
 import numpy as np
 import pandas as pd
 import scipy.ndimage
 import scipy.signal
-from hysteresis_scripts.predict import Predictor
+from hysteresis_scripts.predict import PETEPredictor
 from qtpy import QtCore, QtWidgets
 
 from ..data import CycleData
@@ -55,11 +56,13 @@ class Inference(QtCore.QObject):
     completed = QtCore.Signal()
 
     def __init__(
-        self, device: str = "cpu", parent: QtCore.QObject | None = None
+        self,
+        device: typing.Literal["cpu", "cuda", "auto"] = "cpu",
+        parent: QtCore.QObject | None = None,
     ) -> None:
         super().__init__(parent=parent)
 
-        self._predictor = Predictor(device=device)
+        self._predictor = PETEPredictor(device=device)
 
         self._lock = Lock()
         self._do_inference = False
@@ -90,7 +93,7 @@ class Inference(QtCore.QObject):
         with load_cursor():
             try:
                 self._predictor.device = device
-                self._predictor.load_from_checkpoint(model_name, ckpt_path)
+                self._predictor.load_from_checkpoint(ckpt_path)
             except:  # noqa F722
                 log.exception("Error occurred.")
                 return

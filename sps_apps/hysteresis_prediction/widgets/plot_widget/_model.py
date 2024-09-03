@@ -47,7 +47,7 @@ class PlotModel(QtCore.QObject):
         )
 
         self._acquisition.new_measured_data.connect(self._handle_new_measured)
-        self._acquisition.new_programmed_cycle.connect(
+        self._acquisition.sig_new_programmed_cycle.connect(
             self._handle_new_programmed
         )
 
@@ -55,7 +55,7 @@ class PlotModel(QtCore.QObject):
         self._acquisition.new_measured_data.disconnect(
             self._handle_new_measured
         )
-        self._acquisition.new_programmed_cycle.disconnect(
+        self._acquisition.sig_new_programmed_cycle.disconnect(
             self._handle_new_programmed
         )
 
@@ -101,9 +101,9 @@ class PlotModel(QtCore.QObject):
             self._current_prog_source.new_value(
                 cycle_data.cycle_timestamp, cycle_data.current_prog
             )
-            self._field_prog_source.new_value(
-                cycle_data.cycle_timestamp, cycle_data.field_prog
-            )
+            # self._field_prog_source.new_value(
+            #     cycle_data.cycle_timestamp, cycle_data.field_prog
+            # )
         except Exception:  # noqa: broad-except
             log.exception(
                 "An exception occurred while publishing new "
