@@ -415,7 +415,7 @@ class Acquisition(QtCore.QObject):
             return
 
         cycle_data = self._buffer[cycle_timestamp]
-        cycle_data.field_meas = value["value"].flatten()
+        cycle_data.field_meas = value["value"].flatten() / 1e-4
 
         if cycle_data.current_meas is not None:
             log.debug(
@@ -450,7 +450,7 @@ class Acquisition(QtCore.QObject):
             log.debug(
                 "Field reference is None. Setting it to predicted field."
             )
-            cycle_data.field_ref = predictions
+            cycle_data.field_ref = self._field_ref[cycle_data.cycle]
 
         self.new_prediction.emit(cycle_data, predictions)
 
