@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+
 import logging
 import typing
-from threading import Lock
 
 import numpy as np
 import pandas as pd
@@ -64,9 +64,9 @@ class Inference(QtCore.QObject):
 
         self._predictor = PETEPredictor(device=device)
 
-        self._lock = Lock()
         self._do_inference = False
-        self._doing_inference = False
+        self._autoregressive = False
+        self._use_programmed_current = True
 
         self.load_model.connect(self.on_load_model)
 
@@ -80,7 +80,7 @@ class Inference(QtCore.QObject):
         def on_exception(e: Exception) -> None:
             log.exception("Error loading model.")
             QtWidgets.QMessageBox.critical(
-                self, "Error loading model", str(e), QtWidgets.QMessageBox.Ok
+                None, "Error loading model", str(e), QtWidgets.QMessageBox.Ok
             )
 
         worker.exception.connect(on_exception)
@@ -93,12 +93,12 @@ class Inference(QtCore.QObject):
         with load_cursor():
             try:
                 self._predictor.device = device
-                self._predictor.load_from_checkpoint(ckpt_path)
+                self._predictor.load_checkpoint(ckpt_path)
             except:  # noqa F722
                 log.exception("Error occurred.")
                 return
 
-            with self._lock:
+            with self._predictor.lock:
                 self._ckpt_path = ckpt_path
 
         self.model_loaded.emit()
@@ -139,89 +139,25 @@ class Inference(QtCore.QObject):
         :raises ValueError: If not all data has input current set.
         """
 
-        if USE_PROGRAMMED_CURRENT:
-            # past_current = []  hack flat MD1
-            # for data in cycle_data[:-1]:
-            # if data.user != "SPS.USER.MD1":
-            #     past_current.append(upscale_programmed_current(data)[:-1])
-            # else:
-            #     I_prog = data.current_prog[1]
-            #     # take first point and make it last point, then interpolate
-            #     I_prog = np.array([I_prog[0], I_prog[0]])
-            #     t_prog = np.array(
-            #         [data.current_prog[0][0], data.current_prog[0][-1]]
-            #     )
-            #     t = np.arange(0, data.current_input.size + 1, 1)
-            #     I = np.interp(t, t_prog, I_prog)
-
-            #     past_current.append(I[:-1])
-            # past_current = np.concatenate(past_current)
-            past_current = np.concatenate(
-                [
-                    upscale_programmed_current(data)[:-1]
-                    for data in cycle_data[:-1]
-                ]
-            )
-            future_current = upscale_programmed_current(cycle_data[-1])[:-1]
-        else:
-            for data in cycle_data:
-                if data.current_input is None:
-                    raise ValueError("Not all data has input current set.")
-            past_current = np.concatenate(
-                [filter_(data.current_input) for data in cycle_data[:-1]]
-            )
-            future_current = filter_(cycle_data[-1].current_input)
-        past_covariates = pd.DataFrame(
-            {
-                "I_meas_A": past_current,
-                "I_meas_A_dot": calc_time_derivative(past_current),
-            }
-        )
-        future_covariates = pd.DataFrame(
-            {
-                "I_meas_A": filter_(future_current),
-                "I_meas_A_dot": calc_time_derivative(filter_(future_current)),
-            }
-        )
-        if USE_PROGRAMMED_CURRENT:
-            future_covariates["I_meas_A"] = upscale_programmed_current(
-                cycle_data[-1]
-            )[:-1]
-            future_covariates["I_meas_A_dot"] = calc_time_derivative(
-                future_covariates["I_meas_A"]
-            )
-
-        for data in cycle_data[:-1]:
-            if data.field_meas is None:
-                raise RuntimeError(
-                    "Not all data in the past has measured field set."
-                )
-        past_field = np.concatenate(
-            [filter_(data.field_meas) for data in cycle_data[:-1]]  # type: ignore[arg-type]
-        )
-
-        input_columns = self._predictor._datamodule.hparams["input_columns"]
+        buffer = cycle_data
+        past_covariates = buffer_to_covariates(buffer[:-1])
         past_covariates = past_covariates.rename(
-            columns={
-                "I_meas_A": input_columns[0],
-                "I_meas_A_dot": input_columns[1],
-            }
+            {"B_meas_T_filtered": "__target__"}, axis=1
         )
-        future_covariates = future_covariates.rename(
-            columns={
-                "I_meas_A": input_columns[0],
-                "I_meas_A_dot": input_columns[1],
-            }
-        )
+
+        if self._autoregressive or self._predictor.state is None:
+            self._predictor.set_initial_state(
+                past_covariates=past_covariates,
+            )
+
+        future_covariates = buffer_to_covariates([buffer[-1]])
+
+        assert self._predictor._datamodule is not None
 
         log.debug("Running inference.")
         with time_execution() as timer:
             predictions = self._predictor.predict(
-                past_covariates,
                 future_covariates,
-                past_field,
-                exception_on_failure=True,
-                upsample=False,
             )
         log.info("Inference took: %f s", timer.duration)
 
@@ -244,14 +180,77 @@ class Inference(QtCore.QObject):
         return self._predictor._module is not None
 
     def set_do_inference(self, state: bool) -> None:
-        with self._lock:
+        with self._predictor.lock:
             self._do_inference = state
 
+    def set_autoregressive(self, state: bool) -> None:
+        with self._predictor.lock:
+            self._autoregressive = state
 
-def calc_time_derivative(column: pd.Series | np.ndarray) -> np.ndarray:
+    @property
+    def autoregressive(self) -> bool:
+        return self._autoregressive
+
+    @autoregressive.setter
+    def autoregressive(self, value: bool) -> None:
+        self.set_autoregressive(value)
+
+    def set_use_programmed_current(self, state: bool) -> None:
+        with self._predictor.lock:
+            self._use_programmed_current = state
+
+    @property
+    def use_programmed_current(self) -> bool:
+        return self._use_programmed_current
+
+    @use_programmed_current.setter
+    def use_programmed_current(self, value: bool) -> None:
+        self.set_use_programmed_current(value)
+
+
+def buffer_to_covariates(buffer: list[CycleData]) -> pd.DataFrame:
+    if len(buffer) == 0:
+        msg = "Buffer must contain at least one cycle."
+        raise ValueError(msg)
+    if len(buffer) == 1:
+        i_prog_2d = buffer[0].current_prog
+    else:
+        i_prog_2d = PETEPredictor.chain_programs(
+            *[cycle.current_prog for cycle in buffer]
+        )
+    t_prog, i_prog = PETEPredictor.interpolate_program(i_prog_2d, fs=1)
+    t_prog /= 1e3
+
+    # NB: we are using the programmed current, which is noise-free
+    i_prog_dot = np.gradient(i_prog, t_prog)
+
+    covariates = pd.DataFrame(
+        {
+            "__time__": t_prog,
+            "I_meas_A_filtered": i_prog,
+            "I_meas_A_filtered_dot": i_prog_dot,
+        }
+    )
+
+    if all(cycle.field_meas is not None for cycle in buffer):
+        b_meas = np.concatenate(
+            [cycle.field_meas.flatten() for cycle in buffer]
+        )
+
+        covariates["B_meas_T_filtered"] = b_meas
+        # covariates[]
+
+    return covariates
+
+
+def calc_time_derivative(
+    column: pd.Series | np.ndarray, time: pd.Series | np.ndarray
+) -> np.ndarray:
     if isinstance(column, pd.Series):
         column = column.to_numpy()
+    if isinstance(time, pd.Series):
+        time = time.to_numpy()
     col_smoothed = scipy.signal.medfilt(column, kernel_size=5)
-    gradient = np.gradient(col_smoothed)
+    gradient = np.gradient(col_smoothed, time)
 
     return gradient
