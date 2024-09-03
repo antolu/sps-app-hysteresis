@@ -7,11 +7,13 @@ from __future__ import annotations
 import logging
 
 import pandas as pd
+import numpy as np
+from datetime import datetime
 import pyda
 import pyda_japc
 from qtpy import QtCore
 
-from ...data import CycleData
+from hystcomp_utils.cycle_data import CycleData
 from ._dataclass import DiffPlotMode, MeasPlotMode
 from ._list_model import PredictionListModel
 from ._plot_model import PredictionPlotModel
@@ -230,7 +232,7 @@ class PredictionAnalysisModel(QtCore.QObject):
         predictions = self.list_model.buffered_data
 
         df = pd.concat(
-            [o.cycle_data.to_pandas() for o in predictions],
+            [to_pandas(o.cycle_data) for o in predictions],
         )
 
         return df
@@ -241,9 +243,7 @@ class PredictionAnalysisModel(QtCore.QObject):
         """
         log.debug("Loading predictions from Pandas DataFrame.")
 
-        predictions = [
-            CycleData.from_pandas(row.to_frame()) for _, row in df.iterrows()
-        ]
+        predictions = [from_pandas(row.to_frame()) for _, row in df.iterrows()]
 
         user = predictions[0].user
         self.userChanged.emit(user)
@@ -251,3 +251,83 @@ class PredictionAnalysisModel(QtCore.QObject):
         self.clear()
         for pred in predictions:
             self._list_model.append(pred)
+
+
+def to_dict(
+    data: CycleData,
+) -> dict[str, np.ndarray | int | float | str | datetime | None]:
+    return {
+        "cycle": data.cycle,
+        "user": data.user,
+        "cycle_time": data.cycle_time,
+        "cycle_timestamp": data.cycle_timestamp,
+        "cycle_length": data.cycle_length,
+        "current_prog": data.current_prog.flatten(),
+        "field_prog": data.field_prog.flatten(),
+        "current_input": (
+            data.current_input if hasattr(data, "current_input") else None
+        ),
+        "field_ref": (
+            data.field_ref.flatten() if data.field_ref is not None else None
+        ),
+        "field_pred": (
+            data.field_pred.flatten() if data.field_pred is not None else None
+        ),
+        "current_meas": data.current_meas,
+        "field_meas": data.field_meas,
+        "num_samples": data.num_samples,
+        "correction": (
+            data.correction.flatten() if data.correction is not None else None
+        ),
+    }
+
+
+def from_dict(d: dict) -> CycleData:  # type: ignore
+    current_prog = d["current_prog"]
+    field_prog = d["field_prog"]
+
+    current_prog = from_1d_array(current_prog)
+    field_prog = from_1d_array(field_prog)
+    item = CycleData(
+        d["cycle"],
+        d["user"],
+        d["cycle_timestamp"],
+        current_prog,
+        field_prog,
+    )
+
+    item.current_input = d["current_input"]
+    item.field_pred = (
+        from_1d_array(d["field_pred"]) if d["field_pred"] is not None else None
+    )
+    item.field_ref = (
+        from_1d_array(d["field_ref"]) if d["field_ref"] is not None else None
+    )
+    item.current_meas = d["current_meas"]
+    item.field_meas = d["field_meas"]
+    item.correction = (
+        from_1d_array(d["correction"]) if d["correction"] is not None else None
+    )
+
+    return item
+
+
+def to_pandas(data: CycleData) -> pd.DataFrame:
+    """
+    Export cycle data to a Pandas DataFrame.
+    """
+    return pd.DataFrame.from_dict({k: [v] for k, v in to_dict(data).items()})
+
+
+def from_pandas(df: pd.DataFrame) -> CycleData:
+    """
+    Load predictions from a Pandas DataFrame.
+    """
+    if len(df) != 1:
+        raise ValueError("DataFrame must have only one row")
+
+    return from_dict({k: v[0] for k, v in df.to_dict().items()})
+
+
+def from_1d_array(arr: np.ndarray) -> np.ndarray:
+    return arr.reshape(2, arr.size // 2)
