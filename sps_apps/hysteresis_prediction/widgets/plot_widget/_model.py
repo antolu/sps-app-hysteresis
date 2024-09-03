@@ -78,7 +78,7 @@ class PlotModel(QtCore.QObject):
                 )
                 delta = (
                     downsample_tf(
-                        cycle_data.field_meas, downsample_factor, "average"
+                        cycle_data.field_meas, downsample_factor, "interval"
                     )
                     - field_pred[1, :]
                 ) * 1e4
