@@ -89,6 +89,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self._acquisition.new_prediction.connect(
             self.widgetPlot.model.onNewPredicted
         )
+        self._acquisition.new_prediction.connect(
+            lambda cycle_data, prediction: self._io.save_data(cycle_data)
+        )
         self._acquisition.new_buffer_data.connect(
             self._inference.predict_last_cycle
         )

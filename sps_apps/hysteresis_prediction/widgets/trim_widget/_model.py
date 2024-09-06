@@ -120,6 +120,12 @@ class TrimModel(QtCore.QObject):
 
         pred_t, delta = self.calc_delta(prediction)
 
+        max_val = np.max(np.abs(delta))
+        if max_val < 5e-6:
+            msg = f"Max value in delta {max_val:.2e} < 5e-6. Skipping trim on {prediction}"
+            log.info(msg)
+            return
+
         time_margin = (prediction.cycle_time - datetime.now()).total_seconds()
         if time_margin < 1.0:
             log.warning(
