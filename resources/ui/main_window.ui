@@ -69,6 +69,10 @@
     <addaction name="action_Clear_Buffer"/>
     <addaction name="separator"/>
     <addaction name="action_Clear_Reference"/>
+    <addaction name="actionReset_state"/>
+    <addaction name="separator"/>
+    <addaction name="actionAutoregressive"/>
+    <addaction name="actionProgrammed_current"/>
    </widget>
    <addaction name="menu_file"/>
    <addaction name="menu_view"/>
@@ -161,6 +165,33 @@
   <action name="action_Clear_Reference">
    <property name="text">
     <string>&amp;Clear Reference</string>
+   </property>
+  </action>
+  <action name="actionReset_state">
+   <property name="text">
+    <string>Reset &amp;state</string>
+   </property>
+  </action>
+  <action name="actionAutoregressive">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Autoregressive</string>
+   </property>
+  </action>
+  <action name="actionProgrammed_current">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Programmed current</string>
    </property>
   </action>
  </widget>

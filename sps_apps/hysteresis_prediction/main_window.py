@@ -115,6 +115,19 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         )
 
         self.action_Load_Model.triggered.connect(self.on_load_model_triggered)
+        self.actionProgrammed_current.triggered.connect(
+            lambda x: self._inference.set_use_programmed_current(
+                self.actionProgrammed_current.isChecked()
+            )
+        )
+        self.actionAutoregressive.triggered.connect(
+            lambda x: self._inference.set_autoregressive(
+                self.actionAutoregressive.isChecked()
+            )
+        )
+        self.actionReset_state.triggered.connect(
+            self._inference._predictor.reset_state
+        )
 
         self.actionPrediction_Analysis.triggered.connect(
             self.show_predicion_analysis
