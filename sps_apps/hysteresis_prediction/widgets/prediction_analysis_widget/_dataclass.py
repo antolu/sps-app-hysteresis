@@ -6,7 +6,7 @@ from enum import Enum, auto
 import pyqtgraph as pg
 from qtpy import QtGui
 
-from ...data import CycleData
+from hystcomp_utils.cycle_data import CycleData
 
 
 class DiffPlotMode(Enum):

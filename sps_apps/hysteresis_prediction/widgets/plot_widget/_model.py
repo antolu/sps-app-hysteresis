@@ -5,7 +5,8 @@ import logging
 import numpy as np
 from qtpy import QtCore
 
-from ...data import Acquisition, CycleData
+from ...data import Acquisition
+from hystcomp_utils.cycle_data import CycleData
 from ._sources import AcquiredDataType, CurrentFieldSource
 from transformertf.data import downsample as downsample_tf
 

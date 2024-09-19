@@ -17,7 +17,7 @@ from pyda_lsa import LsaCycleContext, LsaEndpoint, LsaProvider
 from qtpy import QtCore
 from transformertf.utils import signal
 
-from ...data import CycleData
+from hystcomp_utils.cycle_data import CycleData
 from ...utils import ThreadWorker, time_execution
 
 log = logging.getLogger(__name__)
