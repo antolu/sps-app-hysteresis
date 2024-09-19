@@ -3,7 +3,7 @@ import pandas as pd
 import pathlib
 
 
-import sps_apps.hysteresis_prediction.data
+import hystcomp_utils.cycle_data
 
 _MARKER_NAME = "uses_virtual_device"
 
@@ -48,10 +48,8 @@ def df() -> pd.DataFrame:
 @pytest.fixture
 def cycle_data_list(
     df: pd.DataFrame,
-) -> list[sps_apps.hysteresis_prediction.data.CycleData]:
+) -> list[hystcomp_utils.cycle_data.CycleData]:
     return [
-        sps_apps.hysteresis_prediction.data.CycleData.from_pandas(
-            row.to_frame().T
-        )
+        hystcomp_utils.cycle_data.CycleData.from_pandas(row.to_frame().T)
         for index, row in df.iterrows()
     ]

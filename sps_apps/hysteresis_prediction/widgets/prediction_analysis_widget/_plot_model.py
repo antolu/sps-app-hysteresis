@@ -6,7 +6,7 @@ import numpy as np
 import pyqtgraph as pg
 from qtpy import QtCore, QtGui
 
-from ...data import CycleData
+from hystcomp_utils.cycle_data import CycleData
 from ._colors import ColorPool
 from ._dataclass import DiffPlotMode, MeasPlotMode, Plot, PredictionItem
 

@@ -5,7 +5,7 @@ from collections import deque
 
 from qtpy import QtCore
 
-from ...data import CycleData
+from hystcomp_utils.cycle_data import CycleData
 from ._dataclass import PredictionItem
 
 

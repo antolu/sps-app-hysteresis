@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from op_app_context import context
 
-from sps_apps.hysteresis_prediction.data import CycleData
+from hystcomp_utils.cycle_data import CycleData
 from sps_apps.hysteresis_prediction.widgets.trim_widget import TrimModel
 
 context.lsa_server = "next"  # WARNING

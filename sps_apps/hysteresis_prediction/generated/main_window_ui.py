@@ -72,6 +72,16 @@ class Ui_main_window(object):
         self.action_Clear_Buffer.setObjectName("action_Clear_Buffer")
         self.action_Clear_Reference = QtWidgets.QAction(main_window)
         self.action_Clear_Reference.setObjectName("action_Clear_Reference")
+        self.actionReset_state = QtWidgets.QAction(main_window)
+        self.actionReset_state.setObjectName("actionReset_state")
+        self.actionAutoregressive = QtWidgets.QAction(main_window)
+        self.actionAutoregressive.setCheckable(True)
+        self.actionAutoregressive.setChecked(True)
+        self.actionAutoregressive.setObjectName("actionAutoregressive")
+        self.actionProgrammed_current = QtWidgets.QAction(main_window)
+        self.actionProgrammed_current.setCheckable(True)
+        self.actionProgrammed_current.setChecked(True)
+        self.actionProgrammed_current.setObjectName("actionProgrammed_current")
         self.menu_file.addAction(self.action_Load_Model)
         self.menu_file.addSeparator()
         self.menu_file.addAction(self.action_exit)
@@ -87,17 +97,21 @@ class Ui_main_window(object):
         self.menuTools.addAction(self.action_Clear_Buffer)
         self.menuTools.addSeparator()
         self.menuTools.addAction(self.action_Clear_Reference)
+        self.menuTools.addAction(self.actionReset_state)
+        self.menuTools.addSeparator()
+        self.menuTools.addAction(self.actionAutoregressive)
+        self.menuTools.addAction(self.actionProgrammed_current)
         self.menu_bar.addAction(self.menu_file.menuAction())
         self.menu_bar.addAction(self.menu_view.menuAction())
         self.menu_bar.addAction(self.menuTools.menuAction())
         self.menu_bar.addAction(self.menu_help.menuAction())
 
         self.retranslateUi(main_window)
-        self.action_about.triggered.connect(main_window.showAboutDialog)
-        self.action_exit.triggered.connect(main_window.close)
-        self.action_minimize.triggered.connect(main_window.showMinimized)
-        self.action_maximize.triggered.connect(main_window.showMaximized)
-        self.action_fullscreen.triggered.connect(main_window.toggleFullScreen)
+        self.action_about.triggered.connect(main_window.showAboutDialog) # type: ignore
+        self.action_exit.triggered.connect(main_window.close) # type: ignore
+        self.action_minimize.triggered.connect(main_window.showMinimized) # type: ignore
+        self.action_maximize.triggered.connect(main_window.showMaximized) # type: ignore
+        self.action_fullscreen.triggered.connect(main_window.toggleFullScreen) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(main_window)
 
     def retranslateUi(self, main_window):
@@ -122,6 +136,9 @@ class Ui_main_window(object):
         self.actionContinuous_Data_Export.setToolTip(_translate("main_window", "Enable / Disable continuous data export. This will write cycle data to disk when new measured data arrives."))
         self.action_Clear_Buffer.setText(_translate("main_window", "&Clear Buffer"))
         self.action_Clear_Reference.setText(_translate("main_window", "&Clear Reference"))
+        self.actionReset_state.setText(_translate("main_window", "Reset &state"))
+        self.actionAutoregressive.setText(_translate("main_window", "Autoregressive"))
+        self.actionProgrammed_current.setText(_translate("main_window", "Programmed current"))
 from accwidgets.app_frame import ApplicationFrame
 from sps_apps.hysteresis_prediction.widgets.plot_settings_widget import PlotSettingsWidget
 from sps_apps.hysteresis_prediction.widgets.plot_widget import PlotWidget

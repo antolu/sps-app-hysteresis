@@ -73,7 +73,7 @@ def main() -> None:
     context.lsa_server = args.lsa_server
     settings.configure_application(application)
 
-    main_window = MainWindow(buffer_size=args.buffer_size)
+    main_window = MainWindow()
     main_window.show()
 
     sys.exit(exec_app_interruptable(application))
