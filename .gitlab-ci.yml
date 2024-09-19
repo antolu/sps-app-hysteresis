@@ -7,6 +7,7 @@ variables:
   ACC_PY_BASE_IMAGE_NAME: "acc-py_cc7_openjdk11_ci"
   ACC_PY_BASE_IMAGE_TAG: "2023.06"
   project_name: "sps_app_hysteresis"
+  SETUPTOOLS_USE_DISTUTILS: "stdlib"
 
 build_wheel:
   extends: .acc_py_build_wheel
