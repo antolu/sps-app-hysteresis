@@ -105,13 +105,13 @@ class JapcEndpoint(pyda.data.StandardEndpoint):
 
 
 class Acquisition(QtCore.QObject):
-    new_buffer_data = QtCore.Signal(list)  # list[CycleData]
+    newBufferData = QtCore.Signal(list)  # list[CycleData]
 
     cycle_started = QtCore.Signal(str, str, float)  # str, str, int
 
     new_measured_data = QtCore.Signal(CycleData)  # CycleData
     sig_new_programmed_cycle = QtCore.Signal(CycleData)  # CycleData
-    new_prediction = QtCore.Signal(
+    onNewPrediction = QtCore.Signal(
         CycleData, np.ndarray
     )  # CycleData, np.ndarray
 
@@ -341,7 +341,7 @@ class Acquisition(QtCore.QObject):
         log.debug("Notifying listeners of new programmed cycle.")
         self.sig_new_programmed_cycle.emit(buffer[-1])
 
-        self.new_buffer_data.emit(buffer)
+        self.newBufferData.emit(buffer)
 
     def _on_start_cycle(self, response: PropertyRetrievalResponse) -> None:
         """
@@ -423,9 +423,7 @@ class Acquisition(QtCore.QObject):
             )
             self.new_measured_data.emit(cycle_data)
 
-    def new_predicted_data(
-        self, cycle_data: CycleData, predictions: np.ndarray
-    ) -> None:
+    def new_predicted_data(self, cycle_data: CycleData) -> None:
         """
         Callback function for the new predicted data event.
         This function is called when the predicted data is available.
@@ -444,7 +442,7 @@ class Acquisition(QtCore.QObject):
             log.debug(
                 "Field reference not available. Setting it to predicted field."
             )
-            self._field_ref[cycle_data.cycle] = predictions
+            self._field_ref[cycle_data.cycle] = cycle_data.field_pred
 
         if cycle_data.field_ref is None:
             log.debug(
@@ -452,7 +450,7 @@ class Acquisition(QtCore.QObject):
             )
             cycle_data.field_ref = self._field_ref[cycle_data.cycle]
 
-        self.new_prediction.emit(cycle_data, predictions)
+        self.onNewPrediction.emit(cycle_data)
 
     def _on_start_supercycle(
         self, response: PropertyRetrievalResponse

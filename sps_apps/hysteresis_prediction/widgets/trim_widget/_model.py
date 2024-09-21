@@ -15,7 +15,6 @@ from pyda.data import DiscreteFunction
 from pyda_japc import JapcProvider
 from pyda_lsa import LsaCycleContext, LsaEndpoint, LsaProvider
 from qtpy import QtCore
-from transformertf.utils import signal
 
 from hystcomp_utils.cycle_data import CycleData
 from ...utils import ThreadWorker, time_execution
@@ -91,7 +90,7 @@ class TrimModel(QtCore.QObject):
         self._trim_lock = QtCore.QMutex()
 
     @QtCore.Slot(CycleData, typing.Any, name="on_new_prediction")
-    def on_new_prediction(self, prediction: CycleData, *_: typing.Any) -> None:
+    def onNewPrediction(self, prediction: CycleData, *_: typing.Any) -> None:
         if not self._trim_enabled:
             log.debug("Trim is disabled, skipping trim.")
             return
@@ -110,17 +109,9 @@ class TrimModel(QtCore.QObject):
         if prediction.field_pred is None:
             raise ValueError(f"[{prediction}] No field prediction found.")
 
-        if prediction.cycle not in self._reference_fields:
-            log.info(
-                f"[{prediction}] No field reference found, skipping "
-                "trim but saving prediction as reference."
-            )
-            self._reference_fields[prediction.cycle] = prediction.field_pred
-            return
+        delta_t, delta_v = prediction.delta_applied
 
-        pred_t, delta = self.calc_delta(prediction)
-
-        max_val = np.max(np.abs(delta))
+        max_val = np.max(np.abs(delta_v))
         if max_val < 5e-6:
             msg = f"Max value in delta {max_val:.2e} < 5e-6. Skipping trim on {prediction}"
             log.info(msg)
@@ -137,63 +128,15 @@ class TrimModel(QtCore.QObject):
             log.info(f"[{prediction}] Time margin: {time_margin:.02f}s.")
 
         # trim in a new thread
-        worker = ThreadWorker(self.apply_correction, pred_t, delta, prediction)
+        worker = ThreadWorker(self.apply_correction, prediction)
         worker.exception.connect(
             lambda e: log.exception("Failed to apply trim to LSA.:\n" + str(e))
         )
 
         QtCore.QThreadPool.globalInstance().start(worker)
 
-    def calc_delta(
-        self, prediction: CycleData
-    ) -> tuple[np.ndarray, np.ndarray]:
-        # calc delta and smooth it
-        field_ref = self._reference_fields[prediction.cycle]
-
-        ref_t = (field_ref[0, :] - field_ref[0, 0]) * 1e3
-        ref_t = np.round(ref_t, 1)
-        ref_v = field_ref[1, :]
-
-        ref_t, ref_v = insert_points(
-            ref_t, ref_v, np.array([self.trim_t_start, self.trim_t_end])
-        )
-
-        assert prediction.field_pred is not None, "No field prediction found."
-        pred_t = (
-            prediction.field_pred[0, :] - prediction.field_pred[0, 0]
-        ) * 1e3
-        pred_t = np.round(pred_t, 1)
-        pred_v = prediction.field_pred[1, :]
-
-        pred_t, pred_v = insert_points(
-            pred_t, pred_v, np.array([self.trim_t_start, self.trim_t_end])
-        )
-
-        ((ref_t, ref_v), (pred_t, pred_v)) = match_array_size(
-            (ref_t, ref_v),
-            (pred_t, pred_v),
-        )
-
-        # cut trim beyond time limits
-        ref_t, ref_v = self.cut_trim_beyond_time(ref_t, ref_v)
-        pred_t, pred_v = self.cut_trim_beyond_time(pred_t, pred_v)
-
-        if self.flatten:
-            # constant pred from beam in to beam out
-            ref_v = np.interp(
-                pred_t,
-                np.array([self.trim_t_start, self.trim_t_end]),
-                np.array([pred_v[0], pred_v[0]]),
-            )
-
-        delta = ref_v - pred_v
-
-        return pred_t, delta
-
     def apply_correction(
         self,
-        delta_t: np.ndarray,
-        delta_v: np.ndarray,
         cycle_data: CycleData,
     ) -> None:
         if not self._trim_lock.tryLock():
@@ -211,42 +154,27 @@ class TrimModel(QtCore.QObject):
 
         try:
             assert cycle_data.correction is not None, "No correction found."
-            current_correction = cycle_data.correction
-            current_time_axis, current_correction = current_correction
-            # round to ms
-            current_time_axis = np.round(current_time_axis, 1)
+            correction_t, correction_v = cycle_data.correction
 
-            current_time_axis, current_correction = insert_points(
-                current_time_axis,
-                current_correction,
-                np.array(
-                    [
-                        self.trim_t_start,
-                        self.trim_t_end,
-                    ]
-                ),
-            )
-            current_time_axis, current_correction = self.cut_trim_beyond_time(
-                current_time_axis, current_correction
+            correction_t, correction_v = self.cut_trim_beyond_time(
+                correction_t, correction_v
             )
 
-            correction, delta = self.calc_new_correction(
-                current_time_axis,
-                current_correction,
-                delta_t,
-                delta_v,
+            assert (
+                cycle_data.delta_applied is not None
+            ), "No delta applied found."
+            delta_t, delta_v = self.cut_trim_beyond_time(
+                *cycle_data.delta_applied
             )
-
-            time_axis, correction = correction
 
             log.debug(
-                f"[{cycle_data}] Sending trims to LSA with {time_axis.size} points."
+                f"[{cycle_data}] Sending trims to LSA with {correction_t.size} points."
             )
 
             if not self.dry_run:
                 with time_execution() as trim_time:
                     trim_time_d = self.send_trim(
-                        time_axis, correction, comment
+                        correction_t, correction_v, comment
                     )
 
                 trim_time_diff = trim_time.duration
@@ -258,48 +186,14 @@ class TrimModel(QtCore.QObject):
 
                 trim_time_d = datetime.now()
 
-            self.trimApplied.emit((delta[0], delta[1]), trim_time_d, comment)
+            self.trimApplied.emit(
+                np.vstack((delta_t, delta_v)), trim_time_d, comment
+            )
         except:  # noqa E722
             log.exception("Failed to apply trim to LSA.")
             raise
         finally:
             self._trim_lock.unlock()
-
-    def calc_new_correction(
-        self,
-        current_time_axis: np.ndarray,
-        current_correction: np.ndarray,
-        delta_t: np.ndarray,
-        delta_v: np.ndarray,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        (
-            (
-                current_time_axis,
-                current_correction,
-            ),
-            (delta_t, delta_v),
-        ) = match_array_size(
-            (current_time_axis, current_correction),
-            (delta_t, delta_v),
-        )
-
-        # calculate correction
-        new_correction = (current_correction + self.gain * delta_v).astype(
-            np.float64
-        )
-
-        # smooth the correction
-        new_correction = signal.perona_malik_smooth(
-            new_correction, 5.0, 5e-2, 2.0
-        )
-
-        delta_v = np.stack((delta_t, delta_v), axis=0)
-
-        # return delta for plotting
-        new_correction = np.stack((current_time_axis, new_correction), axis=0)
-        delta_v[1, :] *= self.gain
-
-        return new_correction, delta_v
 
     def cut_trim_beyond_time(
         self,
@@ -488,129 +382,3 @@ class TrimModel(QtCore.QObject):
         Disable trim.
         """
         log.debug(f"Disabling trim for selector {self.selector}")
-        self._trim_enabled = False
-
-
-def match_array_size(
-    current_correction: tuple[np.ndarray, np.ndarray],
-    new_correction: tuple[np.ndarray, np.ndarray],
-) -> tuple[tuple[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]]:
-    if current_correction[0].size < new_correction[0].size:
-        # upsample LSA trim to match prediction, keep BP edges
-        new_x = np.concatenate((new_correction[0], current_correction[0]))
-        new_x = np.sort(np.unique(new_x))
-        current_correction = (
-            new_x,
-            np.interp(
-                new_x,
-                *current_correction,
-            ),
-        )
-
-        # upsample prediction to match new LSA trim
-        new_correction = (
-            new_x,
-            np.interp(
-                new_x,
-                *new_correction,
-            ),
-        )
-    elif current_correction[0].size > new_correction[0].size:
-        # upsample prediction to match LSA trim
-        new_correction = (
-            current_correction[0],
-            np.interp(
-                current_correction[0],
-                *new_correction,
-            ),
-        )
-    else:
-        new_x = np.concatenate((new_correction[0], current_correction[0]))
-        new_x = np.sort(np.unique(new_x))
-        current_correction = (
-            new_x,
-            np.interp(
-                new_x,
-                *current_correction,
-            ),
-        )
-
-        new_correction = (
-            new_x,
-            np.interp(
-                new_x,
-                *new_correction,
-            ),
-        )
-
-    return current_correction, new_correction
-
-
-def truncate_correction(
-    correction: np.ndarray,
-    thresholds: tuple[float, float] = (TRIM_SOFT_THRESHOLD, TRIM_THRESHOLD),
-) -> np.ndarray:
-    """
-    Truncate the correction to the given thresholds.
-    Values exceeding the soft threshold will be set to the soft threshold, whereas
-    values exceeding the hard threshold will raise an error.
-
-    Parameters
-    ----------
-    correction : np.ndarray
-        Array to truncate.
-    thresholds : tuple[float, float], optional
-        The thresholds, by default (TRIM_SOFT_THRESHOLD, TRIM_THRESHOLD). The first value is the soft threshold,
-        the second is the hard threshold.
-
-    Returns
-    -------
-    np.ndarray
-        The truncated array.
-    """
-    if thresholds[0] < np.max(np.abs(correction)) < thresholds[1]:
-        log.info(
-            "Max value in correction {} ".format(np.max(np.abs(correction)))
-            + " is greater than {}, but less than {}. ".format(
-                thresholds[0], thresholds[1]
-            )
-            + "Truncating trim."
-        )
-        correction[correction > thresholds[0]] = thresholds[0]
-        correction[correction < -thresholds[0]] = -thresholds[0]
-    elif np.max(np.abs(correction)) > thresholds[1]:
-        log.error(
-            "Max value in correction {} is ".format(np.max(np.max(correction)))
-            + f"greater than threshold {thresholds[1]}. "
-            "Skipping trim."
-        )
-        raise ValueError("Max value in correction is greater than threshold.")
-
-    return correction
-
-
-def insert_points(
-    x: np.ndarray, y: np.ndarray, new_points: np.ndarray
-) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Insert new points into an existing x, y array.
-
-    Parameters
-    ----------
-    x : np.ndarray
-        The x array.
-    y : np.ndarray
-        The y array.
-    new_points : np.ndarray
-        The new points to insert.
-
-    Returns
-    -------
-    tuple[np.ndarray, np.ndarray]
-        The new x, y arrays.
-    """
-    new_x = np.concatenate((x, new_points))
-    new_x = np.sort(np.unique(new_x))
-    new_y = np.interp(new_x, x, y)
-
-    return new_x, new_y

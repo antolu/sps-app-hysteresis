@@ -11,7 +11,7 @@ from qtpy import QtGui, QtWidgets
 
 from .data import Acquisition
 from .generated.main_window_ui import Ui_main_window
-from .inference import Inference
+from .inference import Inference, CalculateCorrection
 from .io import IO
 from .utils import load_cursor
 from .widgets import ModelLoadDialog, PlotModel
@@ -56,6 +56,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         self._acquisition = Acquisition(parent=self)
         self._inference = Inference(parent=self)
+        self._calc_correction = CalculateCorrection(parent=self)
 
         self._status_manager = StatusManager(self)
 
@@ -86,7 +87,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         # for UI only
         self._acquisition.cycle_started.connect(self.widgetSettings.onNewCycle)
-        self._acquisition.new_prediction.connect(
+        self._acquisition.onNewPrediction.connect(
             self.widgetPlot.model.onNewPredicted
         )
 
@@ -95,10 +96,13 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         )
 
         # data flow
-        self._acquisition.new_buffer_data.connect(
+        self._acquisition.newBufferData.connect(
             self._inference.predict_last_cycle
         )
-        self._inference.cycle_predicted.connect(
+        self._inference.cyclePredicted.connect(
+            self._calc_correction.onNewCycle
+        )
+        self._calc_correction.newCorrectionAvailable.connect(
             self._acquisition.new_predicted_data
         )
 
@@ -117,6 +121,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self.actionContinuous_Data_Export.toggled.connect(self._io.set_enabled)
         self.action_Clear_Reference.triggered.connect(
             self._acquisition.reset_reference
+        )
+        self.action_Clear_Reference.triggered.connect(
+            self._calc_correction.resetReference
         )
 
         self.action_Load_Model.triggered.connect(self.on_load_model_triggered)
@@ -207,10 +214,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             model = TrimModel()
             widget = TrimWidgetView(model=model, parent=None)
 
-            self._acquisition.new_prediction.connect(model.on_new_prediction)
-            self.action_Clear_Reference.triggered.connect(
-                model.reset_reference_fields
-            )
+            self._acquisition.onNewPrediction.connect(model.onNewPrediction)
 
             uuid = str(uuid4())
             self._trim_wide_widgets[uuid] = widget
@@ -219,8 +223,8 @@ class MainWindow(Ui_main_window, ApplicationFrame):
                 widget = self._trim_wide_widgets.pop(uuid)
                 widget.deleteLater()
 
-                self._acquisition.new_prediction.disconnect(
-                    model.on_new_prediction
+                self._acquisition.onNewPrediction.disconnect(
+                    model.onNewPrediction
                 )
                 self.action_Clear_Reference.triggered.disconnect(
                     model.reset_reference_fields

@@ -29,7 +29,7 @@ def inference_thread() -> QtCore.QThread:
 
 class Inference(QtCore.QObject):
     load_model = QtCore.Signal(str, str, str)  # ckpt path, device
-    cycle_predicted = QtCore.Signal(CycleData, np.ndarray)
+    cyclePredicted = QtCore.Signal(CycleData, np.ndarray)
     model_loaded = QtCore.Signal()
 
     started = QtCore.Signal()
@@ -115,7 +115,7 @@ class Inference(QtCore.QObject):
             last_cycle = cycle_data[-1]
 
             last_cycle.field_pred = predictions
-            self.cycle_predicted.emit(last_cycle, predictions)
+            self.cyclePredicted.emit(last_cycle)
         except:  # noqa F722
             log.exception("Inference failed.")
         finally:
