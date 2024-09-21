@@ -111,9 +111,7 @@ class Acquisition(QtCore.QObject):
 
     new_measured_data = QtCore.Signal(CycleData)  # CycleData
     sig_new_programmed_cycle = QtCore.Signal(CycleData)  # CycleData
-    onNewPrediction = QtCore.Signal(
-        CycleData, np.ndarray
-    )  # CycleData, np.ndarray
+    onNewPrediction = QtCore.Signal(CycleData)  # CycleData
 
     def __init__(
         self,

@@ -28,7 +28,7 @@ class CalculateCorrection(QtCore.QObject):
     @QtCore.Slot(hystcomp_utils.cycle_data.CycleData)
     def onNewCycle(self, cycle: hystcomp_utils.cycle_data.CycleData) -> None:
         msg = f"{cycle}: Calculating correction."
-        log.info(msg)
+        log.debug(msg)
 
         self._maybe_save_reference(cycle)
 
@@ -39,12 +39,12 @@ class CalculateCorrection(QtCore.QObject):
             return
 
         delta = calc_delta_field(
-            cycle.field_ref[cycle.cycle], cycle.field_pred
+            self._field_ref[cycle.cycle], cycle.field_pred
         )
         cycle.delta_applied = delta
 
         msg = f"{cycle}: Delta calculated."
-        log.info(msg)
+        log.debug(msg)
 
         if (
             cycle.correction is not None
@@ -55,22 +55,22 @@ class CalculateCorrection(QtCore.QObject):
             cycle.correction = correction
 
             msg = f"{cycle}: New correction calculated."
-            log.info(msg)
+            log.debug(msg)
 
         self.newCorrectionAvailable.emit(cycle)
 
     @QtCore.Slot(str)
     def resetReference(self, cycle_name: str | None = None) -> None:
         if cycle_name is None or cycle_name == "all":
-            log.info("Resetting all field references.")
+            log.debug("Resetting all field references.")
             self._field_ref.clear()
             return
 
         if cycle_name in self._field_ref:
-            log.info(f"{cycle_name}: Resetting field reference.")
+            log.debug(f"{cycle_name}: Resetting field reference.")
             del self._field_ref[cycle_name]
         else:
-            log.info(
+            log.debug(
                 f"{cycle_name}: Field reference not set. Nothing to reset."
             )
         ...
@@ -92,14 +92,14 @@ class CalculateCorrection(QtCore.QObject):
             and cycle_data.cycle.endswith("ECO")
         ):
             msg = f"{cycle_data}: Last cycle was ECO, need to delete the last reference."
-            log.info(msg)
+            log.debug(msg)
 
             cycle_name = "_".join(cycle_data.cycle.split("_")[:-1])
             self._reset_reference(cycle_name)
             cycle_data.reference_timestamp = None
 
         if cycle_data.cycle not in self._field_ref:
-            log.info(
+            log.debug(
                 f"{cycle_data}: Saving field reference since it has not "
                 f"been set ({cycle_data.field_pred.shape})."
             )
@@ -113,7 +113,7 @@ class CalculateCorrection(QtCore.QObject):
             ref_time = datetime.datetime.fromtimestamp(
                 self._field_ref_timestamps[cycle_data.cycle] * 1e-9
             )
-            log.info(
+            log.debug(
                 f"{cycle_data}: Reference already saved from timestamp {ref_time}. "
                 f"Adding the reference to the cycle data."
             )
@@ -173,7 +173,7 @@ def calc_delta_field(
         )
     else:
         msg = "Beam in and beam out not set. Not trimming the delta field."
-        log.info(msg)
+        log.debug(msg)
 
     return np.vstack((delta_t, delta_v))
 
@@ -289,8 +289,8 @@ def calc_new_correction(
     delta: npt.NDArray[np.float64],  # [2, n_points]
     gain: float = 1.0,
 ) -> npt.NDArray[np.float64]:
-    log.info(f"Current correction shape: {current_correction.shape}")
-    log.info(f"Delta shape: {delta.shape}")
+    log.debug(f"Current correction shape: {current_correction.shape}")
+    log.debug(f"Delta shape: {delta.shape}")
     current_correction, delta = match_array_size(
         current_correction,
         delta,

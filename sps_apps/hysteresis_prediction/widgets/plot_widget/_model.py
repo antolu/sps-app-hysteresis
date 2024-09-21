@@ -112,11 +112,10 @@ class PlotModel(QtCore.QObject):
             )
             return
 
-    @QtCore.Slot(CycleData, np.ndarray)
-    def onNewPredicted(
-        self, cycle_data: CycleData, predicted: np.ndarray
-    ) -> None:
+    @QtCore.Slot(CycleData)
+    def onNewPredicted(self, cycle_data: CycleData) -> None:
         try:
+            predicted = cycle_data.field_pred
             self._field_predict_source.new_value(
                 cycle_data.cycle_timestamp, predicted
             )

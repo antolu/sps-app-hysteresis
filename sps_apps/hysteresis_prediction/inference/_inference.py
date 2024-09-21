@@ -29,7 +29,7 @@ def inference_thread() -> QtCore.QThread:
 
 class Inference(QtCore.QObject):
     load_model = QtCore.Signal(str, str, str)  # ckpt path, device
-    cyclePredicted = QtCore.Signal(CycleData, np.ndarray)
+    cyclePredicted = QtCore.Signal(CycleData)
     model_loaded = QtCore.Signal()
 
     started = QtCore.Signal()
@@ -84,6 +84,7 @@ class Inference(QtCore.QObject):
                 self._predictor = predictor_cls.load_from_checkpoint(
                     ckpt_path, device=device
                 )
+                self._predictor.prog_t_phase = 0.15 * 1e-3
             except:  # noqa F722
                 log.exception("Error occurred.")
                 return
@@ -95,7 +96,7 @@ class Inference(QtCore.QObject):
     @run_in_thread(inference_thread)
     def predict_last_cycle(self, cycle_data: list[CycleData]) -> None:
         if self._predictor is None:
-            log.error("Model not loaded. Cannot predict.")
+            log.debug("Model not loaded. Cannot predict.")
             return None
 
         if not self._do_inference:

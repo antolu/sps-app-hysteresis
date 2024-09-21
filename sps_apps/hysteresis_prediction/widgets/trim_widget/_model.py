@@ -34,7 +34,7 @@ BEAM_OUT = "SX.BEAM-OUT-CTML/ControlValue#controlValue"
 
 
 class TrimModel(QtCore.QObject):
-    trimApplied = QtCore.Signal(tuple, datetime, str)
+    trimApplied = QtCore.Signal(np.ndarray, datetime, str)
     """ Signal emitted when a trim has been applied. (corr_x, corr_y), time, comment """
 
     beamInRetrieved = QtCore.Signal(int, int)
@@ -89,7 +89,7 @@ class TrimModel(QtCore.QObject):
         self._trim_enabled = False
         self._trim_lock = QtCore.QMutex()
 
-    @QtCore.Slot(CycleData, typing.Any, name="on_new_prediction")
+    @QtCore.Slot(CycleData, name="onNewPrediction")
     def onNewPrediction(self, prediction: CycleData, *_: typing.Any) -> None:
         if not self._trim_enabled:
             log.debug("Trim is disabled, skipping trim.")
@@ -154,7 +154,12 @@ class TrimModel(QtCore.QObject):
 
         try:
             assert cycle_data.correction is not None, "No correction found."
-            correction_t, correction_v = cycle_data.correction
+            correction_t = cycle_data.correction[0]
+            correction_v = cycle_data.correction[1]
+            # log shapes
+            log.info(
+                f"[{cycle_data}] Correction shape: {correction_t.shape}, {correction_v.shape}"
+            )
 
             correction_t, correction_v = self.cut_trim_beyond_time(
                 correction_t, correction_v

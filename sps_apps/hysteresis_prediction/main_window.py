@@ -8,6 +8,7 @@ from accwidgets.log_console import LogConsole
 from accwidgets.timing_bar import TimingBar, TimingBarDomain, TimingBarModel
 from op_app_context import context
 from qtpy import QtGui, QtWidgets
+import types
 
 from .data import Acquisition
 from .generated.main_window_ui import Ui_main_window
@@ -73,6 +74,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         self._acquisition.run()
 
+        self.show_trim_widget()
+        self.show_predicion_analysis()
+
     def _connect_signals(self) -> None:
         self.widgetSettings.timespan_changed.connect(
             self.widgetPlot.set_time_span
@@ -123,7 +127,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self._acquisition.reset_reference
         )
         self.action_Clear_Reference.triggered.connect(
-            self._calc_correction.resetReference
+            lambda *args: self._calc_correction.resetReference.emit()
         )
 
         self.action_Load_Model.triggered.connect(self.on_load_model_triggered)
@@ -189,6 +193,14 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self.widgetSettings.hide()
 
     def show_predicion_analysis(self) -> None:
+        if len(self._analysis_widgets) > 0:
+            uuid = list(self._analysis_widgets.keys())[0]
+            widget = self._analysis_widgets[uuid]
+            widget.show()
+            widget.raise_()
+
+            return
+
         with load_cursor():
             model = PredictionAnalysisModel()
             widget = PredictionAnalysisWidget(model=model, parent=None)
@@ -198,18 +210,22 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             uuid = str(uuid4())
             self._analysis_widgets[uuid] = widget
 
-            def on_close() -> None:
-                widget = self._analysis_widgets.pop(uuid)
-                widget.deleteLater()
+            def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+                event.ignore()
+                self.hide()
 
-                self._acquisition.new_measured_data.disconnect(
-                    model.newData.emit
-                )
+            widget.closeEvent = types.MethodType(closeEvent, widget)  # type: ignore
 
-            widget.windowClosed.connect(on_close)
         widget.show()
 
     def show_trim_widget(self) -> None:
+        if len(self._trim_wide_widgets) > 0:
+            uuid = list(self._trim_wide_widgets.keys())[0]
+            widget = self._trim_wide_widgets[uuid]
+            widget.show()
+            widget.raise_()
+            return
+
         with load_cursor():
             model = TrimModel()
             widget = TrimWidgetView(model=model, parent=None)
@@ -219,18 +235,12 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             uuid = str(uuid4())
             self._trim_wide_widgets[uuid] = widget
 
-            def on_close() -> None:
-                widget = self._trim_wide_widgets.pop(uuid)
-                widget.deleteLater()
+            def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+                event.ignore()
+                self.hide()
 
-                self._acquisition.onNewPrediction.disconnect(
-                    model.onNewPrediction
-                )
-                self.action_Clear_Reference.triggered.disconnect(
-                    model.reset_reference_fields
-                )
+            widget.closeEvent = types.MethodType(closeEvent, widget)
 
-            widget.windowClosed.connect(on_close)
         widget.show()
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
