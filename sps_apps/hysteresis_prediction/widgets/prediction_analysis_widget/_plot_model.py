@@ -93,6 +93,11 @@ class PredictionPlotModel(QtCore.QObject):
             ),
             color,
         )
+        item.delta_plot_item = _make_curve_item(
+            item.cycle_data.delta_applied[0],
+            item.cycle_data.delta_applied[1] * 1e4,
+            color,
+        )
 
         if item.diff_plot_item is not None:
             self.plotAdded.emit(item.diff_plot_item, Plot.Diff)
@@ -100,6 +105,7 @@ class PredictionPlotModel(QtCore.QObject):
         self.plotAdded.emit(item.pred_plot_item, Plot.Pred)
         self.plotAdded.emit(item.meas_i_plot_item, Plot.MeasI)
         self.plotAdded.emit(item.meas_b_plot_item, Plot.MeasB)
+        self.plotAdded.emit(item.delta_plot_item, Plot.Delta)
 
         self._plotted_items.add(item)
         item.is_shown = True

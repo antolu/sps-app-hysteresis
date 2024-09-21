@@ -87,6 +87,8 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.plotDiffWidget = pg.PlotItem()
         self.plotIMeasWidget = pg.PlotItem()
         self.plotBMeasWidget = pg.PlotItem()
+        self.plotDeltaWidget = pg.PlotItem()
+        self.plotRefDiffWidget = pg.PlotItem()
         self._setup_plots()
 
         self.menubar = QtWidgets.QMenuBar(self)
@@ -176,14 +178,36 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.plotBMeasWidget.vb.setXLink(self.plotDiffWidget.vb)
         self.plotBMeasWidget.vb.setYRange(0.0, 2.1)
 
+        self.plotDeltaWidget.setLabel("left", "E-4 T")
+        self.plotDeltaWidget.setTitle("Delta applied [T]")
+        self.plotDeltaWidget.vb.setXLink(self.plotDiffWidget.vb)
+        self.plotDeltaWidget.vb.setYRange(-5, 5)
+
+        self.plotRefDiffWidget.setLabel("left", "E-4 T")
+        self.plotRefDiffWidget.setTitle("Reference difference [T]")
+        self.plotRefDiffWidget.vb.setXLink(self.plotDiffWidget.vb)
+        self.plotRefDiffWidget.vb.setYRange(-10, 10)
+
         self.widget.setBackground("w")
 
         self.widget.addItem(self.plotDiffWidget, row=0, col=0)
         self.widget.addItem(self.plotPredWidget, row=0, col=1)
         self.widget.addItem(self.plotIMeasWidget, row=1, col=0)
         self.widget.addItem(self.plotBMeasWidget, row=1, col=1)
+        self.widget.addItem(self.plotDeltaWidget, row=2, col=0)
+        self.widget.addItem(self.plotRefDiffWidget, row=2, col=1)
 
         self.plotDiffWidget.addItem(
+            pg.InfiniteLine(
+                pos=None, angle=0, pen=pg.mkPen(style=QtCore.Qt.DashLine)
+            )
+        )
+        self.plotRefDiffWidget.addItem(
+            pg.InfiniteLine(
+                pos=None, angle=0, pen=pg.mkPen(style=QtCore.Qt.DashLine)
+            )
+        )
+        self.plotDeltaWidget.addItem(
             pg.InfiniteLine(
                 pos=None, angle=0, pen=pg.mkPen(style=QtCore.Qt.DashLine)
             )
@@ -276,29 +300,39 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
 
     @QtCore.Slot(pg.PlotCurveItem, Plot)
     def onPlotAdded(self, plot: pg.PlotCurveItem, plot_type: Plot) -> None:
-        if plot_type == Plot.Diff:
-            self.plotDiffWidget.addItem(plot)
-        elif plot_type == Plot.Pred:
-            self.plotPredWidget.addItem(plot)
-        elif plot_type == Plot.MeasI:
-            self.plotIMeasWidget.addItem(plot)
-        elif plot_type == Plot.MeasB:
-            self.plotBMeasWidget.addItem(plot)
-        else:
-            raise ValueError(f"Invalid plot type: {plot_type}")
+        match plot_type:
+            case Plot.Diff:
+                self.plotDiffWidget.addItem(plot)
+            case Plot.Pred:
+                self.plotPredWidget.addItem(plot)
+            case Plot.MeasI:
+                self.plotIMeasWidget.addItem(plot)
+            case Plot.MeasB:
+                self.plotBMeasWidget.addItem(plot)
+            case Plot.Delta:
+                self.plotDeltaWidget.addItem(plot)
+            case Plot.RefDiff:
+                self.plotRefDiffWidget.addItem(plot)
+            case _:
+                raise ValueError(f"Invalid plot type: {plot_type}")
 
     @QtCore.Slot(pg.PlotCurveItem, Plot)
     def onPlotRemoved(self, plot: pg.PlotCurveItem, plot_type: Plot) -> None:
-        if plot_type == Plot.Diff:
-            self.plotDiffWidget.removeItem(plot)
-        elif plot_type == Plot.Pred:
-            self.plotPredWidget.removeItem(plot)
-        elif plot_type == Plot.MeasI:
-            self.plotIMeasWidget.removeItem(plot)
-        elif plot_type == Plot.MeasB:
-            self.plotBMeasWidget.removeItem(plot)
-        else:
-            raise ValueError(f"Invalid plot type: {plot_type}")
+        match plot_type:
+            case Plot.Diff:
+                self.plotDiffWidget.removeItem(plot)
+            case Plot.Pred:
+                self.plotPredWidget.removeItem(plot)
+            case Plot.MeasI:
+                self.plotIMeasWidget.removeItem(plot)
+            case Plot.MeasB:
+                self.plotBMeasWidget.removeItem(plot)
+            case Plot.Delta:
+                self.plotDeltaWidget.removeItem(plot)
+            case Plot.RefDiff:
+                self.plotRefDiffWidget.removeItem(plot)
+            case _:
+                raise ValueError(f"Invalid plot type: {plot_type}")
 
     def _disconnect_model(self, model: PredictionAnalysisModel) -> None:
         raise NotImplementedError("Disconnect model not implemented.")

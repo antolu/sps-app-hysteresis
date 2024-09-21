@@ -25,6 +25,8 @@ class Plot(Enum):
     Pred = auto()
     MeasI = auto()
     MeasB = auto()
+    Delta = auto()
+    RefDiff = auto()
 
 
 @dataclass
@@ -40,6 +42,8 @@ class PredictionItem:
     pred_plot_item: pg.PlotCurveItem | None = None
     meas_i_plot_item: pg.PlotCurveItem | None = None
     meas_b_plot_item: pg.PlotCurveItem | None = None
+    delta_plot_item: pg.PlotCurveItem | None = None
+    ref_diff_plot_item: pg.PlotCurveItem | None = None
     color: QtGui.QColor | None = None
     is_shown: bool = False
 
