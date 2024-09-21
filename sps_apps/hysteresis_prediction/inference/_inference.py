@@ -179,3 +179,9 @@ class Inference(QtCore.QObject):
     @use_programmed_current.setter
     def use_programmed_current(self, value: bool) -> None:
         self.set_use_programmed_current(value)
+
+    def reset_state(self) -> None:
+        if self._predictor is not None:
+            self._predictor.reset_state()
+        else:
+            log.error("Model not loaded. Cannot reset state.")

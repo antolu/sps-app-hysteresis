@@ -83,23 +83,27 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self.widgetSettings.toggle_predictions.connect(
             self._inference.set_do_inference
         )
-        self._inference.cycle_predicted.connect(
-            self._acquisition.new_predicted_data
-        )
+
+        # for UI only
+        self._acquisition.cycle_started.connect(self.widgetSettings.onNewCycle)
         self._acquisition.new_prediction.connect(
             self.widgetPlot.model.onNewPredicted
-        )
-        self._acquisition.new_measured_data.connect(self._io.save_data)
-        self._acquisition.new_buffer_data.connect(
-            self._inference.predict_last_cycle
-        )
-        self._acquisition.cycle_started.connect(
-            self.widgetSettings._on_new_cycle
         )
 
         self._inference.model_loaded.connect(
             self.widgetSettings.on_model_loaded
         )
+
+        # data flow
+        self._acquisition.new_buffer_data.connect(
+            self._inference.predict_last_cycle
+        )
+        self._inference.cycle_predicted.connect(
+            self._acquisition.new_predicted_data
+        )
+
+        self._acquisition.new_measured_data.connect(self._io.save_data)
+
         self._inference.model_loaded.connect(
             lambda: QtWidgets.QMessageBox.information(
                 self, "Model loaded", "Model successfully loaded."
@@ -126,9 +130,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
                 self.actionAutoregressive.isChecked()
             )
         )
-        self.actionReset_state.triggered.connect(
-            self._inference._predictor.reset_state
-        )
+        self.actionReset_state.triggered.connect(self._inference.reset_state)
 
         self.actionPrediction_Analysis.triggered.connect(
             self.show_predicion_analysis

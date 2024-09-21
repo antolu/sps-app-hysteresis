@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any, Optional
 import math
 
-from qtpy.QtCore import QTimer, Signal
+from qtpy.QtCore import QTimer, Signal, Slot
 from qtpy.QtWidgets import QWidget
 
 from ...generated.plot_settings_widget_ui import Ui_PlotSettingsWidget
@@ -21,7 +21,6 @@ FMT = "%Y-%m-%d %H:%M:%S.%f"
 class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
     timespan_changed = Signal(int, int)  # min, max
     downsample_changed = Signal(int)
-    new_cycle = Signal(str, str, float)  # PLS, LSA, timestamp
     toggle_predictions = Signal(bool)
     status_changed = Signal(AppStatus)
 
@@ -37,7 +36,6 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
         self.buttonResetAxis.clicked.connect(self._timespan_changed)
         self.buttonPredict.clicked.connect(self._on_prediction_toggle)
 
-        self.new_cycle.connect(self._on_new_cycle)
         self.status_changed.connect(self._on_new_status)
 
         self.buttonPredict.setEnabled(False)
@@ -55,8 +53,9 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
         message = LOG_MESSAGES[status]
         self.labelStatus.setText(message)
 
+    @Slot(str, str, float)
     @run_in_main_thread
-    def _on_new_cycle(self, pls: str, lsa: str, timestamp: float) -> None:
+    def onNewCycle(self, pls: str, lsa: str, timestamp: float) -> None:
         self.labelUser.setText(pls.split(".")[-1])
         self.labelCycle.setText(lsa)
         self.labelCycleTime.setText(
