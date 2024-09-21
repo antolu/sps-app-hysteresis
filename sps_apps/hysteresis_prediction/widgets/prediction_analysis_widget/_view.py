@@ -92,7 +92,14 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.menubar = QtWidgets.QMenuBar(self)
         self.horizontalLayout.setMenuBar(self.menubar)
 
+        self.actionRefreshLsaSelector = QtWidgets.QAction(self)
+        self.actionRefreshLsaSelector.setText("&Refresh LSA Selector")
+        self.actionRefreshLsaSelector.triggered.connect(
+            self.LsaSelector.model.refetch
+        )
+
         file_menu = self.menubar.addMenu("&File")
+        file_menu.addAction(self.actionRefreshLsaSelector)
         file_menu.addAction(self.actionImport_Predictions)
         file_menu.addAction(self.actionExport_Predictions)
         file_menu.addSeparator()

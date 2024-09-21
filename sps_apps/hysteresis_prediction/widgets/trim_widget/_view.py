@@ -6,6 +6,7 @@ import typing
 import numpy as np
 import numpy.typing as npt
 import pyqtgraph as pg
+import logging
 from accwidgets import graph as accgraph
 from accwidgets.lsa_selector import (
     LsaSelector,
@@ -17,6 +18,9 @@ from qtpy import QtCore, QtWidgets
 
 from .._widgets import ToggleButton
 from ._model import TrimModel
+
+
+log = logging.getLogger(__name__)
 
 
 class TrimInfoWidget(QtWidgets.QWidget):
@@ -178,6 +182,17 @@ class TrimWidgetView(QtWidgets.QWidget):
         )
         self.LsaSelector = LsaSelector(model=selector_model, parent=self)
 
+        self.menu_bar = QtWidgets.QMenuBar(parent=self)
+        self.menu_bar.setNativeMenuBar(False)
+        self.menu_bar.addAction("File")
+        self.actionRefreshLsaSelector = QtWidgets.QAction(
+            "Refresh LSA Selector", parent=self
+        )
+        self.menu_bar.addAction(self.actionRefreshLsaSelector)
+        self.actionRefreshLsaSelector.triggered.connect(
+            self.LsaSelector.model.refetch
+        )
+
         self.TrimInfoWidget = TrimInfoWidget(parent=self)
         self.TrimSettingsWidget = TrimSettingsWidget(parent=self)
 
@@ -208,6 +223,7 @@ class TrimWidgetView(QtWidgets.QWidget):
         self.setLayout(QtWidgets.QHBoxLayout(self))
         self.layout().addWidget(self.left_frame)
         self.layout().addWidget(self.plotWidget)
+        self.layout().setMenuBar(self.menu_bar)
 
         self.setMinimumSize(800, 400)
 
@@ -297,6 +313,7 @@ class TrimWidgetView(QtWidgets.QWidget):
         values: tuple[npt.NDArray[np.int32], npt.NDArray[np.float32]],
         *_: typing.Any,
     ) -> None:
+        log.info("Trim applied. Updating plot.")
         curve = accgraph.CurveData(*values)
 
         self._plot_source.send_data(curve)
