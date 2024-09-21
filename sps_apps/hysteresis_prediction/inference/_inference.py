@@ -5,7 +5,7 @@ import logging
 import typing
 
 import numpy as np
-from hysteresis_scripts.predict import PETEPredictor
+from sps_mlp_hystcomp import PETEPredictor, TFTPredictor
 from qtpy import QtCore, QtWidgets
 
 from hystcomp_utils.cycle_data import CycleData
@@ -18,23 +18,6 @@ log = logging.getLogger(__name__)
 
 
 _thread: QtCore.QThread | None = None
-
-
-USE_PROGRAMMED_CURRENT = True
-
-
-def upscale_programmed_current(data: CycleData) -> np.ndarray:
-    I_prog = data.current_prog[1]
-    t_prog = data.current_prog[0]
-    t = np.arange(0, data.num_samples + 1, 1)
-    I = np.interp(t, t_prog, I_prog)  # noqa F741
-
-    return I
-
-
-def filter_(data: np.ndarray) -> np.ndarray:
-    return data
-    # return scipY.NDIMAGE.MEDIAN_FILTER(DATA, SIZE=51, MODE="NEAREST")
 
 
 def inference_thread() -> QtCore.QThread:
@@ -59,7 +42,7 @@ class Inference(QtCore.QObject):
     ) -> None:
         super().__init__(parent=parent)
 
-        self._predictor = PETEPredictor(device=device)
+        self._predictor: PETEPredictor | TFTPredictor | None = None
 
         self._do_inference = False
         self._autoregressive = False
@@ -87,21 +70,34 @@ class Inference(QtCore.QObject):
     def _on_load_model(
         self, model_name: str, ckpt_path: str, device: str = "cpu"
     ) -> None:
+        if model_name == "PETE":
+            predictor_cls = PETEPredictor
+        elif model_name == "TemporalFusionTransformer":
+            predictor_cls = TFTPredictor
+        else:
+            msg = f"Unknown model name: {model_name}"
+            log.exception(msg)
+            raise ValueError(msg)
+
         with load_cursor():
             try:
-                self._predictor.device = device
-                self._predictor.load_checkpoint(ckpt_path)
+                self._predictor = predictor_cls.load_from_checkpoint(
+                    ckpt_path, device=device
+                )
             except:  # noqa F722
                 log.exception("Error occurred.")
                 return
 
-            with self._predictor.lock:
-                self._ckpt_path = ckpt_path
+            self._ckpt_path = ckpt_path
 
         self.model_loaded.emit()
 
     @run_in_thread(inference_thread)
     def predict_last_cycle(self, cycle_data: list[CycleData]) -> None:
+        if self._predictor is None:
+            log.error("Model not loaded. Cannot predict.")
+            return None
+
         if not self._do_inference:
             log.debug("Inference is disabled. Not predicting.")
             return None
@@ -135,6 +131,10 @@ class Inference(QtCore.QObject):
 
         :raises ValueError: If not all data has input current set.
         """
+        if self._predictor is None:
+            msg = "Model not loaded. Cannot predict."
+            log.error(msg)
+            raise ValueError(msg)
 
         log.debug("Running inference.")
         with time_execution() as timer:
@@ -151,15 +151,15 @@ class Inference(QtCore.QObject):
 
     @property
     def model_is_loaded(self) -> bool:
-        return self._predictor._module is not None
+        return (
+            self._predictor is not None and self._predictor._module is not None
+        )  # noqa: SLF001
 
     def set_do_inference(self, state: bool) -> None:
-        with self._predictor.lock:
-            self._do_inference = state
+        self._do_inference = state
 
     def set_autoregressive(self, state: bool) -> None:
-        with self._predictor.lock:
-            self._autoregressive = state
+        self._autoregressive = state
 
     @property
     def autoregressive(self) -> bool:
@@ -170,8 +170,7 @@ class Inference(QtCore.QObject):
         self.set_autoregressive(value)
 
     def set_use_programmed_current(self, state: bool) -> None:
-        with self._predictor.lock:
-            self._use_programmed_current = state
+        self._use_programmed_current = state
 
     @property
     def use_programmed_current(self) -> bool:
