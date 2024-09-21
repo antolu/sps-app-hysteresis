@@ -37,7 +37,7 @@ from ._cycle_to_tgm import LSAContexts
 __all__ = ["Acquisition"]
 
 DEV_BUFFER = (
-    "rda3://UCAP-NODE-CSS-DSB-TEST/SPS.HYSTCOMP.MBI.EVENT/CycleWarning"
+    "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.EVENT/CycleWarning"
 )
 
 DEV_MEAS_I = "MBI/LOG.I.MEAS"
