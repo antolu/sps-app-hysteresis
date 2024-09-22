@@ -9,6 +9,7 @@ from ._event_builder_abc import (
     BufferedSubscription,
     CycleStampSubscriptionBuffer,
 )
+from ._add_programmed import AddProgrammedEventBuilder
 
 for _mod in (
     Acquisition,
@@ -20,6 +21,7 @@ for _mod in (
     Subscription,
     BufferedSubscription,
     CycleStampSubscriptionBuffer,
+    AddProgrammedEventBuilder,
 ):
     _mod.__module__ = __name__
 
