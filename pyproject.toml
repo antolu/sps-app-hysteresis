@@ -73,7 +73,7 @@ app-hysteresis = "sps_apps.hysteresis_prediction.application:main"
 
 [tool.black]
 target-version = ["py311"]
-line-length = 79
+line-length = 88
 include = '\.pyi?$'
 exclude = '''
 /(
@@ -117,7 +117,7 @@ exclude = [
     "venv",
 ]
 
-line-length = 79
+line-length = 88
 
 target-version = "py311"
 

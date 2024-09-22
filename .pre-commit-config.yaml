@@ -4,7 +4,7 @@ repos:
     rev: "v0.6.7"
     hooks:
       - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
+        args: [--fix, --exit-non-zero-on-fix, --preview, --unsafe-fixes]
         exclude: ".*/generated"
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: 'v1.11.2'
@@ -30,6 +30,7 @@ repos:
       - id: check-merge-conflict
       - id: check-toml
       - id: check-yaml
+        args: [--unsafe]
       - id: debug-statements
         exclude: ^LICENSE|\.(html|csv|txt|svg|py)$
       - id: pretty-format-json
