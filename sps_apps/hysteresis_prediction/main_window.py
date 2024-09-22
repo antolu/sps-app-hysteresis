@@ -161,12 +161,12 @@ class MainWindow(Ui_main_window, ApplicationFrame):
                 AppStatus.MODEL_LOADED
             )
         )
-        self._inference.started.connect(
+        self._inference.predictionStarted.connect(
             lambda *_: self._status_manager.statusChanged.emit(
                 AppStatus.INFERENCE_RUNNING
             )
         )
-        self._inference.completed.connect(
+        self._inference.predictionFinished.connect(
             lambda *_: self._status_manager.statusChanged.emit(
                 AppStatus.INFERENCE_IDLE
             )
@@ -179,7 +179,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
     def on_load_model_triggered(self) -> None:
         dialog = ModelLoadDialog(parent=self)
-        dialog.load_checkpoint.connect(self._inference.load_model.emit)
+        dialog.load_checkpoint.connect(self._inference.loadModel)
         result = dialog.exec()
 
         if result == QtWidgets.QDialog.Rejected:

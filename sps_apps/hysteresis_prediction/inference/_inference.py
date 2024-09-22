@@ -10,6 +10,7 @@ from qtpy import QtCore, QtWidgets
 
 from hystcomp_utils.cycle_data import CycleData
 from ..utils import ThreadWorker, load_cursor, run_in_thread, time_execution
+from ..data import EventBuilderAbc
 
 MS = int(1e3)
 NS = int(1e9)
@@ -27,13 +28,12 @@ def inference_thread() -> QtCore.QThread:
     return _thread
 
 
-class Inference(QtCore.QObject):
-    load_model = QtCore.Signal(str, str, str)  # ckpt path, device
+class Inference(EventBuilderAbc):
     cyclePredicted = QtCore.Signal(CycleData)
     model_loaded = QtCore.Signal()
 
-    started = QtCore.Signal()
-    completed = QtCore.Signal()
+    predictionStarted = QtCore.Signal()
+    predictionFinished = QtCore.Signal()
 
     def __init__(
         self,
@@ -48,9 +48,10 @@ class Inference(QtCore.QObject):
         self._autoregressive = False
         self._use_programmed_current = True
 
-        self.load_model.connect(self.on_load_model)
+        self._prev_state: typing.Any | None = None
 
-    def on_load_model(
+    @QtCore.Slot(str, str, str)
+    def loadModel(
         self, model_name: str, ckpt_path: str, device: str = "cpu"
     ) -> None:
         worker = ThreadWorker(
@@ -93,7 +94,10 @@ class Inference(QtCore.QObject):
 
         self.model_loaded.emit()
 
-    @run_in_thread(inference_thread)
+    @QtCore.Slot(list[CycleData])
+    def onNewCycleDataBuffer(self, cycle_data: list[CycleData]) -> None:
+        return self.predict_last_cycle(cycle_data)
+
     def predict_last_cycle(self, cycle_data: list[CycleData]) -> None:
         if self._predictor is None:
             log.debug("Model not loaded. Cannot predict.")
@@ -109,20 +113,26 @@ class Inference(QtCore.QObject):
             )
             return None
 
-        self.started.emit()
+        self.predictionStarted.emit()
         # first check if all data has current set
         try:
-            predictions = self._predict_last_cycle(cycle_data)
+            with time_execution() as t:
+                predictions = self._predict_last_cycle(cycle_data)
+            log.info(
+                f"[{cycle_data[-1]}]: Prediction took {t.duration * 1e3:.2f} ms."
+            )
             last_cycle = cycle_data[-1]
 
+            predictions[0] = np.round([predictions[0]], 3)  # round to ms
             last_cycle.field_pred = predictions
-            self.cyclePredicted.emit(last_cycle)
+            self.cycleDataAvailable.emit(last_cycle)
         except:  # noqa F722
             log.exception("Inference failed.")
         finally:
-            self.completed.emit()
+            self.predictionFinished.emit()
 
-    def _predict_last_cycle(self, cycle_data: list[CycleData]) -> np.ndarray:
+    @run_in_thread(inference_thread)
+    def _predict_last_cycle(self, buffer: list[CycleData]) -> np.ndarray:
         """
         Predict the field for the last cycle in the given data.
 
@@ -132,23 +142,74 @@ class Inference(QtCore.QObject):
 
         :raises ValueError: If not all data has input current set.
         """
-        if self._predictor is None:
-            msg = "Model not loaded. Cannot predict."
-            log.error(msg)
-            raise ValueError(msg)
+        assert self._predictor is not None
 
-        log.debug("Running inference.")
-        with time_execution() as timer:
-            time_axis, predictions = self._predictor.predict_last_cycle(
-                cycle_data,
-                autoregressive=self.autoregressive,
-                use_programmed_current=self.use_programmed_current,
+        last_cycle = buffer[-1]
+
+        if self._prev_state is None:  # no way we can be in ECO cycle
+            if last_cycle.cycle.endswith("ECO"):
+                msg = (
+                    f"[{last_cycle}]: ECO cycle detected, but previous state is not set."
+                    f"This should not happen."
+                )
+                log.debug(msg)
+                raise ValueError(msg)
+
+            self._predictor.set_cycled_initial_state(
+                buffer[:-1],
+                use_programmed_current=self._use_programmed_current,
             )
-        log.info("Inference took: %f s", timer.duration)
+            self._prev_state = self._predictor.state
 
-        time_axis += cycle_data[-1].cycle_timestamp / NS
+            return self._predictor.predict_cycle(
+                cycle=last_cycle,
+                save_state=True,
+                use_programmed_current=self._use_programmed_current,
+            )
+        if last_cycle.cycle.endswith("ECO"):
+            msg = f"[{last_cycle}]: ECO cycle detected, using previous state to predict again."
+            log.debug(msg)
 
-        return np.stack((time_axis, predictions), axis=0)
+            # doesn't matter if we are going autoregressive or not since
+            # the state was kept from the last cycle
+            self._predictor.state = self._prev_state
+            return self._predictor.predict_cycle(
+                cycle=last_cycle,
+                save_state=True,
+                use_programmed_current=self._use_programmed_current,
+            )
+
+        # no need to save the state again since the next prediction will not
+        # be an ECO cycle
+        if (
+            self._autoregressive
+        ):  # previous state is set already, no need to check
+            msg = f"[{last_cycle}]: Autoregressive mode enabled, using previous state to predict."
+            log.debug(msg)
+
+            # save the state before prediction if we need to re-predict
+            self._prev_state = self._predictor.state
+            return self._predictor.predict_cycle(
+                cycle=last_cycle,
+                save_state=True,
+                use_programmed_current=self._use_programmed_current,
+            )
+
+        msg = f"[{last_cycle}]: Autoregressive mode disabled, re-initializing state."
+        log.debug(msg)
+
+        self._predictor.set_cycled_initial_state(
+            buffer[:-1], use_programmed_current=self._use_programmed_current
+        )
+        log.debug(f"[{last_cycle}]: Saving state for next prediction.")
+        self._prev_state = self._predictor.state
+
+        log.debug(f"[{last_cycle}]: Predicting next cycle.")
+        return self._predictor.predict_cycle(
+            cycle=last_cycle,
+            save_state=True,
+            use_programmed_current=self._use_programmed_current,
+        )
 
     @property
     def model_is_loaded(self) -> bool:
