@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import types
 from uuid import uuid4
 
 from accwidgets.app_frame import ApplicationFrame
@@ -8,11 +9,10 @@ from accwidgets.log_console import LogConsole
 from accwidgets.timing_bar import TimingBar, TimingBarDomain, TimingBarModel
 from op_app_context import context
 from qtpy import QtGui, QtWidgets
-import types
 
 from .data import Acquisition
 from .generated.main_window_ui import Ui_main_window
-from .inference import Inference, CalculateCorrection
+from .inference import CalculateCorrection, Inference
 from .io import IO
 from .utils import load_cursor
 from .widgets import ModelLoadDialog, PlotModel

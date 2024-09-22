@@ -3,12 +3,12 @@ from __future__ import annotations
 import logging
 
 import numpy as np
+from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
+from transformertf.data import downsample as downsample_tf
 
 from ...data import Acquisition
-from hystcomp_utils.cycle_data import CycleData
 from ._sources import AcquiredDataType, CurrentFieldSource
-from transformertf.data import downsample as downsample_tf
 
 log = logging.getLogger(__name__)
 

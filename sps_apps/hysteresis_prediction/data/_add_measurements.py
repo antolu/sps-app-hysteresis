@@ -8,8 +8,7 @@ import pyda.data
 import pyda_japc
 from qtpy import QtCore
 
-from ._event_builder_abc import BufferedSubscriptionEventBuilder, BufferedSubscription
-
+from ._event_builder_abc import BufferedSubscription, BufferedSubscriptionEventBuilder
 
 log = logging.getLogger(__name__)
 

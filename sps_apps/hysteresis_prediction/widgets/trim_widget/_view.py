@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import datetime
+import logging
 import typing
 
 import numpy as np
 import numpy.typing as npt
 import pyqtgraph as pg
-import logging
 from accwidgets import graph as accgraph
 from accwidgets.lsa_selector import (
     LsaSelector,
@@ -18,7 +18,6 @@ from qtpy import QtCore, QtWidgets
 
 from .._widgets import ToggleButton
 from ._model import TrimModel
-
 
 log = logging.getLogger(__name__)
 

@@ -2,17 +2,15 @@ from __future__ import annotations
 
 import pyda_japc
 
-
 from .data import (
-    CreateCycleEventBuilder,
-    AddMeasurementsEventBuilder,
-    BufferEventbuilder,
-    AddProgrammedEventBuilder,
     AddMeasurementReferencesEventBuilder,
+    AddMeasurementsEventBuilder,
+    AddProgrammedEventBuilder,
+    BufferEventbuilder,
+    CreateCycleEventBuilder,
     CycleStampedAddMeasurementsEventBuilder,
 )
-
-from .inference import Inference, CalculateCorrection
+from .inference import CalculateCorrection, Inference
 
 
 class DataFlow:

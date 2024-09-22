@@ -1,22 +1,20 @@
 from __future__ import annotations
 
-import dataclasses
-import logging
-import collections
-import typing
-import re
 import abc
+import collections
+import dataclasses
 import datetime
-
-import pyda
-import pyda.data
-import pyda.clients.callback
-import pyda.providers
-import pyda._metadata
-import pyda_japc
+import logging
+import re
+import typing
 
 import hystcomp_utils.cycle_data
-
+import pyda
+import pyda._metadata
+import pyda.clients.callback
+import pyda.data
+import pyda.providers
+import pyda_japc
 from qtpy import QtCore
 
 log = logging.getLogger(__name__)

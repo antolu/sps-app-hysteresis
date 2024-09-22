@@ -9,6 +9,7 @@ import typing
 from datetime import datetime
 
 import numpy as np
+from hystcomp_utils.cycle_data import CycleData
 from op_app_context import context
 from pyda import SimpleClient
 from pyda.data import DiscreteFunction
@@ -16,7 +17,6 @@ from pyda_japc import JapcProvider
 from pyda_lsa import LsaCycleContext, LsaEndpoint, LsaProvider
 from qtpy import QtCore
 
-from hystcomp_utils.cycle_data import CycleData
 from ...utils import ThreadWorker, time_execution
 
 log = logging.getLogger(__name__)

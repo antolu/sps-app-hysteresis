@@ -4,9 +4,8 @@ from dataclasses import dataclass
 from enum import Enum, auto
 
 import pyqtgraph as pg
-from qtpy import QtGui
-
 from hystcomp_utils.cycle_data import CycleData
+from qtpy import QtGui
 
 
 class DiffPlotMode(Enum):

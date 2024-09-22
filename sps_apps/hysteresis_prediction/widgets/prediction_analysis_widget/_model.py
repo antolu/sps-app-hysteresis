@@ -5,15 +5,15 @@ This module contains the model for the prediction analysis widget.
 from __future__ import annotations
 
 import logging
-
-import pandas as pd
-import numpy as np
 from datetime import datetime
+
+import numpy as np
+import pandas as pd
 import pyda
 import pyda_japc
+from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
 
-from hystcomp_utils.cycle_data import CycleData
 from ._dataclass import DiffPlotMode, MeasPlotMode
 from ._list_model import PredictionListModel
 from ._plot_model import PredictionPlotModel

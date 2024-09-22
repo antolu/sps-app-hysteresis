@@ -3,9 +3,9 @@ from __future__ import annotations
 import typing
 from collections import deque
 
+from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
 
-from hystcomp_utils.cycle_data import CycleData
 from ._dataclass import PredictionItem
 
 

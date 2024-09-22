@@ -10,11 +10,10 @@ import pyda_japc
 from qtpy import QtCore
 
 from ._event_builder_abc import (
-    BufferedSubscriptionEventBuilder,
     BufferedSubscription,
+    BufferedSubscriptionEventBuilder,
     Subscription,
 )
-
 
 log = logging.getLogger(__name__)
 

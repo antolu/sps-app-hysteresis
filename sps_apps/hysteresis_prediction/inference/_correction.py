@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import logging
 
+import hystcomp_utils.cycle_data
 import numpy as np
 import numpy.typing as npt
 import pyda
@@ -10,8 +11,6 @@ import pyda.data
 from qtpy import QtCore
 
 from ..data import EventBuilderAbc
-
-import hystcomp_utils.cycle_data
 
 log = logging.getLogger(__name__)
 

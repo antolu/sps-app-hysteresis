@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import datetime
 import logging
 
-import datetime
 import hystcomp_utils.cycle_data
 import numpy as np
 import numpy.typing as npt
@@ -10,9 +10,7 @@ import pyda
 import pyda.data
 from qtpy import QtCore
 
-
 from ._event_builder_abc import EventBuilderAbc
-
 
 NS2S = 1e-9
 

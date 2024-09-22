@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-
 import logging
 import typing
 
 import numpy as np
-from sps_mlp_hystcomp import PETEPredictor, TFTPredictor
 import pyda.data
-from qtpy import QtCore, QtWidgets
-
 from hystcomp_utils.cycle_data import CycleData
-from ..utils import ThreadWorker, load_cursor, run_in_thread, time_execution
+from qtpy import QtCore, QtWidgets
+from sps_mlp_hystcomp import PETEPredictor, TFTPredictor
+
 from ..data import EventBuilderAbc
+from ..utils import ThreadWorker, load_cursor, run_in_thread, time_execution
 
 MS = int(1e3)
 NS = int(1e9)

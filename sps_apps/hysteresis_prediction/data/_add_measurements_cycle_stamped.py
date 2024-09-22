@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import logging
-
 import typing
+
+import hystcomp_utils.cycle_data  # noqa: F401
 import pyda_japc
 from qtpy import QtCore
 
 from ._event_builder_abc import (
-    CycleStampGroupedTriggeredEventBuilder,
     BufferedSubscription,
+    CycleStampGroupedTriggeredEventBuilder,
 )
-import hystcomp_utils.cycle_data  # noqa: F401
-
 
 log = logging.getLogger(__name__)
 

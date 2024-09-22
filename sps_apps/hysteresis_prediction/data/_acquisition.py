@@ -5,6 +5,7 @@ and reference, and publishes it for external use.
 
 from __future__ import annotations
 
+import collections
 import logging
 import re
 import typing
@@ -13,15 +14,13 @@ from functools import partial
 from signal import SIGINT, SIGTERM, signal
 
 import numpy as np
-from qtpy import QtCore
-import collections
-
 import pyda._metadata
+import pyda.clients.callback
 import pyda.data
 import pyda.providers
-import pyda.clients.callback
-from hystcomp_utils.cycle_data import unflatten_cycle_data, CycleData
+from hystcomp_utils.cycle_data import CycleData, unflatten_cycle_data
 from pyda.data import PropertyRetrievalResponse
+from qtpy import QtCore
 
 try:
     from pyda_japc import JapcProvider
@@ -31,7 +30,6 @@ except ImportError:
     AuthenticationClient = None  # type: ignore
 
 from ..utils import from_timestamp
-
 from ._cycle_to_tgm import LSAContexts
 
 __all__ = ["Acquisition"]

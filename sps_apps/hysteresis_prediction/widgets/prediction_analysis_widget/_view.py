@@ -20,8 +20,8 @@ from ...generated.prediction_analysis_widget_ui import (
 from ...generated.reference_selector_dialog_ui import (
     Ui_ReferenceSelectorDialog,
 )
+from ._dataclass import DiffPlotMode, MeasPlotMode, Plot
 from ._model import PredictionAnalysisModel
-from ._dataclass import Plot, DiffPlotMode, MeasPlotMode
 
 log = logging.getLogger(__name__)
 

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import logging
+import math
 from datetime import datetime
 from typing import Any, Optional
-import math
 
 from qtpy.QtCore import QTimer, Signal, Slot
 from qtpy.QtWidgets import QWidget

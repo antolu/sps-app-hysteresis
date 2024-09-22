@@ -4,9 +4,9 @@ import logging
 
 import numpy as np
 import pyqtgraph as pg
+from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore, QtGui
 
-from hystcomp_utils.cycle_data import CycleData
 from ._colors import ColorPool
 from ._dataclass import DiffPlotMode, MeasPlotMode, Plot, PredictionItem
 

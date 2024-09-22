@@ -1,6 +1,9 @@
-from ._threadutil import ThreadWorker  # noqa: F401
-from ._threadutil import run_in_thread  # noqa: F401
-from ._threadutil import run_in_main_thread, thread  # noqa: F401
+from ._threadutil import (  # noqa: F401
+    ThreadWorker,  # noqa: F401
+    run_in_main_thread,
+    run_in_thread,  # noqa: F401
+    thread,
+)
 from ._time import from_timestamp, time_execution  # noqa: F401
 from ._ui import load_cursor  # noqa: F401
 

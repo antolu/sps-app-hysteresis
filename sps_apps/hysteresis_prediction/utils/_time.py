@@ -4,8 +4,8 @@ Time utilities for handling acquired data
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import time
+from datetime import datetime, timezone
 from typing import Literal, Union
 
 __all__ = ["from_timestamp"]

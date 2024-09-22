@@ -1,17 +1,16 @@
 from __future__ import annotations
 
+import datetime
 import logging
 
-import datetime
-import numpy as np
 import hystcomp_utils.cycle_data
+import numpy as np
 import pyda
 import pyda.data
 from qtpy import QtCore
+
 from ._buffer import AcquisitionBuffer, InsufficientDataError
-
 from ._event_builder_abc import EventBuilderAbc
-
 
 log = logging.getLogger(__name__)
 

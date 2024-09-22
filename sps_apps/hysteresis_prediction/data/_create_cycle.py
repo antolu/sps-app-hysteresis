@@ -2,19 +2,18 @@ from __future__ import annotations
 
 import logging
 
-import numpy as np
 import hystcomp_utils.cycle_data
+import numpy as np
 import pyda
 import pyda.data
 import pyda_japc
 from qtpy import QtCore
 
 from ._event_builder_abc import (
+    BufferedSubscription,
     BufferedSubscriptionEventBuilder,
     Subscription,
-    BufferedSubscription,
 )
-
 
 log = logging.getLogger(__name__)
 
