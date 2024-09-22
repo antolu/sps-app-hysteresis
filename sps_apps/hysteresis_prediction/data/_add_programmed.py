@@ -54,6 +54,12 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
 
             cycle_data = self._cycle_data_buffer[selector]
 
+            if cycle_data.cycle.endswith("ECO"):
+                msg = f"[{cycle_data}]: ECO cycle has already had programs updated."
+                log.debug(msg)
+                self.cycleDataAvailable.emit(cycle_data)
+                return
+
             prog_i_df = self._get_buffered_data(PARAM_I_PROG, selector).value.get(
                 "value"
             )
