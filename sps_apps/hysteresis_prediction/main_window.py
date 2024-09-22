@@ -10,9 +10,8 @@ from accwidgets.timing_bar import TimingBar, TimingBarDomain, TimingBarModel
 from op_app_context import context
 from qtpy import QtGui, QtWidgets
 
-from .data import Acquisition
+from ._data_flow import LocalDataFlow
 from .generated.main_window_ui import Ui_main_window
-from .inference import CalculateCorrection, Inference
 from .io import IO
 from .utils import load_cursor
 from .widgets import ModelLoadDialog, PlotModel
@@ -29,12 +28,10 @@ log = logging.getLogger(__name__)
 __all__ = ["MainWindow"]
 
 
-BUFFER_SIZE = 150000
-
-
 class MainWindow(Ui_main_window, ApplicationFrame):
     def __init__(
         self,
+        data_flow: LocalDataFlow,
         parent: QtWidgets.QWidget | None = None,
     ):
         ApplicationFrame.__init__(self, parent)
@@ -55,13 +52,11 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         timing_bar = TimingBar(self, model=timing_model)
         self.timing_bar = timing_bar
 
-        self._acquisition = Acquisition(parent=self)
-        self._inference = Inference(parent=self)
-        self._calc_correction = CalculateCorrection(parent=self)
+        self._data = data_flow
 
         self._status_manager = StatusManager(self)
 
-        plot_model = PlotModel(self._acquisition, parent=self)
+        plot_model = PlotModel(self._data, parent=self)
         self.widgetPlot.model = plot_model
 
         self._io = IO()
@@ -72,10 +67,8 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         # status messages
         self._connect_status()
 
-        self._acquisition.run()
-
         self.show_trim_widget()
-        self.show_predicion_analysis()
+        self.show_prediction_analysis()
 
     def _connect_signals(self) -> None:
         self.widgetSettings.timespan_changed.connect(self.widgetPlot.set_time_span)
@@ -86,48 +79,43 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self.widgetSettings.toggle_predictions.connect(self._inference.set_do_inference)
 
         # for UI only
-        self._acquisition.cycle_started.connect(self.widgetSettings.onNewCycle)
-        self._acquisition.onNewPrediction.connect(self.widgetPlot.model.onNewPredicted)
-
-        self._inference.model_loaded.connect(self.widgetSettings.on_model_loaded)
-
-        # data flow
-        self._acquisition.newBufferData.connect(self._inference.predict_last_cycle)
-        self._inference.cyclePredicted.connect(self._calc_correction.onNewCycle)
-        self._calc_correction.newCorrectionAvailable.connect(
-            self._acquisition.new_predicted_data
+        self._data.onCycleStart.connect(self.widgetSettings.onNewCycle)
+        self._data.onCycleCorrectionCalculated.connect(
+            self.widgetPlot.model.onNewPredicted
         )
 
-        self._acquisition.new_measured_data.connect(self._io.save_data)
+        self._data.onCycleMeasured.connect(self._io.save_data)
 
-        self._inference.model_loaded.connect(
+        self._data._predict.model_loaded.connect(
             lambda: QtWidgets.QMessageBox.information(
-                self, "Model loaded", "Model successfully loaded."
+                self,
+                "Model loaded",
+                "Model successfully loaded.\nPredictions will now start.",
             )
+        )
+        self._inference.model_loaded.connect(
+            lambda: self._data._predict.set_do_inference(True)
         )
 
     def _connect_actions(self) -> None:
         self.actionShow_Plot_Settings.triggered.connect(self.toggle_plot_settings)
         self.actionContinuous_Data_Export.toggled.connect(self._io.set_enabled)
-        self.action_Clear_Reference.triggered.connect(self._acquisition.reset_reference)
-        self.action_Clear_Reference.triggered.connect(
-            lambda *args: self._calc_correction.resetReference.emit()
-        )
+        self.action_Clear_Reference.triggered.connect(self._data.resetReference)
 
         self.action_Load_Model.triggered.connect(self.on_load_model_triggered)
         self.actionProgrammed_current.triggered.connect(
-            lambda x: self._inference.set_use_programmed_current(
+            lambda x: self._data._predict.set_use_programmed_current(
                 self.actionProgrammed_current.isChecked()
             )
         )
         self.actionAutoregressive.triggered.connect(
-            lambda x: self._inference.set_autoregressive(
+            lambda x: self._data._predict.set_autoregressive(
                 self.actionAutoregressive.isChecked()
             )
         )
-        self.actionReset_state.triggered.connect(self._inference.reset_state)
+        self.actionReset_state.triggered.connect(self._data._predict.reset_state)
 
-        self.actionPrediction_Analysis.triggered.connect(self.show_predicion_analysis)
+        self.actionPrediction_Analysis.triggered.connect(self.show_prediction_analysis)
         self.action_Trim_View.triggered.connect(self.show_trim_widget)
 
     def _connect_status(self) -> None:
@@ -153,7 +141,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
     def on_load_model_triggered(self) -> None:
         dialog = ModelLoadDialog(parent=self)
-        dialog.load_checkpoint.connect(self._inference.loadModel)
+        dialog.load_checkpoint.connect(self._data._predict.loadModel)
         result = dialog.exec()
 
         if result == QtWidgets.QDialog.Rejected:
@@ -166,7 +154,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         else:
             self.widgetSettings.hide()
 
-    def show_predicion_analysis(self) -> None:
+    def show_prediction_analysis(self) -> None:
         if len(self._analysis_widgets) > 0:
             uuid = list(self._analysis_widgets.keys())[0]
             widget = self._analysis_widgets[uuid]
@@ -179,7 +167,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             model = PredictionAnalysisModel()
             widget = PredictionAnalysisWidget(model=model, parent=None)
 
-            self._acquisition.new_measured_data.connect(model.newData.emit)
+            self._data.onCycleMeasured.connect(model.onNewMeasuredData)
 
             uuid = str(uuid4())
             self._analysis_widgets[uuid] = widget
@@ -204,7 +192,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             model = TrimModel()
             widget = TrimWidgetView(model=model, parent=None)
 
-            self._acquisition.onNewPrediction.connect(model.onNewPrediction)
+            self._data.onCycleCorrectionCalculated.connect(model.onNewPrediction)
 
             uuid = str(uuid4())
             self._trim_wide_widgets[uuid] = widget

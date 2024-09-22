@@ -2,12 +2,14 @@ import logging
 import sys
 from argparse import ArgumentParser
 
+import pyrbac
 import torch
 from accwidgets.qt import exec_app_interruptable
 from qtpy import QtWidgets
 from rich.logging import RichHandler
 
 from . import __version__
+from ._data_flow import LocalDataFlow
 from .main_window import MainWindow
 
 torch.set_float32_matmul_precision("high")
@@ -73,7 +75,21 @@ def main() -> None:
     context.lsa_server = args.lsa_server
     settings.configure_application(application)
 
-    main_window = MainWindow()
+    try:
+        rbac_token = pyrbac.AuthenticationClient().login_location()
+        context.set_rbac_token(rbac_token)
+    except:  # noqa: E722
+        pass
+
+    data_flow = LocalDataFlow(
+        buffer_size=args.buffer_size,
+        provider=context.japc_provider,
+        parent=application,
+    )
+
+    main_window = MainWindow(data_flow)
     main_window.show()
+
+    data_flow.start()
 
     sys.exit(exec_app_interruptable(application))

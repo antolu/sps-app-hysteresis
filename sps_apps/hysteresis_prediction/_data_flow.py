@@ -4,7 +4,6 @@ import typing
 
 import pyda_japc
 
-
 from .data import (
     AddMeasurementReferencesEventBuilder,
     AddMeasurementsEventBuilder,
@@ -12,18 +11,24 @@ from .data import (
     BufferEventbuilder,
     CreateCycleEventBuilder,
     CycleStampedAddMeasurementsEventBuilder,
+    StartCycleEventBuilder,
     TrackDynEcoEventBuilder,
     TrackFullEcoEventBuilder,
-    StartCycleEventBuilder,
 )
 from .inference import CalculateCorrection, Inference
-
 
 if typing.TYPE_CHECKING:
     from qtpy import QtCore
 
 
-class AbstractDataFlow:
+class DataFlow:
+    def start(self) -> None:
+        raise NotImplementedError
+
+    @QtCore.Slot
+    def resetReference(self) -> None:
+        raise NotImplementedError
+
     @property
     def onCycleForewarning(self) -> QtCore.Signal:
         raise NotImplementedError
@@ -41,7 +46,7 @@ class AbstractDataFlow:
         raise NotImplementedError
 
 
-class LocalDataFlow(AbstractDataFlow):
+class LocalDataFlow(DataFlow):
     def __init__(
         self,
         provider: pyda_japc.JapcProvider,
@@ -68,6 +73,23 @@ class LocalDataFlow(AbstractDataFlow):
         self._track_fulleco = TrackFullEcoEventBuilder(provider=provider, parent=parent)
 
         self._connect_signals()
+
+    def start(self) -> None:
+        self._create_cycle.start()
+        self._add_measurements_pre.start()
+        self._buffer.start()
+        self._predict.start()
+        self._correction.start()
+        self._start_cycle.start()
+        self._add_programmed.start()
+        self._add_measurement_post.start()
+        self._add_measurement_ref.start()
+        self._track_dyneco.start()
+        self._track_fulleco.start()
+
+    def resetReference(self) -> None:
+        self._add_measurement_ref.resetReference()
+        self._correction.resetReference()
 
     def _connect_signals(self) -> None:
         self._create_cycle.cycleDataAvailable.connect(
@@ -116,4 +138,4 @@ class LocalDataFlow(AbstractDataFlow):
         return self._add_measurement_ref.cycleDataAvailable
 
 
-class UcapDataFlow(AbstractDataFlow): ...
+class UcapDataFlow(DataFlow): ...

@@ -7,7 +7,7 @@ from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
 from transformertf.data import downsample as downsample_tf
 
-from ...data import Acquisition
+from ..._data_flow import DataFlow
 from ._sources import AcquiredDataType, CurrentFieldSource
 
 log = logging.getLogger(__name__)
@@ -16,14 +16,14 @@ log = logging.getLogger(__name__)
 class PlotModel(QtCore.QObject):
     def __init__(
         self,
-        acquisition: Acquisition,
+        data: DataFlow,
         parent: QtCore.QObject | None = None,
         downsample: int = 100,
     ) -> None:
         super().__init__(parent=parent)
 
         self._downsample = downsample
-        self._acquisition = acquisition
+        self._data = data
 
         self._current_meas_source = CurrentFieldSource(
             AcquiredDataType.MeasuredData, downsample=downsample
@@ -47,14 +47,14 @@ class PlotModel(QtCore.QObject):
             AcquiredDataType.PredictedField, downsample=downsample
         )
 
-        self._acquisition.new_measured_data.connect(self._handle_new_measured)
-        self._acquisition.sig_new_programmed_cycle.connect(self._handle_new_programmed)
+        self._data.onCycleMeasured.connect(self._handle_new_measured)
+        self._data.onCycleForewarning.connect(self._handle_new_programmed)
+        self._data.onCycleCorrectionCalculated.connect(self.onNewPredicted)
 
     def __del__(self) -> None:
-        self._acquisition.new_measured_data.disconnect(self._handle_new_measured)
-        self._acquisition.sig_new_programmed_cycle.disconnect(
-            self._handle_new_programmed
-        )
+        self._data.onCycleMeasured.disconnect(self._handle_new_measured)
+        self._data.onCycleForewarning.disconnect(self._handle_new_programmed)
+        self._data.onCycleCorrectionCalculated.disconnect(self.onNewPredicted)
 
     def _handle_new_measured(self, cycle_data: CycleData) -> None:
         try:
@@ -94,9 +94,6 @@ class PlotModel(QtCore.QObject):
             self._current_prog_source.new_value(
                 cycle_data.cycle_timestamp, cycle_data.current_prog
             )
-            # self._field_prog_source.new_value(
-            #     cycle_data.cycle_timestamp, cycle_data.field_prog
-            # )
         except Exception:  # noqa: broad-except
             log.exception(
                 "An exception occurred while publishing new " "programmed data."

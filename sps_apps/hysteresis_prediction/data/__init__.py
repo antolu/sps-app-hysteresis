@@ -14,9 +14,8 @@ from ._event_builder_abc import (
     Subscription,
 )
 from ._start_cycle import StartCycleEventBuilder
-from ._track_fulleco import TrackFullEcoEventBuilder
 from ._track_dyneco import TrackDynEcoEventBuilder
-
+from ._track_fulleco import TrackFullEcoEventBuilder
 
 for _mod in (
     Acquisition,

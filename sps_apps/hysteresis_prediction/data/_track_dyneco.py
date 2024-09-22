@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import logging
 
 import hystcomp_utils.cycle_data
@@ -7,7 +8,6 @@ import numpy as np
 import pyda
 import pyda.data
 import pyda_japc
-import datetime
 from qtpy import QtCore
 
 from ._event_builder_abc import (

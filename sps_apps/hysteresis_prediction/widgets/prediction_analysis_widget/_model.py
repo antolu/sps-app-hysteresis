@@ -35,9 +35,6 @@ class PredictionAnalysisModel(QtCore.QObject):
     saved in the model.
     """
 
-    newData = QtCore.Signal(CycleData)
-    """ Triggered by new data acquisition (new predictions) """
-
     superCycleChanged = QtCore.Signal()
     """ Triggered when a supercycle is detected (externally) """
 
@@ -76,7 +73,6 @@ class PredictionAnalysisModel(QtCore.QObject):
 
         # connect signals
         self.maxBufferSizeChanged.connect(self.set_max_buffer_samples)
-        self.newData.connect(self._on_new_data_received)
         self.superCycleChanged.connect(self._on_supercycle_changed)
         self.diffPlotModeChanged.connect(self._on_plot_mode_changed)
         self.measPlotModeChanged.connect(self._on_plot_mode_changed)
@@ -151,7 +147,8 @@ class PredictionAnalysisModel(QtCore.QObject):
     def disable_acquisition(self) -> None:
         self.enable_acquisition(False)
 
-    def _on_new_data_received(self, cycle_data: CycleData) -> None:
+    @QtCore.Slot(CycleData)
+    def onNewMeasuredData(self, cycle_data: CycleData) -> None:
         if self._selector is None:
             log.debug("No selector set. Discarding new data.")
             return

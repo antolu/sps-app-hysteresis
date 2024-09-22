@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import logging
 import math
-from datetime import datetime
 from typing import Any, Optional
 
+import hystcomp_utils.cycle_data
 from qtpy.QtCore import QTimer, Signal, Slot
 from qtpy.QtWidgets import QWidget
 
@@ -34,16 +34,17 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
         self.spinBoxTimespan.valueChanged.connect(self._timespan_changed)
         self.spinBoxDownsample.valueChanged.connect(self.downsample_changed)
         self.buttonResetAxis.clicked.connect(self._timespan_changed)
-        self.buttonPredict.clicked.connect(self._on_prediction_toggle)
+        # self.buttonPredict.clicked.connect(self._on_prediction_toggle)
 
         self.status_changed.connect(self._on_new_status)
 
-        self.buttonPredict.setEnabled(False)
+        # self.buttonPredict.setEnabled(False)
+        self.buttonPredict.hide()
 
     @run_in_main_thread
     def on_model_loaded(self) -> None:
         """Called when the model is loaded. Enable prediction button."""
-        self.buttonPredict.setEnabled(True)
+        # self.buttonPredict.setEnabled(True)
 
     def _timespan_changed(self, *_: Any) -> None:
         self.timespan_changed.emit(self.spinBoxTimespan.value(), 0)
@@ -53,14 +54,12 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
         message = LOG_MESSAGES[status]
         self.labelStatus.setText(message)
 
-    @Slot(str, str, float)
+    @Slot(hystcomp_utils.cycle_data.CycleData)
     @run_in_main_thread
-    def onNewCycle(self, pls: str, lsa: str, timestamp: float) -> None:
-        self.labelUser.setText(pls.split(".")[-1])
-        self.labelCycle.setText(lsa)
-        self.labelCycleTime.setText(
-            datetime.fromtimestamp(timestamp / 1e9).strftime(FMT)[:-3]
-        )
+    def onNewCycle(self, cycle_data: hystcomp_utils.cycle_data.CycleData) -> None:
+        self.labelUser.setText(cycle_data.user.split(".")[-1])
+        self.labelCycle.setText(cycle_data.cycle)
+        self.labelCycleTime.setText(cycle_data.cycle_time.strftime(FMT)[:-3])
 
         self.blink_led()
 
