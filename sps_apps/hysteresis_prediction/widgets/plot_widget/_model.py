@@ -48,14 +48,10 @@ class PlotModel(QtCore.QObject):
         )
 
         self._acquisition.new_measured_data.connect(self._handle_new_measured)
-        self._acquisition.sig_new_programmed_cycle.connect(
-            self._handle_new_programmed
-        )
+        self._acquisition.sig_new_programmed_cycle.connect(self._handle_new_programmed)
 
     def __del__(self) -> None:
-        self._acquisition.new_measured_data.disconnect(
-            self._handle_new_measured
-        )
+        self._acquisition.new_measured_data.disconnect(self._handle_new_measured)
         self._acquisition.sig_new_programmed_cycle.disconnect(
             self._handle_new_programmed
         )
@@ -74,13 +70,9 @@ class PlotModel(QtCore.QObject):
 
             if cycle_data.field_pred is not None:
                 field_pred = cycle_data.field_pred
-                downsample_factor = (
-                    cycle_data.field_meas.size // field_pred.shape[-1]
-                )
+                downsample_factor = cycle_data.field_meas.size // field_pred.shape[-1]
                 delta = (
-                    downsample_tf(
-                        cycle_data.field_meas, downsample_factor, "interval"
-                    )
+                    downsample_tf(cycle_data.field_meas, downsample_factor, "interval")
                     - field_pred[1, :]
                 ) * 1e4
                 self._field_meas_diff_source.new_value(
@@ -107,8 +99,7 @@ class PlotModel(QtCore.QObject):
             # )
         except Exception:  # noqa: broad-except
             log.exception(
-                "An exception occurred while publishing new "
-                "programmed data."
+                "An exception occurred while publishing new " "programmed data."
             )
             return
 
@@ -116,9 +107,7 @@ class PlotModel(QtCore.QObject):
     def onNewPredicted(self, cycle_data: CycleData) -> None:
         try:
             predicted = cycle_data.field_pred
-            self._field_predict_source.new_value(
-                cycle_data.cycle_timestamp, predicted
-            )
+            self._field_predict_source.new_value(cycle_data.cycle_timestamp, predicted)
 
             if cycle_data.field_ref is not None:
                 log.debug(f"Plotting field diff for cycle {cycle_data.cycle}")
@@ -128,9 +117,7 @@ class PlotModel(QtCore.QObject):
                     np.stack([predicted[0, :], delta], axis=0),
                 )
         except Exception:  # noqa: broad-except
-            log.exception(
-                "An exception occurred while publishing new predicted data."
-            )
+            log.exception("An exception occurred while publishing new predicted data.")
             return
 
     @property

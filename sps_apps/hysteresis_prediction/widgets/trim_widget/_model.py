@@ -101,15 +101,14 @@ class TrimModel(QtCore.QObject):
 
         if self.selector != prediction.user:
             log.debug(
-                f"Selector {self.selector} != {prediction.user}, "
-                "skipping trim."
+                f"Selector {self.selector} != {prediction.user}, " "skipping trim."
             )
             return
 
         if prediction.field_pred is None:
             raise ValueError(f"[{prediction}] No field prediction found.")
 
-        delta_t, delta_v = prediction.delta_applied
+        _delta_t, delta_v = prediction.delta_applied
 
         max_val = np.max(np.abs(delta_v))
         if max_val < 5e-6:
@@ -144,8 +143,7 @@ class TrimModel(QtCore.QObject):
             return
 
         comment = (
-            "Hysteresis prediction correction "
-            f"{str(cycle_data.cycle_time)[:-7]}"
+            "Hysteresis prediction correction " f"{str(cycle_data.cycle_time)[:-7]}"
         )
 
         if self.selector is None:
@@ -165,12 +163,8 @@ class TrimModel(QtCore.QObject):
                 correction_t, correction_v
             )
 
-            assert (
-                cycle_data.delta_applied is not None
-            ), "No delta applied found."
-            delta_t, delta_v = self.cut_trim_beyond_time(
-                *cycle_data.delta_applied
-            )
+            assert cycle_data.delta_applied is not None, "No delta applied found."
+            delta_t, delta_v = self.cut_trim_beyond_time(*cycle_data.delta_applied)
 
             log.debug(
                 f"[{cycle_data}] Sending trims to LSA with {correction_t.size} points."
@@ -178,22 +172,16 @@ class TrimModel(QtCore.QObject):
 
             if not self.dry_run:
                 with time_execution() as trim_time:
-                    trim_time_d = self.send_trim(
-                        correction_t, correction_v, comment
-                    )
+                    trim_time_d = self.send_trim(correction_t, correction_v, comment)
 
                 trim_time_diff = trim_time.duration
                 log.debug(f"Trim applied in {trim_time_diff:.02f}s.")
             else:
-                log.debug(
-                    f"[{cycle_data}] Dry run is enabled, skipping LSA trim."
-                )
+                log.debug(f"[{cycle_data}] Dry run is enabled, skipping LSA trim.")
 
                 trim_time_d = datetime.now()
 
-            self.trimApplied.emit(
-                np.vstack((delta_t, delta_v)), trim_time_d, comment
-            )
+            self.trimApplied.emit(np.vstack((delta_t, delta_v)), trim_time_d, comment)
         except:  # noqa E722
             log.exception("Failed to apply trim to LSA.")
             raise

@@ -23,13 +23,7 @@ class DataFlow:
         self._create_cycle.cycleDataAvailable.connect(
             self._add_measurements.onNewCycleData
         )
-        self._add_measurements.cycleDataAvailable.connect(
-            self._buffer.onNewCycleData
-        )
+        self._add_measurements.cycleDataAvailable.connect(self._buffer.onNewCycleData)
         self._buffer.newBufferAvailable.connect(self._predict.onNewCycleData)
-        self._buffer.newEcoBufferAvailable.connect(
-            self._predict.onNewCycleData
-        )
-        self._predict.cycleDataAvailable.connect(
-            self._correction.onNewCycleData
-        )
+        self._buffer.newEcoBufferAvailable.connect(self._predict.onNewCycleData)
+        self._predict.cycleDataAvailable.connect(self._correction.onNewCycleData)

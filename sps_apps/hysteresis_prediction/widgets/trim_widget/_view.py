@@ -28,9 +28,7 @@ class TrimInfoWidget(QtWidgets.QWidget):
         super().__init__(parent=parent)
 
         self.LsaServerLabel = QtWidgets.QLabel("LSA Server", parent=self)
-        self.LsaServerLineValue = QtWidgets.QLabel(
-            context.lsa_server, parent=self
-        )
+        self.LsaServerLineValue = QtWidgets.QLabel(context.lsa_server, parent=self)
 
         self.LastTrimLabel = QtWidgets.QLabel("Last Trim", parent=self)
         self.LastTrimLineValue = QtWidgets.QLabel("N/A", parent=self)
@@ -57,9 +55,7 @@ class TrimInfoWidget(QtWidgets.QWidget):
     def on_trim_applied(
         self, _: typing.Any, trim_time: datetime.datetime, trim_comment: str
     ) -> None:
-        self.LastTrimLineValue.setText(
-            trim_time.strftime("%Y%m%d-%H:%M:%S:%f")[:-4]
-        )
+        self.LastTrimLineValue.setText(trim_time.strftime("%Y%m%d-%H:%M:%S:%f")[:-4])
         self.LastCommentLineValue.setText(trim_comment)
 
     def on_new_beam_in_time(self, beam_in: int, beam_out: int) -> None:
@@ -171,9 +167,7 @@ class TrimWidgetView(QtWidgets.QWidget):
 
     _thread: QtCore.QThread | None = None
 
-    def __init__(
-        self, model: TrimModel, parent: QtWidgets.QWidget | None = None
-    ):
+    def __init__(self, model: TrimModel, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent=parent)
         self._model = None
 
@@ -189,9 +183,7 @@ class TrimWidgetView(QtWidgets.QWidget):
             "Refresh LSA Selector", parent=self
         )
         self.menu_bar.addAction(self.actionRefreshLsaSelector)
-        self.actionRefreshLsaSelector.triggered.connect(
-            self.LsaSelector.model.refetch
-        )
+        self.actionRefreshLsaSelector.triggered.connect(self.LsaSelector.model.refetch)
 
         self.TrimInfoWidget = TrimInfoWidget(parent=self)
         self.TrimSettingsWidget = TrimSettingsWidget(parent=self)
@@ -216,9 +208,7 @@ class TrimWidgetView(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding
         )
 
-        self.plotWidget = accgraph.StaticPlotWidget(
-            parent=self, background="w"
-        )
+        self.plotWidget = accgraph.StaticPlotWidget(parent=self, background="w")
 
         self.setLayout(QtWidgets.QHBoxLayout(self))
         self.layout().addWidget(self.left_frame)
@@ -227,9 +217,7 @@ class TrimWidgetView(QtWidgets.QWidget):
 
         self.setMinimumSize(800, 400)
 
-        self.LsaSelector.userSelectionChanged.connect(
-            self.on_user_selected_lsa
-        )
+        self.LsaSelector.userSelectionChanged.connect(self.on_user_selected_lsa)
         self.toggle_button.setEnabled(False)
 
         self._plot_source = accgraph.UpdateSource()
@@ -243,9 +231,7 @@ class TrimWidgetView(QtWidgets.QWidget):
             self._thread.start()
 
     def _setup_plots(self) -> None:
-        self.plotWidget.addCurve(
-            data_source=self._plot_source, pen=pg.mkPen(color="k")
-        )
+        self.plotWidget.addCurve(data_source=self._plot_source, pen=pg.mkPen(color="k"))
 
     @property
     def model(self) -> TrimModel | None:
@@ -263,17 +249,13 @@ class TrimWidgetView(QtWidgets.QWidget):
         model.trimApplied.connect(self.TrimInfoWidget.on_trim_applied)
         model.trimApplied.connect(self._on_trim_applied)
         model.beamInRetrieved.connect(self.TrimInfoWidget.on_new_beam_in_time)
-        model.beamInRetrieved.connect(
-            self.TrimSettingsWidget.on_new_beam_in_time
-        )
+        model.beamInRetrieved.connect(self.TrimSettingsWidget.on_new_beam_in_time)
 
         self.toggle_button.state1Activated.connect(model.enable_trim)
         self.toggle_button.state2Activated.connect(model.disable_trim)
 
         self.TrimSettingsWidget.DryRunChanged.connect(model.set_dry_run)
-        self.TrimSettingsWidget.GainSpinBox.valueChanged.connect(
-            model.set_gain
-        )
+        self.TrimSettingsWidget.GainSpinBox.valueChanged.connect(model.set_gain)
         self.TrimSettingsWidget.TrimTMaxSpinBox.valueChanged.connect(
             model.set_trim_t_max
         )
@@ -285,21 +267,15 @@ class TrimWidgetView(QtWidgets.QWidget):
     def _disconnect_model(self, model: TrimModel) -> None:
         model.trimApplied.disconnect(self.TrimInfoWidget.on_trim_applied)
         model.trimApplied.disconnect(self._on_trim_applied)
-        model.beamInRetrieved.disconnect(
-            self.TrimInfoWidget.on_new_beam_in_time
-        )
-        model.beamInRetrieved.disconnect(
-            self.TrimSettingsWidget.on_new_beam_in_time
-        )
+        model.beamInRetrieved.disconnect(self.TrimInfoWidget.on_new_beam_in_time)
+        model.beamInRetrieved.disconnect(self.TrimSettingsWidget.on_new_beam_in_time)
 
         self.toggle_button.state1Activated.disconnect(model.enable_trim)
         self.toggle_button.state2Activated.disconnect(model.disable_trim)
         self.toggle_button.setEnabled(False)
 
         self.TrimSettingsWidget.DryRunChanged.disconnect(model.set_dry_run)
-        self.TrimSettingsWidget.GainSpinBox.valueChanged.disconnect(
-            model.set_gain
-        )
+        self.TrimSettingsWidget.GainSpinBox.valueChanged.disconnect(model.set_gain)
         self.TrimSettingsWidget.TrimTMaxSpinBox.valueChanged.disconnect(
             model.set_trim_t_max
         )

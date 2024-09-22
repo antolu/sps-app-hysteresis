@@ -22,9 +22,7 @@ class PredictionListModel(QtCore.QAbstractListModel):
     itemRemoved = QtCore.Signal(PredictionItem)
     """ Emitted when an item is removed from the list. """
 
-    def __init__(
-        self, max_len: int = 10, parent: QtCore.QObject | None = None
-    ) -> None:
+    def __init__(self, max_len: int = 10, parent: QtCore.QObject | None = None) -> None:
         super().__init__(parent=parent)
 
         self._data: deque[PredictionItem] = deque(maxlen=max_len)

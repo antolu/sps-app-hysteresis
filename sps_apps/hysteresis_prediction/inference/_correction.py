@@ -33,9 +33,7 @@ class CalculateCorrection(EventBuilderAbc):
         self._field_ref_timestamps: dict[str, float] = {}
 
     @QtCore.Slot(hystcomp_utils.cycle_data.CycleData)
-    def onNewCycleData(
-        self, cycle: hystcomp_utils.cycle_data.CycleData
-    ) -> None:
+    def onNewCycleData(self, cycle: hystcomp_utils.cycle_data.CycleData) -> None:
         msg = f"{cycle}: Calculating correction."
         log.debug(msg)
 
@@ -47,20 +45,14 @@ class CalculateCorrection(EventBuilderAbc):
             )
             return
 
-        delta = calc_delta_field(
-            self._field_ref[cycle.cycle], cycle.field_pred
-        )
+        delta = calc_delta_field(self._field_ref[cycle.cycle], cycle.field_pred)
         cycle.delta_applied = delta
 
         msg = f"{cycle}: Delta calculated."
         log.debug(msg)
 
-        if (
-            cycle.correction is not None
-        ):  # and not cycle.cycle.endswith("ECO"):
-            correction = calc_new_correction(
-                cycle.correction, delta, self._gain
-            )
+        if cycle.correction is not None:  # and not cycle.cycle.endswith("ECO"):
+            correction = calc_new_correction(cycle.correction, delta, self._gain)
             cycle.correction = correction
 
             msg = f"{cycle}: New correction calculated."
@@ -79,28 +71,24 @@ class CalculateCorrection(EventBuilderAbc):
             log.debug(f"{cycle_name}: Resetting field reference.")
             del self._field_ref[cycle_name]
         else:
-            log.debug(
-                f"{cycle_name}: Field reference not set. Nothing to reset."
-            )
+            log.debug(f"{cycle_name}: Field reference not set. Nothing to reset.")
         ...
 
     def _maybe_save_reference(
         self, cycle_data: hystcomp_utils.cycle_data.CycleData
     ) -> None:
         if cycle_data.field_pred is None:
-            log.error(
-                f"{cycle_data}: Prediction field not set. Cannot save reference."
-            )
+            log.error(f"{cycle_data}: Prediction field not set. Cannot save reference.")
             return
 
         if (
             cycle_data.reference_timestamp is not None
-            and np.allclose(
-                cycle_data.cycle_timestamp, cycle_data.reference_timestamp
-            )
+            and np.allclose(cycle_data.cycle_timestamp, cycle_data.reference_timestamp)
             and cycle_data.cycle.endswith("ECO")
         ):
-            msg = f"{cycle_data}: Last cycle was ECO, need to delete the last reference."
+            msg = (
+                f"{cycle_data}: Last cycle was ECO, need to delete the last reference."
+            )
             log.debug(msg)
 
             cycle_name = "_".join(cycle_data.cycle.split("_")[:-1])
@@ -142,9 +130,7 @@ def calc_delta_field(
     flatten: bool = False,
 ) -> npt.NDArray[np.float64]:
     # calc delta and smooth it
-    ref_t = (
-        field_ref[0, :] - field_ref[0, 0]
-    ) * 1e3  # absolute time in s to ms
+    ref_t = (field_ref[0, :] - field_ref[0, 0]) * 1e3  # absolute time in s to ms
     ref_t = np.round(ref_t, 1)
     ref_v = field_ref[1, :]
 
@@ -177,9 +163,7 @@ def calc_delta_field(
     delta_v = ref_v - pred_v
     delta_t = ref_t
     if beam_in is not None and beam_out is not None:
-        delta_t, delta_v = cut_trim_beyond_time(
-            delta_t, delta_v, beam_in, beam_out
-        )
+        delta_t, delta_v = cut_trim_beyond_time(delta_t, delta_v, beam_in, beam_out)
     else:
         msg = "Beam in and beam out not set. Not trimming the delta field."
         log.debug(msg)
@@ -252,9 +236,7 @@ def match_array_size(
             *new_correction,
         )
 
-    return np.vstack((new_x, current_correction)), np.vstack(
-        (new_x, new_correction)
-    )
+    return np.vstack((new_x, current_correction)), np.vstack((new_x, new_correction))
 
 
 def cut_trim_beyond_time(

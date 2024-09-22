@@ -71,9 +71,7 @@ class PredictionPlotModel(QtCore.QObject):
         item.color = color
 
         try:
-            x, y = _make_diff_curve(
-                item, self._reference, self._diff_plot_mode
-            )
+            x, y = _make_diff_curve(item, self._reference, self._diff_plot_mode)
             item.diff_plot_item = _make_curve_item(x, y, color)
         except ValueError:  # missing reference
             log.debug("Reference not set, not plotting main plot.")
@@ -82,15 +80,11 @@ class PredictionPlotModel(QtCore.QObject):
         assert item.cycle_data.field_meas is not None
         assert item.cycle_data.current_meas is not None
         item.meas_i_plot_item = _make_curve_item(
-            *_make_meas_curve(
-                item, item.cycle_data.current_meas, self._meas_plot_mode
-            ),
+            *_make_meas_curve(item, item.cycle_data.current_meas, self._meas_plot_mode),
             color,
         )
         item.meas_b_plot_item = _make_curve_item(
-            *_make_meas_curve(
-                item, item.cycle_data.field_meas, self._meas_plot_mode
-            ),
+            *_make_meas_curve(item, item.cycle_data.field_meas, self._meas_plot_mode),
             color,
         )
         item.delta_plot_item = _make_curve_item(
@@ -132,9 +126,7 @@ class PredictionPlotModel(QtCore.QObject):
             return
 
         try:
-            x, y = _make_diff_curve(
-                item, self._reference, self._diff_plot_mode
-            )
+            x, y = _make_diff_curve(item, self._reference, self._diff_plot_mode)
 
             # only add if not already plotted
             if item.diff_plot_item is None:
@@ -173,9 +165,7 @@ class PredictionPlotModel(QtCore.QObject):
 
         assert item.cycle_data.field_meas is not None
         assert item.cycle_data.current_meas is not None
-        x, y = _make_meas_curve(
-            item, item.cycle_data.field_meas, self._meas_plot_mode
-        )
+        x, y = _make_meas_curve(item, item.cycle_data.field_meas, self._meas_plot_mode)
         _update_curve(x, y, item.meas_b_plot_item)
 
         x, y = _make_meas_curve(
@@ -338,9 +328,7 @@ class PredictionPlotModel(QtCore.QObject):
         )
 
         self.setYRange.emit(min_val - 0.1, max_val + 0.1)
-        self.setXRange.emit(
-            0, next(iter(self._plotted_items)).cycle_data.num_samples
-        )
+        self.setXRange.emit(0, next(iter(self._plotted_items)).cycle_data.num_samples)
 
 
 def calc_dpp(
@@ -525,9 +513,7 @@ def _make_meas_curve(
         raise ValueError(f"Invalid plot mode {meas_mode.name}")
 
 
-def _update_curve(
-    x: np.ndarray, y: np.ndarray, curve: pg.PlotCurveItem
-) -> None:
+def _update_curve(x: np.ndarray, y: np.ndarray, curve: pg.PlotCurveItem) -> None:
     """
     Update the data of a curve.
 

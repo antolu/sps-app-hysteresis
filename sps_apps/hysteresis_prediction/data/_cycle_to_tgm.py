@@ -48,8 +48,7 @@ class LSAContexts:
         """
         if self.machine is None:
             raise ValueError(
-                "Must set machine attribute before attempting to "
-                "fetch contexts."
+                "Must set machine attribute before attempting to " "fetch contexts."
             )
 
         log.debug("Preparing to update LSA cycle to PLS mapping.")
@@ -76,9 +75,7 @@ class LSAContexts:
             contexts = service.findStandAloneCycles(acc)
             drivable_contexts = Contexts.getDrivableContexts(contexts)
 
-            mapped_contexts = [
-                o for o in drivable_contexts if o.getUser() is not None
-            ]
+            mapped_contexts = [o for o in drivable_contexts if o.getUser() is not None]
 
             lsa_to_pls = {}
             pls_to_lsa = {}
@@ -95,8 +92,7 @@ class LSAContexts:
                 pls_to_lsa[pls_user] = lsa_cycle
 
             log.debug(
-                f"Found {len(lsa_to_pls)} resident contexts for "
-                f"{self.machine}."
+                f"Found {len(lsa_to_pls)} resident contexts for " f"{self.machine}."
             )
 
         self.lsa_to_pls = lsa_to_pls

@@ -19,15 +19,11 @@ log = logging.getLogger(__name__)
 
 PARAM_I_PROG = "rmi://virtual_sps/MBI/IREF"
 PARAM_B_PROG = "rmi://virtual_sps/SPSBEAM/B"
-PARAM_BHYS_CORRECTION = (
-    "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/BHYS-CORRECTION/Acquisition"
-)
+PARAM_BHYS_CORRECTION = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/BHYS-CORRECTION/Acquisition"
 
 
 class BufferEventbuilder(EventBuilderAbc):
-    newBufferAvailable = QtCore.Signal(
-        list[hystcomp_utils.cycle_data.CycleData]
-    )
+    newBufferAvailable = QtCore.Signal(list[hystcomp_utils.cycle_data.CycleData])
     newEcoBufferAvailable = QtCore.Signal(hystcomp_utils.cycle_data.CycleData)
 
     def __init__(
@@ -54,9 +50,7 @@ class BufferEventbuilder(EventBuilderAbc):
         raise NotImplementedError(msg)
 
     @QtCore.Slot(hystcomp_utils.cycle_data.CycleData)
-    def onNewCycleData(
-        self, cycle_data: hystcomp_utils.cycle_data.CycleData
-    ) -> None:
+    def onNewCycleData(self, cycle_data: hystcomp_utils.cycle_data.CycleData) -> None:
         msg = f"[{cycle_data}]: Received forewarning."
         log.debug(msg)
 
@@ -72,9 +66,7 @@ class BufferEventbuilder(EventBuilderAbc):
             size = len(self._acquisition_buffer)
             total = self._buffer_size
 
-            msg = (
-                f"[{cycle_data}]: Insufficient data in buffer: {size}/{total}."
-            )
+            msg = f"[{cycle_data}]: Insufficient data in buffer: {size}/{total}."
             log.info(msg)
 
         self.newBufferAvailable.emit(buffer)
@@ -94,9 +86,7 @@ class BufferEventbuilder(EventBuilderAbc):
         self._acquisition_buffer.update_cycle(cycle_data)
         buffer_l = self._acquisition_buffer.collate_samples()
 
-        if not np.allclose(
-            buffer_l[-1].cycle_timestamp, cycle_data.cycle_timestamp
-        ):
+        if not np.allclose(buffer_l[-1].cycle_timestamp, cycle_data.cycle_timestamp):
             msg = (
                 f"{cycle_data} Last cycle in buffer has timestamp {buffer_l[-1].cycle_timestamp}, "
                 f"but received ECO cycle {cycle_data.cycle_timestamp}"

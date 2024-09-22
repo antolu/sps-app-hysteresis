@@ -99,9 +99,7 @@ class PredictionAnalysisModel(QtCore.QObject):
     def get_max_buffer_samples(self) -> int:
         return self._list_model.max_len
 
-    max_buffer_samples = property(
-        get_max_buffer_samples, set_max_buffer_samples
-    )
+    max_buffer_samples = property(get_max_buffer_samples, set_max_buffer_samples)
 
     def set_watch_supercycle(self, watch_supercycle: bool) -> None:
         log.debug(f"Setting watch supercycle to {watch_supercycle}.")
@@ -113,17 +111,13 @@ class PredictionAnalysisModel(QtCore.QObject):
     watch_supercycle = property(get_watch_supercycle, set_watch_supercycle)
 
     def set_supercycle_patience(self, supercycle_patience: int) -> None:
-        log.debug(
-            f"Setting supercycle watch patience to {supercycle_patience}."
-        )
+        log.debug(f"Setting supercycle watch patience to {supercycle_patience}.")
         self._supercycle_patience = supercycle_patience
 
     def get_supercycle_patience(self) -> int:
         return self._supercycle_patience
 
-    supercycle_patience = property(
-        get_supercycle_patience, set_supercycle_patience
-    )
+    supercycle_patience = property(get_supercycle_patience, set_supercycle_patience)
 
     def set_selector(self, selector: str | None) -> None:
         current_selector = self._selector
@@ -135,12 +129,8 @@ class PredictionAnalysisModel(QtCore.QObject):
             self._list_model.clear()
 
             if selector is not None:
-                beam_in = self._da.get(BEAM_IN, context=selector).value[
-                    "value"
-                ]
-                beam_out = self._da.get(BEAM_OUT, context=selector).value[
-                    "value"
-                ]
+                beam_in = self._da.get(BEAM_IN, context=selector).value["value"]
+                beam_out = self._da.get(BEAM_OUT, context=selector).value["value"]
 
                 self.plot_model.beam_in = beam_in
                 self.plot_model.beam_out = beam_out
@@ -179,17 +169,13 @@ class PredictionAnalysisModel(QtCore.QObject):
 
         if self._count_acq_supercycle:
             if self._n_acq_since_supercycle >= self._supercycle_patience:
-                log.debug(
-                    "Acquired more data than patience, discarding new data."
-                )
+                log.debug("Acquired more data than patience, discarding new data.")
                 return
             else:
                 self._n_acq_since_supercycle += 1
 
         if cycle_data.field_pred is None:
-            log.debug(
-                f"No field prediction for {cycle_data.user}. Discarding."
-            )
+            log.debug(f"No field prediction for {cycle_data.user}. Discarding.")
             return
 
         log.debug(f"Adding new data to model for {cycle_data.user}.")
@@ -267,9 +253,7 @@ def to_dict(
         "current_input": (
             data.current_input if hasattr(data, "current_input") else None
         ),
-        "field_ref": (
-            data.field_ref.flatten() if data.field_ref is not None else None
-        ),
+        "field_ref": (data.field_ref.flatten() if data.field_ref is not None else None),
         "field_pred": (
             data.field_pred.flatten() if data.field_pred is not None else None
         ),

@@ -78,34 +78,22 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self.show_predicion_analysis()
 
     def _connect_signals(self) -> None:
-        self.widgetSettings.timespan_changed.connect(
-            self.widgetPlot.set_time_span
-        )
+        self.widgetSettings.timespan_changed.connect(self.widgetPlot.set_time_span)
 
         self.widgetSettings.downsample_changed.connect(
             self.widgetPlot.model.set_downsample
         )
-        self.widgetSettings.toggle_predictions.connect(
-            self._inference.set_do_inference
-        )
+        self.widgetSettings.toggle_predictions.connect(self._inference.set_do_inference)
 
         # for UI only
         self._acquisition.cycle_started.connect(self.widgetSettings.onNewCycle)
-        self._acquisition.onNewPrediction.connect(
-            self.widgetPlot.model.onNewPredicted
-        )
+        self._acquisition.onNewPrediction.connect(self.widgetPlot.model.onNewPredicted)
 
-        self._inference.model_loaded.connect(
-            self.widgetSettings.on_model_loaded
-        )
+        self._inference.model_loaded.connect(self.widgetSettings.on_model_loaded)
 
         # data flow
-        self._acquisition.newBufferData.connect(
-            self._inference.predict_last_cycle
-        )
-        self._inference.cyclePredicted.connect(
-            self._calc_correction.onNewCycle
-        )
+        self._acquisition.newBufferData.connect(self._inference.predict_last_cycle)
+        self._inference.cyclePredicted.connect(self._calc_correction.onNewCycle)
         self._calc_correction.newCorrectionAvailable.connect(
             self._acquisition.new_predicted_data
         )
@@ -119,13 +107,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         )
 
     def _connect_actions(self) -> None:
-        self.actionShow_Plot_Settings.triggered.connect(
-            self.toggle_plot_settings
-        )
+        self.actionShow_Plot_Settings.triggered.connect(self.toggle_plot_settings)
         self.actionContinuous_Data_Export.toggled.connect(self._io.set_enabled)
-        self.action_Clear_Reference.triggered.connect(
-            self._acquisition.reset_reference
-        )
+        self.action_Clear_Reference.triggered.connect(self._acquisition.reset_reference)
         self.action_Clear_Reference.triggered.connect(
             lambda *args: self._calc_correction.resetReference.emit()
         )
@@ -143,23 +127,17 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         )
         self.actionReset_state.triggered.connect(self._inference.reset_state)
 
-        self.actionPrediction_Analysis.triggered.connect(
-            self.show_predicion_analysis
-        )
+        self.actionPrediction_Analysis.triggered.connect(self.show_predicion_analysis)
         self.action_Trim_View.triggered.connect(self.show_trim_widget)
 
     def _connect_status(self) -> None:
         self.widgetSettings.toggle_predictions.connect(
             lambda enabled, *_: self._status_manager.statusChanged.emit(
-                AppStatus.INFERENCE_ENABLED
-                if enabled
-                else AppStatus.INFERENCE_DISABLED
+                AppStatus.INFERENCE_ENABLED if enabled else AppStatus.INFERENCE_DISABLED
             )
         )
         self._inference.model_loaded.connect(
-            lambda *_: self._status_manager.statusChanged.emit(
-                AppStatus.MODEL_LOADED
-            )
+            lambda *_: self._status_manager.statusChanged.emit(AppStatus.MODEL_LOADED)
         )
         self._inference.predictionStarted.connect(
             lambda *_: self._status_manager.statusChanged.emit(
@@ -167,13 +145,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             )
         )
         self._inference.predictionFinished.connect(
-            lambda *_: self._status_manager.statusChanged.emit(
-                AppStatus.INFERENCE_IDLE
-            )
+            lambda *_: self._status_manager.statusChanged.emit(AppStatus.INFERENCE_IDLE)
         )
-        self._status_manager.setStatus.connect(
-            self.widgetSettings.status_changed.emit
-        )
+        self._status_manager.setStatus.connect(self.widgetSettings.status_changed.emit)
 
         self._status_manager.statusChanged.emit(AppStatus.NO_MODEL)
 

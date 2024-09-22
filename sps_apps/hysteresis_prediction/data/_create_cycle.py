@@ -21,9 +21,7 @@ log = logging.getLogger(__name__)
 
 PARAM_I_PROG = "rmi://virtual_sps/MBI/IREF"
 PARAM_B_PROG = "rmi://virtual_sps/SPSBEAM/B"
-PARAM_BHYS_CORRECTION = (
-    "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/BHYS-CORRECTION/Acquisition"
-)
+PARAM_BHYS_CORRECTION = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/BHYS-CORRECTION/Acquisition"
 
 
 class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
@@ -36,9 +34,7 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
     ):
         super().__init__(
             [
-                Subscription(
-                    "CycleWarning", cycle_warning, ignore_first_updates=True
-                ),
+                Subscription("CycleWarning", cycle_warning, ignore_first_updates=True),
             ],
             buffered_subscriptions=[
                 BufferedSubscription("IREF", PARAM_I_PROG),
@@ -70,9 +66,7 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
 
             current_prog_fspv = self._get_buffered_data(PARAM_I_PROG, selector)
             field_prog_fspv = self._get_buffered_data(PARAM_B_PROG, selector)
-            bhys_corr_fspv = self._get_buffered_data(
-                PARAM_BHYS_CORRECTION, selector
-            )
+            bhys_corr_fspv = self._get_buffered_data(PARAM_BHYS_CORRECTION, selector)
 
             current_prog = np.vstack(
                 (

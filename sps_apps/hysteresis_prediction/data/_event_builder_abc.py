@@ -41,9 +41,9 @@ ENDPOINT_RE = re.compile(
 class CycleStampSubscriptionBuffer:
     def __init__(self, parameter: str, buffer_size: int = 1) -> None:
         self._parameter = parameter
-        self._buffer: collections.deque[
-            pyda.data.PropertyRetrievalResponse
-        ] = collections.deque(maxlen=buffer_size)
+        self._buffer: collections.deque[pyda.data.PropertyRetrievalResponse] = (
+            collections.deque(maxlen=buffer_size)
+        )
         self._index: dict[float, int] = {}  # cycle_stamp -> index
 
     def __contains__(self, item: float) -> bool:
@@ -110,9 +110,7 @@ class EventBuilderAbc(abc.ABC, QtCore.QObject):
             ),
         )
 
-        self._handles: dict[
-            str, pyda.clients.callback.CallbackSubscription
-        ] = {}
+        self._handles: dict[str, pyda.clients.callback.CallbackSubscription] = {}
         self._handles |= self._setup_subscriptions(subscriptions or [])
 
     def _setup_subscriptions(
@@ -136,9 +134,7 @@ class EventBuilderAbc(abc.ABC, QtCore.QObject):
         for handle in self._handles.values():
             handle.start()
 
-    def handle_acquisition(
-        self, fspv: pyda.data.PropertyRetrievalResponse
-    ) -> None:
+    def handle_acquisition(self, fspv: pyda.data.PropertyRetrievalResponse) -> None:
 
         try:
             self._handle_acquisition_impl(fspv)
@@ -153,9 +149,7 @@ class EventBuilderAbc(abc.ABC, QtCore.QObject):
         pass
 
     @QtCore.Slot(hystcomp_utils.cycle_data.CycleData)
-    def onNewCycleData(
-        self, cycle_data: hystcomp_utils.cycle_data.CycleData
-    ) -> None:
+    def onNewCycleData(self, cycle_data: hystcomp_utils.cycle_data.CycleData) -> None:
         msg = "This method is optional and should be implemented by the subclass."
         raise NotImplementedError(msg)
 
@@ -177,9 +171,9 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
             parent=parent,
         )
 
-        self._buffers: dict[
-            str, dict[str, pyda.data.PropertyRetrievalResponse]
-        ] = {}  # endpoint -> selector -> buffer
+        self._buffers: dict[str, dict[str, pyda.data.PropertyRetrievalResponse]] = (
+            {}
+        )  # endpoint -> selector -> buffer
         self._buffered_subscriptions = (
             [sub.parameter for sub in buffered_subscriptions]
             if buffered_subscriptions
@@ -187,13 +181,9 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
         )
 
         if buffered_subscriptions:
-            self._handles |= self._setup_subscriptions(
-                buffered_subscriptions or []
-            )
+            self._handles |= self._setup_subscriptions(buffered_subscriptions or [])
 
-    def handle_acquisition(
-        self, fspv: pyda.data.PropertyRetrievalResponse
-    ) -> None:
+    def handle_acquisition(self, fspv: pyda.data.PropertyRetrievalResponse) -> None:
         if str(fspv.query.endpoint) in self._buffered_subscriptions:
             try:
                 self._handle_buffered_acquisition_impl(fspv)
@@ -224,9 +214,7 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
         self._buffers[parameter][selector] = fspv
 
     def _buffer_has_data(self, parameter: str, selector: str) -> bool:
-        return (
-            parameter in self._buffers and selector in self._buffers[parameter]
-        )
+        return parameter in self._buffers and selector in self._buffers[parameter]
 
     def _get_buffered_data(
         self, parameter: str, selector: str

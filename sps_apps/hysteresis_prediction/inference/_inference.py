@@ -56,12 +56,8 @@ class Inference(EventBuilderAbc):
         pass
 
     @QtCore.Slot(str, str, str)
-    def loadModel(
-        self, model_name: str, ckpt_path: str, device: str = "cpu"
-    ) -> None:
-        worker = ThreadWorker(
-            self._on_load_model, model_name, ckpt_path, device
-        )
+    def loadModel(self, model_name: str, ckpt_path: str, device: str = "cpu") -> None:
+        worker = ThreadWorker(self._on_load_model, model_name, ckpt_path, device)
 
         def on_exception(e: Exception) -> None:
             log.exception("Error loading model.")
@@ -113,9 +109,7 @@ class Inference(EventBuilderAbc):
             return None
 
         if self._predictor.busy:
-            log.warning(
-                "Inference is already underway. " "Cannot do more in parallel."
-            )
+            log.warning("Inference is already underway. " "Cannot do more in parallel.")
             return None
 
         self.predictionStarted.emit()
@@ -123,9 +117,7 @@ class Inference(EventBuilderAbc):
         try:
             with time_execution() as t:
                 predictions = self._predict_last_cycle(cycle_data)
-            log.info(
-                f"[{cycle_data[-1]}]: Prediction took {t.duration * 1e3:.2f} ms."
-            )
+            log.info(f"[{cycle_data[-1]}]: Prediction took {t.duration * 1e3:.2f} ms.")
             last_cycle = cycle_data[-1]
 
             predictions[0] = np.round([predictions[0]], 3)  # round to ms
@@ -186,9 +178,7 @@ class Inference(EventBuilderAbc):
 
         # no need to save the state again since the next prediction will not
         # be an ECO cycle
-        if (
-            self._autoregressive
-        ):  # previous state is set already, no need to check
+        if self._autoregressive:  # previous state is set already, no need to check
             msg = f"[{last_cycle}]: Autoregressive mode enabled, using previous state to predict."
             log.debug(msg)
 

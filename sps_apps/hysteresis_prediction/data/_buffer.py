@@ -32,17 +32,13 @@ def log_cycle(
     if timestamp is None:
         timestamp_s = ""
     else:
-        timestamp_s = "@" + str(
-            from_timestamp(timestamp, from_utc=True, unit="ns")
-        )
+        timestamp_s = "@" + str(from_timestamp(timestamp, from_utc=True, unit="ns"))
 
     log.log(log_level, f"[{cycle}{timestamp_s}] " + msg, stacklevel=stacklevel)
 
 
 def _cycle_buffer_str(buffer: typing.Iterable[CycleData]) -> str:
-    return ", ".join(
-        [cycle.cycle + "@" + str(cycle.cycle_time) for cycle in buffer]
-    )
+    return ", ".join([cycle.cycle + "@" + str(cycle.cycle_time) for cycle in buffer])
 
 
 class InsufficientDataError(Exception):
@@ -97,9 +93,7 @@ class AcquisitionBuffer:
         cycle_timestamp = int(round(cycle_timestamp, -6))
         log_cycle(f"Timestamp is {cycle_timestamp}.", cycle, cycle_timestamp)
 
-        log_cycle(
-            "Adding new cycle data to NEXT buffer.", cycle, cycle_timestamp
-        )
+        log_cycle("Adding new cycle data to NEXT buffer.", cycle, cycle_timestamp)
 
         self._cycles_next_index[cycle_timestamp] = cycle_data
         self._buffer_next.append(cycle_data)
@@ -144,9 +138,7 @@ class AcquisitionBuffer:
             return
 
         if cycle_timestamp in self._cycles_next_index:
-            log_cycle(
-                "Updating cycle data in NEXT buffer.", cycle, cycle_timestamp
-            )
+            log_cycle("Updating cycle data in NEXT buffer.", cycle, cycle_timestamp)
             self._cycles_next_index[cycle_timestamp] = cycle_data
             deque_idx = find_idx(cycle_data, self._buffer_next)
 
@@ -183,10 +175,7 @@ class AcquisitionBuffer:
 
         total_samples = len(self)
         if total_samples < self._buffer_size:
-            msg = (
-                f"Buffer size is less than {self._buffer_size} "
-                f"({total_samples})."
-            )
+            msg = f"Buffer size is less than {self._buffer_size} " f"({total_samples})."
             raise InsufficientDataError(msg)
 
         log.debug(
@@ -290,9 +279,7 @@ class AcquisitionBuffer:
                 + debug_msg(self._buffer)
             )
             for i in reversed(to_remove):
-                log.info(
-                    f"Removing buffered cycle {self._buffer[i]} at index {i}."
-                )
+                log.info(f"Removing buffered cycle {self._buffer[i]} at index {i}.")
                 self._cycles_index.pop(self._buffer[i].cycle_timestamp)
                 del self._buffer[i]
 
@@ -365,9 +352,7 @@ class AcquisitionBuffer:
             return
 
         if len(self._buffer) == 1:
-            log.warning(
-                "Insufficient buffered cycles " f"({len(self._buffer)})."
-            )
+            log.warning("Insufficient buffered cycles " f"({len(self._buffer)}).")
             return
 
         if len(self._buffer_next) == 0:
@@ -381,10 +366,7 @@ class AcquisitionBuffer:
             num_samples_buffer = [o.num_samples for o in buffer]
             num_samples_next = [o.num_samples for o in buffer_next]
 
-            return (
-                sum(num_samples_buffer) + sum(num_samples_next)
-                > self._buffer_size
-            )
+            return sum(num_samples_buffer) + sum(num_samples_next) > self._buffer_size
 
         def logger_msg(
             buffer: typing.Iterable[CycleData],
@@ -404,9 +386,7 @@ class AcquisitionBuffer:
             else:
                 while buffer_too_large(
                     self._buffer, self._buffer_next
-                ) and buffer_too_large(
-                    list(self._buffer)[1:], self._buffer_next
-                ):
+                ) and buffer_too_large(list(self._buffer)[1:], self._buffer_next):
                     log.debug(logger_msg(self._buffer, self._buffer_next))
 
                     cycle_data = self._buffer.popleft()
@@ -423,8 +403,7 @@ class AcquisitionBuffer:
                 and buffer_size(list(self._buffer)[1:]) > self._buffer_size
             ):
                 log.debug(
-                    "Buffer size is too large. Removing oldest buffered "
-                    "cycle."
+                    "Buffer size is too large. Removing oldest buffered " "cycle."
                 )
 
                 cycle_data = self._buffer.popleft()
@@ -451,16 +430,11 @@ class AcquisitionBuffer:
             )
             return
         if cycle_timestamp in self._cycles_index:
-            log_cycle(
-                "Buffered cycle data already exists.", cycle, cycle_timestamp
-            )
+            log_cycle("Buffered cycle data already exists.", cycle, cycle_timestamp)
             return
 
         # we can only move the cycle data if we have both measured I and B
-        if (
-            cycle_data.current_meas is not None
-            and cycle_data.field_meas is not None
-        ):
+        if cycle_data.current_meas is not None and cycle_data.field_meas is not None:
             if self._buffer_next[0] is not cycle_data:
                 # if the cycle data is not the next in line, we need to
                 # remove the preceding cycles

@@ -39,9 +39,7 @@ class IO:
 
     def save_data(self, cycle_data: CycleData) -> None:
         if not self.enabled:
-            log.debug(
-                "IO disabled, skipping save for {}".format(str(cycle_data))
-            )
+            log.debug("IO disabled, skipping save for {}".format(str(cycle_data)))
             return
 
         out_dir = Path(settings["save_dir", "."])
@@ -53,7 +51,5 @@ class IO:
         cycle_time = cycle_data.cycle_time.strftime("%Y%m%d_%H%M%S")
         filename = "{}_{}_{}.parquet".format(cycle_time, user, cycle)
 
-        log.debug(
-            "Saving {} data to {}".format(str(cycle_data), out_dir / filename)
-        )
+        log.debug("Saving {} data to {}".format(str(cycle_data), out_dir / filename))
         cycle_data.to_pandas().to_parquet(out_dir / filename)

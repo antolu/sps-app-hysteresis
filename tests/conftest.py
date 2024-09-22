@@ -31,9 +31,9 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 def pytest_runtest_setup(item: pytest.Item) -> None:
-    if list(
-        item.iter_markers(name=_MARKER_NAME)
-    ) and not item.config.getoption("virtual_dev", default=False):
+    if list(item.iter_markers(name=_MARKER_NAME)) and not item.config.getoption(
+        "virtual_dev", default=False
+    ):
         pytest.skip(
             "This relies on presence of a virtual device. For reproducibility, "
             "an LSA server must be connected for these tests",

@@ -40,20 +40,15 @@ class AddMeasurementsEventBuilder(BufferedSubscriptionEventBuilder):
         msg = f"{self.__class__.__name__} does not subscribe to triggers."
         raise NotImplementedError(msg)
 
-    def onNewCycleData(
-        self, cycle_data: hystcomp_utils.cycle_data.CycleData
-    ) -> None:
+    def onNewCycleData(self, cycle_data: hystcomp_utils.cycle_data.CycleData) -> None:
         selector = cycle_data.user
 
         msg = f"Received cycle data for {selector}"
         log.debug(msg)
 
-        i_meas = self._get_buffered_data(PARAM_I_MEAS, selector).value.get(
-            "value"
-        )
+        i_meas = self._get_buffered_data(PARAM_I_MEAS, selector).value.get("value")
         b_meas = (
-            self._get_buffered_data(PARAM_B_MEAS, selector).value.get("value")
-            / 1e4
+            self._get_buffered_data(PARAM_B_MEAS, selector).value.get("value") / 1e4
         )  # G to T
 
         cycle_data.current_meas = i_meas

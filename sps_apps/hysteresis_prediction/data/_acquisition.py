@@ -36,9 +36,7 @@ from ._cycle_to_tgm import LSAContexts
 
 __all__ = ["Acquisition"]
 
-DEV_BUFFER = (
-    "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.EVENT/CycleWarning"
-)
+DEV_BUFFER = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.EVENT/CycleWarning"
 
 DEV_MEAS_I = "MBI/LOG.I.MEAS"
 DEV_MEAS_B = "SR.BMEAS-SP-B-SD/CycleSamples#samples"
@@ -67,9 +65,7 @@ from_utc_ns: typing.Callable[[int | float], datetime] = partial(
 class RingBuffer:
     def __init__(self, size: int):
         self.size = size
-        self.buffer: collections.deque[CycleData] = collections.deque(
-            maxlen=size
-        )
+        self.buffer: collections.deque[CycleData] = collections.deque(maxlen=size)
         self.timestamp_index: dict[float, CycleData] = {}
 
     def add(self, cycle_data: CycleData):
@@ -215,9 +211,7 @@ class Acquisition(QtCore.QObject):
         log.debug("Setting up subscriptions.")
         log.debug("Performing GETs to initialize the buffer.")
 
-        self._handle_acquisition(
-            self._japc_simple.get(START_SUPERCYCLE, context="")
-        )
+        self._handle_acquisition(self._japc_simple.get(START_SUPERCYCLE, context=""))
 
         log.debug("Subscribing to events.")
         for name, endpoint, selector in pyda_subscriptions:
@@ -235,9 +229,7 @@ class Acquisition(QtCore.QObject):
         try:
             self._handle_acquisition(response)
         except Exception:  # noqa: E722
-            log.exception(
-                "An exception occurred while handling acquisition event."
-            )
+            log.exception("An exception occurred while handling acquisition event.")
 
     def _handle_acquisition(
         self, response: PropertyRetrievalResponse, allow_empty: bool = False
@@ -270,9 +262,7 @@ class Acquisition(QtCore.QObject):
         value = response.value
         cycle_timestamp = value.header.cycle_timestamp
         cycle_time = (
-            from_utc_ns(cycle_timestamp)
-            if cycle_timestamp is not None
-            else "N/A"
+            from_utc_ns(cycle_timestamp) if cycle_timestamp is not None else "N/A"
         )
         log.debug(
             "Event received at "
@@ -355,9 +345,7 @@ class Acquisition(QtCore.QObject):
         cycle = self._pls_to_lsa.get(user, "N/A")
         self.cycle_started.emit(user, cycle, cycle_timestamp)
 
-    def _on_measured_current(
-        self, response: PropertyRetrievalResponse
-    ) -> None:
+    def _on_measured_current(self, response: PropertyRetrievalResponse) -> None:
         """
         Add measured current. If measured field is available, send the
         combined data to listeners.
@@ -384,9 +372,7 @@ class Acquisition(QtCore.QObject):
         cycle_data.current_meas = value["value"].flatten()
 
         if cycle_data.field_meas is not None:
-            log.debug(
-                "Measured field is available. Sending data to listeners."
-            )
+            log.debug("Measured field is available. Sending data to listeners.")
             self.new_measured_data.emit(cycle_data)
 
     def _on_measured_field(self, response: PropertyRetrievalResponse) -> None:
@@ -416,9 +402,7 @@ class Acquisition(QtCore.QObject):
         cycle_data.field_meas = value["value"].flatten() / 1e4
 
         if cycle_data.current_meas is not None:
-            log.debug(
-                "Measured current is available. Sending data to listeners."
-            )
+            log.debug("Measured current is available. Sending data to listeners.")
             self.new_measured_data.emit(cycle_data)
 
     def new_predicted_data(self, cycle_data: CycleData) -> None:
@@ -437,22 +421,16 @@ class Acquisition(QtCore.QObject):
         cycle_data = self._buffer[cycle_data.cycle_timestamp]
 
         if cycle_data.cycle not in self._field_ref:
-            log.debug(
-                "Field reference not available. Setting it to predicted field."
-            )
+            log.debug("Field reference not available. Setting it to predicted field.")
             self._field_ref[cycle_data.cycle] = cycle_data.field_pred
 
         if cycle_data.field_ref is None:
-            log.debug(
-                "Field reference is None. Setting it to predicted field."
-            )
+            log.debug("Field reference is None. Setting it to predicted field.")
             cycle_data.field_ref = self._field_ref[cycle_data.cycle]
 
         self.onNewPrediction.emit(cycle_data)
 
-    def _on_start_supercycle(
-        self, response: PropertyRetrievalResponse
-    ) -> None:
+    def _on_start_supercycle(self, response: PropertyRetrievalResponse) -> None:
         """
         Callback function for the supercycle start event.
         Maps timing/PLS users to LSA cycle names, and sends a notification

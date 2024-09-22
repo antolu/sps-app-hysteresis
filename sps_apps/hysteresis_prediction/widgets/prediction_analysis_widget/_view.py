@@ -96,9 +96,7 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
 
         self.actionRefreshLsaSelector = QtWidgets.QAction(self)
         self.actionRefreshLsaSelector.setText("&Refresh LSA Selector")
-        self.actionRefreshLsaSelector.triggered.connect(
-            self.LsaSelector.model.refetch
-        )
+        self.actionRefreshLsaSelector.triggered.connect(self.LsaSelector.model.refetch)
 
         file_menu = self.menubar.addMenu("&File")
         file_menu.addAction(self.actionRefreshLsaSelector)
@@ -133,9 +131,7 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
                 lsa_selector.AbstractLsaSelectorContext.Category.OPERATIONAL,
             },
         )
-        LsaSelector = lsa_selector.LsaSelector(
-            model=selector_model, parent=self
-        )
+        LsaSelector = lsa_selector.LsaSelector(model=selector_model, parent=self)
         self.frame.layout().replaceWidget(self._LsaSelector, LsaSelector)
         self._LsaSelector.deleteLater()
 
@@ -198,19 +194,13 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.widget.addItem(self.plotRefDiffWidget, row=2, col=1)
 
         self.plotDiffWidget.addItem(
-            pg.InfiniteLine(
-                pos=None, angle=0, pen=pg.mkPen(style=QtCore.Qt.DashLine)
-            )
+            pg.InfiniteLine(pos=None, angle=0, pen=pg.mkPen(style=QtCore.Qt.DashLine))
         )
         self.plotRefDiffWidget.addItem(
-            pg.InfiniteLine(
-                pos=None, angle=0, pen=pg.mkPen(style=QtCore.Qt.DashLine)
-            )
+            pg.InfiniteLine(pos=None, angle=0, pen=pg.mkPen(style=QtCore.Qt.DashLine))
         )
         self.plotDeltaWidget.addItem(
-            pg.InfiniteLine(
-                pos=None, angle=0, pen=pg.mkPen(style=QtCore.Qt.DashLine)
-            )
+            pg.InfiniteLine(pos=None, angle=0, pen=pg.mkPen(style=QtCore.Qt.DashLine))
         )
 
     def _connect_slots(self) -> None:
@@ -240,9 +230,7 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.listPredictions.setModel(model.list_model)
 
         self.spinBoxNumPredictions.editingFinished.connect(
-            lambda: model.maxBufferSizeChanged.emit(
-                self.spinBoxNumPredictions.value()
-            )
+            lambda: model.maxBufferSizeChanged.emit(self.spinBoxNumPredictions.value())
         )
 
         self.checkBox.stateChanged.connect(
@@ -250,9 +238,7 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         )
 
         self.spinBoxSCPatience.editingFinished.connect(
-            lambda: model.set_supercycle_patience(
-                self.spinBoxSCPatience.value()
-            )
+            lambda: model.set_supercycle_patience(self.spinBoxSCPatience.value())
         )
 
         self.LsaSelector.userSelectionChanged.connect(

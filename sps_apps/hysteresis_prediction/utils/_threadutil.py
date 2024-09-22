@@ -176,9 +176,7 @@ class Sender(QtCore.QObject):
 
 
 class Receiver(QtCore.QObject):
-    def __init__(
-        self, callback: t.Callable, parent: t.Optional[QtCore.QObject] = None
-    ):
+    def __init__(self, callback: t.Callable, parent: t.Optional[QtCore.QObject] = None):
         super().__init__(parent)
         self.callback = callback
 
