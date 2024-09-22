@@ -8,9 +8,11 @@ from ._event_builder_abc import (
     Subscription,
     BufferedSubscription,
     CycleStampSubscriptionBuffer,
-    CycleStampGroupedBufferedSubscriptionEventBuilder as CycleStampGroupedBufferedSubscriptionEventBuilder,
+    CycleStampGroupedTriggeredEventBuilder,
 )
 from ._add_programmed import AddProgrammedEventBuilder
+from ._add_measurement_reference import AddMeasurementReferencesEventBuilder
+from ._add_measurements_cycle_stamped import CycleStampedAddMeasurementsEventBuilder
 
 for _mod in (
     Acquisition,
@@ -23,6 +25,9 @@ for _mod in (
     BufferedSubscription,
     CycleStampSubscriptionBuffer,
     AddProgrammedEventBuilder,
+    AddMeasurementReferencesEventBuilder,
+    CycleStampedAddMeasurementsEventBuilder,
+    CycleStampGroupedTriggeredEventBuilder,
 ):
     _mod.__module__ = __name__
 

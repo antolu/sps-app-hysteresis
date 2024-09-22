@@ -7,7 +7,6 @@ import numpy as np
 import hystcomp_utils.cycle_data
 import pyda
 import pyda.data
-import pyda_japc
 from qtpy import QtCore
 from ._buffer import AcquisitionBuffer, InsufficientDataError
 
@@ -29,13 +28,11 @@ class BufferEventbuilder(EventBuilderAbc):
     def __init__(
         self,
         buffer_size: int = 60000,  # ms
-        provider: pyda_japc.JapcProvider | None = None,
         *,
         parent: QtCore.QObject | None = None,
     ):
         super().__init__(
             [],
-            provider=provider,
             parent=parent,
         )
 

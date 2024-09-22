@@ -113,25 +113,40 @@ class EventBuilderAbc(abc.ABC, QtCore.QObject):
     ):
         QtCore.QObject.__init__(self, parent=parent)
 
-        provider = provider or pyda_japc.JapcProvider()
+        self._subscriptions = subscriptions or []
 
-        self._da = pyda.CallbackClient(
-            provider=(
-                pyda.providers.Provider(
-                    data_source=provider,
-                    metadata_source=pyda._metadata.NoMetadataSource(),
-                )
-                if no_metadata_source
-                else provider
-            ),
-        )
+        provider = provider or (pyda_japc.JapcProvider() if self._needs_da() else None)
+
+        if not self._needs_da():
+            self._da = None
+        else:
+            self._da = pyda.CallbackClient(
+                provider=(
+                    pyda.providers.Provider(
+                        data_source=provider,
+                        metadata_source=pyda._metadata.NoMetadataSource(),
+                    )
+                    if no_metadata_source
+                    else provider
+                ),
+            )
 
         self._handles: dict[str, pyda.clients.callback.CallbackSubscription] = {}
         self._handles |= self._setup_subscriptions(subscriptions or [])
 
+    def _needs_da(self) -> bool:
+        return len(self._subscriptions) > 0
+
     def _setup_subscriptions(
         self, subscriptions: typing.Sequence[Subscription]
     ) -> dict[str, pyda.clients.callback.CallbackSubscription]:
+        if self._da is None:
+            if len(subscriptions) > 0:
+                msg = "Cannot setup subscriptions without a DA."
+                raise ValueError(msg)
+
+            return {}
+
         handles = {}
         for sub in subscriptions:
             endpoint = endpoint_from_str(sub.parameter)
@@ -199,6 +214,9 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
         if buffered_subscriptions:
             self._handles |= self._setup_subscriptions(buffered_subscriptions or [])
 
+    def _needs_da(self) -> bool:
+        return super()._needs_da() or len(self._buffered_subscriptions) > 0
+
     def handle_acquisition(self, fspv: pyda.data.PropertyRetrievalResponse) -> None:
         if str(fspv.query.endpoint) in self._buffered_subscriptions:
             try:
@@ -238,9 +256,7 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
         return self._buffers[parameter][selector]
 
 
-class CycleStampGroupedBufferedSubscriptionEventBuilder(
-    BufferedSubscriptionEventBuilder
-):
+class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
     def __init__(
         self,
         subscriptions: list[Subscription] | None = None,
@@ -295,6 +311,12 @@ class CycleStampGroupedBufferedSubscriptionEventBuilder(
 
             self.onCycleStampGroupTriggered(cycle_data.cycle_timestamp, selector)
             self._clear_older_than(cycle_data.cycle_timestamp, selector)
+
+    def _handle_acquisition_impl(
+        self, fspv: pyda.data.PropertyRetrievalResponse
+    ) -> None:
+        msg = f"{self.__class__.__name__} does not subscribe to triggers."
+        raise NotImplementedError(msg)
 
     @abc.abstractmethod
     def onCycleStampGroupTriggered(self, cycle_stamp: float, selector: str) -> None:
