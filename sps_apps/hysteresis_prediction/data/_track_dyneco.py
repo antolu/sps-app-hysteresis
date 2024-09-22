@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 PARAM_DYNECO_IREF = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.MBI.DYNECO/IREF"
 
 
-class AddProgrammedEventBuilder(EventBuilderAbc):
+class TrackDynEcoEventBuilder(EventBuilderAbc):
     def __init__(
         self,
         provider: pyda_japc.JapcProvider | None = None,

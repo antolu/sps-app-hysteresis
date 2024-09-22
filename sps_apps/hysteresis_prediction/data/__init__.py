@@ -13,6 +13,9 @@ from ._event_builder_abc import (
     EventBuilderAbc,
     Subscription,
 )
+from ._track_fulleco import TrackFullEcoEventBuilder
+from ._track_dyneco import TrackDynEcoEventBuilder
+
 
 for _mod in (
     Acquisition,
@@ -28,6 +31,8 @@ for _mod in (
     AddMeasurementReferencesEventBuilder,
     CycleStampedAddMeasurementsEventBuilder,
     CycleStampGroupedTriggeredEventBuilder,
+    TrackFullEcoEventBuilder,
+    TrackDynEcoEventBuilder,
 ):
     _mod.__module__ = __name__
 

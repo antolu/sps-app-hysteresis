@@ -9,6 +9,8 @@ from .data import (
     BufferEventbuilder,
     CreateCycleEventBuilder,
     CycleStampedAddMeasurementsEventBuilder,
+    TrackDynEcoEventBuilder,
+    TrackFullEcoEventBuilder,
 )
 from .inference import CalculateCorrection, Inference
 
@@ -27,6 +29,9 @@ class DataFlow:
             provider=provider
         )
         self._add_measurement_ref = AddMeasurementReferencesEventBuilder()
+
+        self._track_dyneco = TrackDynEcoEventBuilder(provider=provider)
+        self._track_fulleco = TrackFullEcoEventBuilder(provider=provider)
 
         self._connect_signals()
 
@@ -53,3 +58,8 @@ class DataFlow:
         self._add_measurement_post.cycleDataAvailable.connect(
             self._buffer.onNewMeasCycleData
         )
+
+        self._correction.cycleDataAvailable.connect(self._track_dyneco.onNewCycleData)
+        self._correction.cycleDataAvailable.connect(self._track_fulleco.onNewCycleData)
+        self._track_dyneco.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)
+        self._track_fulleco.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)

@@ -22,7 +22,7 @@ PARAM_FULLECO_IREF = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.MBI.FULLECO/IREF"
 TRIGGER = "XTIM.SX.FCY-MMODE-CT/Acquisition"
 
 
-class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
+class TrackFullEcoEventBuilder(BufferedSubscriptionEventBuilder):
     def __init__(
         self,
         provider: pyda_japc.JapcProvider | None = None,
