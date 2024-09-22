@@ -8,6 +8,7 @@ from ._event_builder_abc import (
     Subscription,
     BufferedSubscription,
     CycleStampSubscriptionBuffer,
+    CycleStampGroupedBufferedSubscriptionEventBuilder as CycleStampGroupedBufferedSubscriptionEventBuilder,
 )
 from ._add_programmed import AddProgrammedEventBuilder
 

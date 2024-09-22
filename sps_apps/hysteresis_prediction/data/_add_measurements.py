@@ -8,7 +8,7 @@ import pyda.data
 import pyda_japc
 from qtpy import QtCore
 
-from ._event_builder_abc import BufferedSubscriptionEventBuilder, Subscription
+from ._event_builder_abc import BufferedSubscriptionEventBuilder, BufferedSubscription
 
 
 log = logging.getLogger(__name__)
@@ -27,8 +27,8 @@ class AddMeasurementsEventBuilder(BufferedSubscriptionEventBuilder):
     ):
         super().__init__(
             buffered_subscriptions=[
-                Subscription("I_MEAS", PARAM_I_MEAS),
-                Subscription("B_MEAS", PARAM_B_MEAS),
+                BufferedSubscription("I_MEAS", PARAM_I_MEAS),
+                BufferedSubscription("B_MEAS", PARAM_B_MEAS),
             ],
             provider=provider,
             parent=parent,

@@ -3,8 +3,10 @@ from __future__ import annotations
 import dataclasses
 import logging
 import collections
+import typing
 import re
 import abc
+import datetime
 
 import pyda
 import pyda.data
@@ -14,7 +16,6 @@ import pyda._metadata
 import pyda_japc
 
 import hystcomp_utils.cycle_data
-
 
 from qtpy import QtCore
 
@@ -38,18 +39,21 @@ ENDPOINT_RE = re.compile(
 )  # noqa: E501
 
 
-class CycleStampSubscriptionBuffer:
+T = typing.TypeVar(
+    "T", pyda.data.PropertyRetrievalResponse, hystcomp_utils.cycle_data.CycleData
+)
+
+
+class CycleStampSubscriptionBuffer(typing.Generic[T]):
     def __init__(self, parameter: str, buffer_size: int = 1) -> None:
         self._parameter = parameter
-        self._buffer: collections.deque[pyda.data.PropertyRetrievalResponse] = (
-            collections.deque(maxlen=buffer_size)
-        )
+        self._buffer: collections.deque[T] = collections.deque(maxlen=buffer_size)
         self._index: dict[float, int] = {}  # cycle_stamp -> index
 
     def __contains__(self, item: float) -> bool:
         return item in self._index
 
-    def __getitem__(self, item: float) -> pyda.data.PropertyRetrievalResponse:
+    def __getitem__(self, item: float) -> T:
         return self._buffer[self._index[item]]
 
     def __len__(self) -> int:
@@ -58,13 +62,25 @@ class CycleStampSubscriptionBuffer:
     def __str__(self) -> str:
         return f"{self._parameter}: {len(self._buffer)} items"
 
-    def append(self, fspv: pyda.data.PropertyRetrievalResponse) -> None:
+    def append(self, fspv: T) -> None:
         self._buffer.append(fspv)
-        self._index[fspv.value.header.cycle_timestamp] = len(self._buffer) - 1
+        if isinstance(fspv, hystcomp_utils.cycle_data.CycleData):
+            cycle_timestamp = fspv.cycle_timestamp
+        else:
+            cycle_timestamp = fspv.value.header.cycle_timestamp
+        self._index[cycle_timestamp] = len(self._buffer) - 1
 
     def clear(self) -> None:
         self._buffer.clear()
         self._index.clear()
+
+    def clear_older_than(self, cycle_stamp: float) -> None:
+        if not self._buffer:
+            return
+
+        while self._buffer[0].cycle_timestamp <= cycle_stamp:
+            self._index.pop(self._buffer[0].cycle_timestamp)
+            self._buffer.popleft()
 
 
 def endpoint_from_str(value: str) -> pyda.data.StandardEndpoint:
@@ -114,7 +130,7 @@ class EventBuilderAbc(abc.ABC, QtCore.QObject):
         self._handles |= self._setup_subscriptions(subscriptions or [])
 
     def _setup_subscriptions(
-        self, subscriptions: list[Subscription]
+        self, subscriptions: typing.Sequence[Subscription]
     ) -> dict[str, pyda.clients.callback.CallbackSubscription]:
         handles = {}
         for sub in subscriptions:
@@ -158,7 +174,7 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
     def __init__(
         self,
         subscriptions: list[Subscription] | None = None,
-        buffered_subscriptions: list[Subscription] | None = None,
+        buffered_subscriptions: list[BufferedSubscription] | None = None,
         provider: pyda_japc.JapcProvider | None = None,
         *,
         no_metadata_source: bool = False,
@@ -220,3 +236,128 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
         self, parameter: str, selector: str
     ) -> pyda.data.PropertyRetrievalResponse:
         return self._buffers[parameter][selector]
+
+
+class CycleStampGroupedBufferedSubscriptionEventBuilder(
+    BufferedSubscriptionEventBuilder
+):
+    def __init__(
+        self,
+        subscriptions: list[Subscription] | None = None,
+        buffered_subscriptions: list[BufferedSubscription] | None = None,
+        provider: pyda_japc.JapcProvider | None = None,
+        *,
+        track_cycle_data: bool = False,
+        buffer_size: int = 10,
+        no_metadata_source: bool = False,
+        parent: QtCore.QObject | None = None,
+    ):
+        super().__init__(
+            subscriptions,
+            buffered_subscriptions,
+            provider=provider,
+            no_metadata_source=no_metadata_source,
+            parent=parent,
+        )
+
+        self._cycle_stamp_buffers: dict[
+            str,
+            dict[
+                str, CycleStampSubscriptionBuffer[pyda.data.PropertyRetrievalResponse]
+            ],
+        ] = {sub.parameter: {} for sub in buffered_subscriptions or []}
+
+        self._buffer_size = buffer_size
+
+        self._track_cycle_data = track_cycle_data
+        self._cycle_data_buffer: dict[
+            str, CycleStampSubscriptionBuffer[hystcomp_utils.cycle_data.CycleData]
+        ] = {}
+
+    @QtCore.Slot(hystcomp_utils.cycle_data.CycleData)
+    def onNewCycleData(self, cycle_data: hystcomp_utils.cycle_data.CycleData) -> None:
+        if not self._track_cycle_data:
+            msg = "Tracking cycle data is disabled."
+            log.warning(msg)
+            return
+
+        selector = cycle_data.user
+        if selector not in self._cycle_data_buffer:
+            self._cycle_data_buffer[selector] = CycleStampSubscriptionBuffer(
+                selector, buffer_size=self._buffer_size
+            )
+
+        self._cycle_data_buffer[selector].append(cycle_data)
+
+        if self._check_ready(cycle_data.cycle_timestamp, selector):
+            msg = f"Received all buffered acquisitions for {selector} on cycle time {cycle_data.cycle_time}."
+            log.debug(msg)
+
+            self.onCycleStampGroupTriggered(cycle_data.cycle_timestamp, selector)
+            self._clear_older_than(cycle_data.cycle_timestamp, selector)
+
+    @abc.abstractmethod
+    def onCycleStampGroupTriggered(self, cycle_stamp: float, selector: str) -> None:
+        pass
+
+    def _clear_older_than(self, cycle_stamp: float, selector) -> None:
+        cycle_time = datetime.datetime.fromtimestamp(cycle_stamp / 1e9)
+        msg = f"Clearing older than {cycle_time} for {selector}."
+        log.debug(msg)
+
+        for buffer in self._cycle_stamp_buffers.values():
+            if selector in buffer:
+                buffer[selector].clear_older_than(cycle_stamp)
+        if self._track_cycle_data and selector in self._cycle_data_buffer:
+            self._cycle_data_buffer[selector].clear_older_than(cycle_stamp)
+
+    def _check_ready(self, cycle_stamp: float, selector: str) -> bool:
+        for buffer in self._cycle_stamp_buffers.values():
+            if selector not in buffer:
+                return False
+            if cycle_stamp not in buffer[selector]:
+                return False
+        if self._track_cycle_data:
+            if cycle_stamp not in self._cycle_data_buffer[selector]:
+                return False
+        return True
+
+    def _handle_buffered_acquisition_impl(
+        self, fspv: pyda.data.PropertyRetrievalResponse
+    ) -> None:
+        if fspv.exception is not None:
+            msg = f"Received exception for {fspv.query.endpoint}@{fspv.query.context}: {fspv.exception}."
+            log.error(msg)
+            return
+
+        parameter = str(fspv.query.endpoint)
+        selector = str(fspv.query.context)
+
+        msg = f"Received buffered acquisition for {parameter}@{selector}."
+        log.debug(msg)
+
+        self._add_to_buffer(parameter, selector, fspv)
+
+        if self._check_ready(fspv.value.header.cycle_timestamp, selector):
+            msg = f"Received all buffered acquisitions for {selector} with cycle time {fspv.value.header.cycle_time()}"
+            log.debug(msg)
+            self.onCycleStampGroupTriggered(fspv.value.header.cycle_timestamp, selector)
+            self._clear_older_than(fspv.value.header.cycle_timestamp, selector)
+
+    def _add_to_buffer(
+        self, parameter: str, selector: str, fspv: pyda.data.PropertyRetrievalResponse
+    ) -> None:
+        if selector not in self._cycle_stamp_buffers[parameter]:
+            self._cycle_stamp_buffers[parameter][selector] = (
+                CycleStampSubscriptionBuffer(selector, buffer_size=self._buffer_size)
+            )
+
+        self._cycle_stamp_buffers[parameter][selector].append(fspv)
+
+    def _buffer_has_data(self, parameter: str, selector: str) -> bool:
+        return parameter in self._cycle_stamp_buffers
+
+    def _get_buffered_data(
+        self, parameter: str, selector: str
+    ) -> pyda.data.PropertyRetrievalResponse:
+        raise NotImplementedError("This method is not implemented.")

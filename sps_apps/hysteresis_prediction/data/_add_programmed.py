@@ -9,7 +9,11 @@ import pyda.data
 import pyda_japc
 from qtpy import QtCore
 
-from ._event_builder_abc import BufferedSubscriptionEventBuilder, Subscription
+from ._event_builder_abc import (
+    BufferedSubscriptionEventBuilder,
+    BufferedSubscription,
+    Subscription,
+)
 
 
 log = logging.getLogger(__name__)
@@ -32,8 +36,8 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
                 Subscription("SCY", TRIGGER),
             ],
             buffered_subscriptions=[
-                Subscription("I_PROG", PARAM_I_PROG),
-                Subscription("B_PROG", PARAM_B_PROG),
+                BufferedSubscription("I_PROG", PARAM_I_PROG),
+                BufferedSubscription("B_PROG", PARAM_B_PROG),
             ],
             provider=provider,
             parent=parent,
