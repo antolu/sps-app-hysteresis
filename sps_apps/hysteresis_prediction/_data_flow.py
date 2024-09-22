@@ -6,7 +6,7 @@ from .data import (
     AddMeasurementsEventBuilder,
     BufferEventbuilder,
 )
-from .inference import Inference
+from .inference import Inference, CalculateCorrection
 
 
 class DataFlow:
@@ -15,6 +15,7 @@ class DataFlow:
         self._add_measurements = AddMeasurementsEventBuilder()
         self._buffer = BufferEventbuilder(buffer_size)
         self._predict = Inference()
+        self._correction = CalculateCorrection()
 
         self._connect_signals()
 
@@ -28,4 +29,7 @@ class DataFlow:
         self._buffer.newBufferAvailable.connect(self._predict.onNewCycleData)
         self._buffer.newEcoBufferAvailable.connect(
             self._predict.onNewCycleData
+        )
+        self._predict.cycleDataAvailable.connect(
+            self._correction.onNewCycleData
         )

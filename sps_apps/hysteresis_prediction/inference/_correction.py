@@ -5,15 +5,22 @@ import logging
 
 import numpy as np
 import numpy.typing as npt
+import pyda
+import pyda.data
 from qtpy import QtCore
+
+from ..data import EventBuilderAbc
 
 import hystcomp_utils.cycle_data
 
 log = logging.getLogger(__name__)
 
 
-class CalculateCorrection(QtCore.QObject):
-    newCorrectionAvailable = QtCore.Signal(hystcomp_utils.cycle_data.CycleData)
+class CalculateCorrection(EventBuilderAbc):
+    def _handle_acquisition_impl(
+        self, fspv: pyda.data.PropertyRetrievalResponse
+    ) -> None:
+        pass
 
     def __init__(self, parent: QtCore.QObject | None = None) -> None:
         super().__init__(parent=parent)
@@ -26,7 +33,9 @@ class CalculateCorrection(QtCore.QObject):
         self._field_ref_timestamps: dict[str, float] = {}
 
     @QtCore.Slot(hystcomp_utils.cycle_data.CycleData)
-    def onNewCycle(self, cycle: hystcomp_utils.cycle_data.CycleData) -> None:
+    def onNewCycleData(
+        self, cycle: hystcomp_utils.cycle_data.CycleData
+    ) -> None:
         msg = f"{cycle}: Calculating correction."
         log.debug(msg)
 
@@ -57,7 +66,7 @@ class CalculateCorrection(QtCore.QObject):
             msg = f"{cycle}: New correction calculated."
             log.debug(msg)
 
-        self.newCorrectionAvailable.emit(cycle)
+        self.cycleDataAvailable.emit(cycle)
 
     @QtCore.Slot(str)
     def resetReference(self, cycle_name: str | None = None) -> None:
@@ -95,7 +104,7 @@ class CalculateCorrection(QtCore.QObject):
             log.debug(msg)
 
             cycle_name = "_".join(cycle_data.cycle.split("_")[:-1])
-            self._reset_reference(cycle_name)
+            self.resetReference(cycle_name)
             cycle_data.reference_timestamp = None
 
         if cycle_data.cycle not in self._field_ref:

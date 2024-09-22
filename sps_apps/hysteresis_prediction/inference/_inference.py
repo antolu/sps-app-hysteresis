@@ -6,6 +6,7 @@ import typing
 
 import numpy as np
 from sps_mlp_hystcomp import PETEPredictor, TFTPredictor
+import pyda.data
 from qtpy import QtCore, QtWidgets
 
 from hystcomp_utils.cycle_data import CycleData
@@ -29,7 +30,6 @@ def inference_thread() -> QtCore.QThread:
 
 
 class Inference(EventBuilderAbc):
-    cyclePredicted = QtCore.Signal(CycleData)
     model_loaded = QtCore.Signal()
 
     predictionStarted = QtCore.Signal()
@@ -49,6 +49,11 @@ class Inference(EventBuilderAbc):
         self._use_programmed_current = True
 
         self._prev_state: typing.Any | None = None
+
+    def _handle_acquisition_impl(
+        self, fspv: pyda.data.PropertyRetrievalResponse
+    ) -> None:
+        pass
 
     @QtCore.Slot(str, str, str)
     def loadModel(
