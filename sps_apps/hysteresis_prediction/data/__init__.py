@@ -13,6 +13,7 @@ from ._event_builder_abc import (
     EventBuilderAbc,
     Subscription,
 )
+from ._start_cycle import StartCycleEventBuilder
 from ._track_fulleco import TrackFullEcoEventBuilder
 from ._track_dyneco import TrackDynEcoEventBuilder
 
@@ -33,6 +34,7 @@ for _mod in (
     CycleStampGroupedTriggeredEventBuilder,
     TrackFullEcoEventBuilder,
     TrackDynEcoEventBuilder,
+    StartCycleEventBuilder,
 ):
     _mod.__module__ = __name__
 

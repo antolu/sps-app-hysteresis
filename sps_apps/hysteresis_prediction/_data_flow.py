@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import typing
+
 import pyda_japc
+
 
 from .data import (
     AddMeasurementReferencesEventBuilder,
@@ -11,27 +14,58 @@ from .data import (
     CycleStampedAddMeasurementsEventBuilder,
     TrackDynEcoEventBuilder,
     TrackFullEcoEventBuilder,
+    StartCycleEventBuilder,
 )
 from .inference import CalculateCorrection, Inference
 
 
-class DataFlow:
-    def __init__(
-        self, provider: pyda_japc.JapcProvider, buffer_size: int = 60000
-    ) -> None:
-        self._create_cycle = CreateCycleEventBuilder(provider=provider)
-        self._add_measurements_pre = AddMeasurementsEventBuilder(provider=provider)
-        self._buffer = BufferEventbuilder(buffer_size)
-        self._predict = Inference()
-        self._correction = CalculateCorrection()
-        self._add_programmed = AddProgrammedEventBuilder(provider=provider)
-        self._add_measurement_post = CycleStampedAddMeasurementsEventBuilder(
-            provider=provider
-        )
-        self._add_measurement_ref = AddMeasurementReferencesEventBuilder()
+if typing.TYPE_CHECKING:
+    from qtpy import QtCore
 
-        self._track_dyneco = TrackDynEcoEventBuilder(provider=provider)
-        self._track_fulleco = TrackFullEcoEventBuilder(provider=provider)
+
+class AbstractDataFlow:
+    @property
+    def onCycleForewarning(self) -> QtCore.Signal:
+        raise NotImplementedError
+
+    @property
+    def onCycleStart(self) -> QtCore.Signal:
+        raise NotImplementedError
+
+    @property
+    def onCycleCorrectionCalculated(self) -> QtCore.Signal:
+        raise NotImplementedError
+
+    @property
+    def onCycleMeasured(self) -> QtCore.Signal:
+        raise NotImplementedError
+
+
+class LocalDataFlow(AbstractDataFlow):
+    def __init__(
+        self,
+        provider: pyda_japc.JapcProvider,
+        buffer_size: int = 60000,
+        parent: QtCore.QObject | None = None,
+    ) -> None:
+        self._create_cycle = CreateCycleEventBuilder(provider=provider, parent=parent)
+        self._add_measurements_pre = AddMeasurementsEventBuilder(
+            provider=provider, parent=parent
+        )
+        self._buffer = BufferEventbuilder(buffer_size=buffer_size, parent=parent)
+        self._predict = Inference(parent=parent)
+        self._correction = CalculateCorrection(parent=parent)
+        self._start_cycle = StartCycleEventBuilder(provider=provider, parent=parent)
+        self._add_programmed = AddProgrammedEventBuilder(
+            provider=provider, parent=parent
+        )
+        self._add_measurement_post = CycleStampedAddMeasurementsEventBuilder(
+            provider=provider, parent=parent
+        )
+        self._add_measurement_ref = AddMeasurementReferencesEventBuilder(parent=parent)
+
+        self._track_dyneco = TrackDynEcoEventBuilder(provider=provider, parent=parent)
+        self._track_fulleco = TrackFullEcoEventBuilder(provider=provider, parent=parent)
 
         self._connect_signals()
 
@@ -46,6 +80,7 @@ class DataFlow:
         self._buffer.newEcoBufferAvailable.connect(self._predict.onNewCycleData)
         self._predict.cycleDataAvailable.connect(self._correction.onNewCycleData)
         self._correction.cycleDataAvailable.connect(self._add_programmed.onNewCycleData)
+        self._correction.cycleDataAvailable.connect(self._start_cycle.onNewCycleData)
 
         self._add_programmed.cycleDataAvailable.connect(self._buffer.onNewProgCycleData)
         self._add_programmed.cycleDataAvailable.connect(
@@ -63,3 +98,22 @@ class DataFlow:
         self._correction.cycleDataAvailable.connect(self._track_fulleco.onNewCycleData)
         self._track_dyneco.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)
         self._track_fulleco.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)
+
+    @property
+    def onCycleForewarning(self) -> QtCore.Signal:
+        return self._create_cycle.cycleDataAvailable
+
+    @property
+    def onCycleStart(self) -> QtCore.Signal:
+        return self._start_cycle.cycleDataAvailable
+
+    @property
+    def onCycleCorrectionCalculated(self) -> QtCore.Signal:
+        return self._correction.cycleDataAvailable
+
+    @property
+    def onCycleMeasured(self) -> QtCore.Signal:
+        return self._add_measurement_ref.cycleDataAvailable
+
+
+class UcapDataFlow(AbstractDataFlow): ...
