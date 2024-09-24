@@ -4,8 +4,8 @@ import dataclasses
 import datetime
 import logging
 import re
-import typing
 import sys
+import typing
 
 import hystcomp_utils.cycle_data
 import hystcomp_utils.ring_buffer

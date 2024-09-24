@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 import pyrbac
 import torch
 from accwidgets.qt import exec_app_interruptable
-from qtpy import QtWidgets, QtCore
+from qtpy import QtCore, QtWidgets
 from rich.logging import RichHandler
 
 from . import __version__

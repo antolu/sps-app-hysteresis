@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-
 import pyda_japc
+from qtpy import QtCore
 
 from .data import (
     AddMeasurementReferencesEventBuilder,
@@ -15,8 +15,6 @@ from .data import (
     TrackFullEcoEventBuilder,
 )
 from .inference import CalculateCorrection, Inference
-
-from qtpy import QtCore
 
 
 class DataFlow:
