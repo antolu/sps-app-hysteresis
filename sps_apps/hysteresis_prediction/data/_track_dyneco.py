@@ -30,10 +30,11 @@ class TrackDynEcoEventBuilder(EventBuilderAbc):
     ):
         super().__init__(
             subscriptions=[
-                Subscription("DYNECO", PARAM_DYNECO_IREF),
+                Subscription("DYNECO", PARAM_DYNECO_IREF, ignore_first_updates=True),
             ],
             provider=provider,
             parent=parent,
+            no_metadata_source=True,
         )
 
         self._cycle_data_buffer: dict[str, hystcomp_utils.cycle_data.CycleData] = {}

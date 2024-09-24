@@ -42,6 +42,7 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
             ],
             provider=provider,
             parent=parent,
+            no_metadata_source=True,
         )
 
         self._trigger = cycle_warning

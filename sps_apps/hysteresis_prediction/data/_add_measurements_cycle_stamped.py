@@ -30,8 +30,8 @@ class CycleStampedAddMeasurementsEventBuilder(CycleStampGroupedTriggeredEventBui
     ):
         super().__init__(
             buffered_subscriptions=[
-                BufferedSubscription("I_MEAS", PARAM_I_MEAS),
-                BufferedSubscription("B_MEAS", PARAM_B_MEAS),
+                BufferedSubscription("I_MEAS", PARAM_I_MEAS, ignore_first_updates=True),
+                BufferedSubscription("B_MEAS", PARAM_B_MEAS, ignore_first_updates=True),
             ],
             track_cycle_data=track_cycle_data,
             buffer_size=buffer_size,

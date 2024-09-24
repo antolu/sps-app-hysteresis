@@ -27,7 +27,7 @@ class StartCycleEventBuilder(EventBuilderAbc):
         parent: QtCore.QObject | None = None,
     ):
         super().__init__(
-            subscriptions=[Subscription("SCY", TRIGGER)],
+            subscriptions=[Subscription("SCY", TRIGGER, ignore_first_updates=True)],
             provider=provider,
             parent=parent,
         )

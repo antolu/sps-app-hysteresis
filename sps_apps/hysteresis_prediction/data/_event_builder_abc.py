@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import abc
 import collections
 import dataclasses
 import datetime
@@ -94,7 +93,7 @@ def endpoint_from_str(value: str) -> pyda.data.StandardEndpoint:
     )
 
 
-class EventBuilderAbc(abc.ABC, QtCore.QObject):
+class EventBuilderAbc(QtCore.QObject):
     """
     Abstract base class for event builders.
     """
@@ -161,6 +160,8 @@ class EventBuilderAbc(abc.ABC, QtCore.QObject):
 
     def start(self) -> None:
         for handle in self._handles.values():
+            msg = f"Starting subscription for {handle.query}."
+            log.debug(msg)
             handle.start()
 
     def handle_acquisition(self, fspv: pyda.data.PropertyRetrievalResponse) -> None:
@@ -171,11 +172,10 @@ class EventBuilderAbc(abc.ABC, QtCore.QObject):
             msg = f"Error handling acquisitin for {fspv.query.endpoint}@{fspv.query.context}."
             log.exception(msg)
 
-    @abc.abstractmethod
     def _handle_acquisition_impl(
         self, fspv: pyda.data.PropertyRetrievalResponse
     ) -> None:
-        pass
+        raise NotImplementedError
 
     @QtCore.Slot(hystcomp_utils.cycle_data.CycleData)
     def onNewCycleData(self, cycle_data: hystcomp_utils.cycle_data.CycleData) -> None:
@@ -193,13 +193,6 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
         no_metadata_source: bool = False,
         parent: QtCore.QObject | None = None,
     ):
-        super().__init__(
-            subscriptions,
-            provider=provider,
-            no_metadata_source=no_metadata_source,
-            parent=parent,
-        )
-
         self._buffers: dict[str, dict[str, pyda.data.PropertyRetrievalResponse]] = (
             {}
         )  # endpoint -> selector -> buffer
@@ -207,6 +200,13 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
             [sub.parameter for sub in buffered_subscriptions]
             if buffered_subscriptions
             else []
+        )
+
+        super().__init__(
+            subscriptions,
+            provider=provider,
+            no_metadata_source=no_metadata_source,
+            parent=parent,
         )
 
         if buffered_subscriptions:
@@ -316,9 +316,8 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
         msg = f"{self.__class__.__name__} does not subscribe to triggers."
         raise NotImplementedError(msg)
 
-    @abc.abstractmethod
     def onCycleStampGroupTriggered(self, cycle_stamp: float, selector: str) -> None:
-        pass
+        raise NotImplementedError
 
     def _clear_older_than(self, cycle_stamp: float, selector) -> None:
         cycle_time = datetime.datetime.fromtimestamp(cycle_stamp / 1e9)

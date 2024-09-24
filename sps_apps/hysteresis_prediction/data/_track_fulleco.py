@@ -31,13 +31,14 @@ class TrackFullEcoEventBuilder(BufferedSubscriptionEventBuilder):
     ):
         super().__init__(
             subscriptions=[
-                Subscription("MMODE", TRIGGER),
+                Subscription("MMODE", TRIGGER, ignore_first_updates=True),
             ],
             buffered_subscriptions=[
                 BufferedSubscription("FULLECO_IREF", PARAM_FULLECO_IREF),
             ],
             provider=provider,
             parent=parent,
+            no_metadata_source=True,
         )
 
         self._cycle_data_buffer: dict[str, hystcomp_utils.cycle_data.CycleData] = {}

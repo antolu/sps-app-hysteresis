@@ -32,7 +32,7 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
     ):
         super().__init__(
             subscriptions=[
-                Subscription("SCY", TRIGGER),
+                Subscription("SCY", TRIGGER, ignore_first_updates=True),
             ],
             buffered_subscriptions=[
                 BufferedSubscription("I_PROG", PARAM_I_PROG),
@@ -40,6 +40,7 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
             ],
             provider=provider,
             parent=parent,
+            no_metadata_source=True,
         )
 
         self._cycle_data_buffer: dict[str, hystcomp_utils.cycle_data.CycleData] = {}
