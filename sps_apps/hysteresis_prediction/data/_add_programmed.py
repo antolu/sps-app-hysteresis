@@ -56,7 +56,11 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
             raise ValueError(msg)
 
         if selector not in self._cycle_data_buffer:
-            log.error(f"Received trigger for cycle without data: {selector}.")
+            msg = (
+                f"Received trigger for cycle without data: {selector}. "
+                "Perhaps cycle predictions are disabled?"
+            )
+            log.warning(msg)
             return
 
         cycle_data = self._cycle_data_buffer[selector]
