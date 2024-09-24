@@ -40,7 +40,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self.setupUi(self)
 
         self._analysis_widgets: dict[str, PredictionAnalysisWidget] = {}
-        self._trim_wide_widgets: dict[str, TrimWidgetView] = {}
+        self._trim_widgets: dict[str, TrimWidgetView] = {}
 
         log_console = LogConsole(self)
         self.log_console = log_console
@@ -181,9 +181,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         widget.show()
 
     def show_trim_widget(self) -> None:
-        if len(self._trim_wide_widgets) > 0:
-            uuid = list(self._trim_wide_widgets.keys())[0]
-            widget = self._trim_wide_widgets[uuid]
+        if len(self._trim_widgets) > 0:
+            uuid = list(self._trim_widgets.keys())[0]
+            widget = self._trim_widgets[uuid]
             widget.show()
             widget.raise_()
             return
@@ -195,7 +195,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self._data.onCycleCorrectionCalculated.connect(model.onNewPrediction)
 
             uuid = str(uuid4())
-            self._trim_wide_widgets[uuid] = widget
+            self._trim_widgets[uuid] = widget
 
             def closeEvent(self, event: QtGui.QCloseEvent) -> None:
                 event.ignore()
@@ -206,5 +206,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         widget.show()
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
-        self._acquisition.stop()
+        for widget in self._analysis_widgets.values():
+            widget.close()
+        for widget in self._trim_widgets.values():
+            widget.close()
+        self._data.stop()
         super().closeEvent(event)

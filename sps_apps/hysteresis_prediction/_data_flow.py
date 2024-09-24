@@ -25,6 +25,9 @@ class DataFlow:
     def start(self) -> None:
         raise NotImplementedError
 
+    def stop(self) -> None:
+        raise NotImplementedError
+
     def resetReference(self) -> None:
         raise NotImplementedError
 
@@ -85,6 +88,19 @@ class LocalDataFlow(DataFlow):
         self._add_measurement_ref.start()
         self._track_dyneco.start()
         self._track_fulleco.start()
+
+    def stop(self) -> None:
+        self._create_cycle.stop()
+        self._add_measurements_pre.stop()
+        self._buffer.stop()
+        self._predict.stop()
+        self._correction.stop()
+        self._start_cycle.stop()
+        self._add_programmed.stop()
+        self._add_measurement_post.stop()
+        self._add_measurement_ref.stop()
+        self._track_dyneco.stop()
+        self._track_fulleco
 
     def resetReference(self) -> None:
         self._add_measurement_ref.resetReference()
