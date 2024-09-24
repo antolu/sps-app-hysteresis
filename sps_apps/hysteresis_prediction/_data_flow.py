@@ -25,7 +25,6 @@ class DataFlow:
     def start(self) -> None:
         raise NotImplementedError
 
-    @QtCore.Slot
     def resetReference(self) -> None:
         raise NotImplementedError
 
@@ -98,8 +97,8 @@ class LocalDataFlow(DataFlow):
         self._add_measurements_pre.cycleDataAvailable.connect(
             self._buffer.onNewCycleData
         )
-        self._buffer.newBufferAvailable.connect(self._predict.onNewCycleData)
-        self._buffer.newEcoBufferAvailable.connect(self._predict.onNewCycleData)
+        self._buffer.newBufferAvailable.connect(self._predict.onNewCycleDataBuffer)
+        self._buffer.newEcoBufferAvailable.connect(self._predict.onNewCycleDataBuffer)
         self._predict.cycleDataAvailable.connect(self._correction.onNewCycleData)
         self._correction.cycleDataAvailable.connect(self._add_programmed.onNewCycleData)
         self._correction.cycleDataAvailable.connect(self._start_cycle.onNewCycleData)

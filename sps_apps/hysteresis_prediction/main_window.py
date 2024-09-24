@@ -76,7 +76,6 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self.widgetSettings.downsample_changed.connect(
             self.widgetPlot.model.set_downsample
         )
-        self.widgetSettings.toggle_predictions.connect(self._inference.set_do_inference)
 
         # for UI only
         self._data.onCycleStart.connect(self.widgetSettings.onNewCycle)
@@ -93,7 +92,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
                 "Model successfully loaded.\nPredictions will now start.",
             )
         )
-        self._inference.model_loaded.connect(
+        self._data._predict.model_loaded.connect(
             lambda: self._data._predict.set_do_inference(True)
         )
 
@@ -119,20 +118,21 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self.action_Trim_View.triggered.connect(self.show_trim_widget)
 
     def _connect_status(self) -> None:
-        self.widgetSettings.toggle_predictions.connect(
-            lambda enabled, *_: self._status_manager.statusChanged.emit(
-                AppStatus.INFERENCE_ENABLED if enabled else AppStatus.INFERENCE_DISABLED
-            )
-        )
-        self._inference.model_loaded.connect(
+        # self.widgetSettings.toggle_predictions.connect(
+        #     lambda enabled, *_: self._status_manager.statusChanged.emit(
+        #         AppStatus.INFERENCE_ENABLED if enabled else AppStatus.INFERENCE_DISABLED
+        #     )
+        # )
+        self._data._predict.model_loaded.connect(
             lambda *_: self._status_manager.statusChanged.emit(AppStatus.MODEL_LOADED)
+            and self._status_manager.statusChanged.emit(AppStatus.INFERENCE_ENABLED)
         )
-        self._inference.predictionStarted.connect(
+        self._data._predict.predictionStarted.connect(
             lambda *_: self._status_manager.statusChanged.emit(
                 AppStatus.INFERENCE_RUNNING
             )
         )
-        self._inference.predictionFinished.connect(
+        self._data._predict.predictionFinished.connect(
             lambda *_: self._status_manager.statusChanged.emit(AppStatus.INFERENCE_IDLE)
         )
         self._status_manager.setStatus.connect(self.widgetSettings.status_changed.emit)

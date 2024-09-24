@@ -21,8 +21,12 @@ PARAM_BHYS_CORRECTION = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/BHYS-CORRECTION/Acqu
 
 
 class BufferEventbuilder(EventBuilderAbc):
-    newBufferAvailable = QtCore.Signal(list[hystcomp_utils.cycle_data.CycleData])
-    newEcoBufferAvailable = QtCore.Signal(hystcomp_utils.cycle_data.CycleData)
+    newBufferAvailable = QtCore.Signal(
+        list
+    )  # list of hystcomp_utils.cycle_data.CycleData
+    newEcoBufferAvailable = QtCore.Signal(
+        list
+    )  # list of hystcomp_utils.cycle_data.CycleData
 
     def __init__(
         self,

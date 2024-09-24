@@ -94,7 +94,6 @@ class Inference(EventBuilderAbc):
 
         self.model_loaded.emit()
 
-    @QtCore.Slot(list[CycleData])
     def onNewCycleDataBuffer(self, cycle_data: list[CycleData]) -> None:
         return self.predict_last_cycle(cycle_data)
 
