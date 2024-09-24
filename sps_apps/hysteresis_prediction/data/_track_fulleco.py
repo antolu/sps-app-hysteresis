@@ -56,7 +56,7 @@ class TrackFullEcoEventBuilder(BufferedSubscriptionEventBuilder):
 
             cycle_data = self._cycle_data_buffer[selector]
 
-            mmode = fspv.value.get("MACHInE_MODE")
+            mmode = fspv.value.get("MACHINE_MODE")
 
             if mmode != "FULLECO":
                 log.info(f"{cycle_data} is not in FULLECO mode: {mmode}")
