@@ -47,8 +47,8 @@ T = typing.TypeVar(
 )
 
 
-class CycleStampSubscriptionBuffer(typing.Generic[T]):
-    def __init__(self, parameter: str, buffer_size: int = 1) -> None:
+class CycleStampSubscriptionBuffer(typing.Generic[T], typing.Iterable[T]):
+    def __init__(self, parameter: str = "", buffer_size: int = 1) -> None:
         self._parameter = parameter
         self._buffer: collections.deque[T] = collections.deque(maxlen=buffer_size)
         self._index: dict[float, int] = {}  # cycle_stamp -> index
@@ -58,6 +58,12 @@ class CycleStampSubscriptionBuffer(typing.Generic[T]):
 
     def __getitem__(self, item: float) -> T:
         return self._buffer[self._index[item]]
+
+    def __setitem__(self, key: float, value: T) -> None:
+        self._buffer[self._index[key]] = value
+
+    def __iter__(self) -> typing.Iterator[T]:
+        return iter(self._buffer)
 
     def __len__(self) -> int:
         return len(self._buffer)
@@ -72,6 +78,16 @@ class CycleStampSubscriptionBuffer(typing.Generic[T]):
         else:
             cycle_timestamp = fspv.value.header.cycle_timestamp
         self._index[cycle_timestamp] = len(self._buffer) - 1
+
+    def popleft(self) -> T:
+        item = self._buffer.popleft()
+        self._index.pop(item.cycle_timestamp)
+        return item
+
+    def pop(self) -> T:
+        item = self._buffer.pop()
+        self._index.pop(item.cycle_timestamp)
+        return item
 
     def clear(self) -> None:
         self._buffer.clear()
