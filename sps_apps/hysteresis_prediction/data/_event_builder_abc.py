@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import collections
 import dataclasses
 import datetime
 import logging
@@ -9,6 +8,7 @@ import typing
 import sys
 
 import hystcomp_utils.cycle_data
+import hystcomp_utils.ring_buffer
 import pyda
 import pyda._metadata
 import pyda.clients.callback
@@ -45,61 +45,6 @@ ENDPOINT_RE = re.compile(
 T = typing.TypeVar(
     "T", pyda.data.PropertyRetrievalResponse, hystcomp_utils.cycle_data.CycleData
 )
-
-
-class CycleStampSubscriptionBuffer(typing.Generic[T], typing.Iterable[T]):
-    def __init__(self, parameter: str = "", buffer_size: int = 1) -> None:
-        self._parameter = parameter
-        self._buffer: collections.deque[T] = collections.deque(maxlen=buffer_size)
-        self._index: dict[float, int] = {}  # cycle_stamp -> index
-
-    def __contains__(self, item: float) -> bool:
-        return item in self._index
-
-    def __getitem__(self, item: float) -> T:
-        return self._buffer[self._index[item]]
-
-    def __setitem__(self, key: float, value: T) -> None:
-        self._buffer[self._index[key]] = value
-
-    def __iter__(self) -> typing.Iterator[T]:
-        return iter(self._buffer)
-
-    def __len__(self) -> int:
-        return len(self._buffer)
-
-    def __str__(self) -> str:
-        return f"{self._parameter}: {len(self._buffer)} items"
-
-    def append(self, fspv: T) -> None:
-        self._buffer.append(fspv)
-        if isinstance(fspv, hystcomp_utils.cycle_data.CycleData):
-            cycle_timestamp = fspv.cycle_timestamp
-        else:
-            cycle_timestamp = fspv.value.header.cycle_timestamp
-        self._index[cycle_timestamp] = len(self._buffer) - 1
-
-    def popleft(self) -> T:
-        item = self._buffer.popleft()
-        self._index.pop(item.cycle_timestamp)
-        return item
-
-    def pop(self) -> T:
-        item = self._buffer.pop()
-        self._index.pop(item.cycle_timestamp)
-        return item
-
-    def clear(self) -> None:
-        self._buffer.clear()
-        self._index.clear()
-
-    def clear_older_than(self, cycle_stamp: float) -> None:
-        if not self._buffer:
-            return
-
-        while self._buffer[0].cycle_timestamp <= cycle_stamp:
-            self._index.pop(self._buffer[0].cycle_timestamp)
-            self._buffer.popleft()
 
 
 def endpoint_from_str(value: str) -> pyda.data.StandardEndpoint:
@@ -305,7 +250,10 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
         self._cycle_stamp_buffers: dict[
             str,
             dict[
-                str, CycleStampSubscriptionBuffer[pyda.data.PropertyRetrievalResponse]
+                str,
+                hystcomp_utils.ring_buffer.CycleStampRingBuffer[
+                    pyda.data.PropertyRetrievalResponse
+                ],
             ],
         ] = {sub.parameter: {} for sub in buffered_subscriptions or []}
 
@@ -313,7 +261,10 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
 
         self._track_cycle_data = track_cycle_data
         self._cycle_data_buffer: dict[
-            str, CycleStampSubscriptionBuffer[hystcomp_utils.cycle_data.CycleData]
+            str,
+            hystcomp_utils.ring_buffer.CycleStampRingBuffer[
+                hystcomp_utils.cycle_data.CycleData
+            ],
         ] = {}
 
     @QtCore.Slot(hystcomp_utils.cycle_data.CycleData)
@@ -325,8 +276,10 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
 
         selector = cycle_data.user
         if selector not in self._cycle_data_buffer:
-            self._cycle_data_buffer[selector] = CycleStampSubscriptionBuffer(
-                selector, buffer_size=self._buffer_size
+            self._cycle_data_buffer[selector] = (
+                hystcomp_utils.ring_buffer.CycleStampRingBuffer(
+                    selector, buffer_size=self._buffer_size
+                )
             )
 
         self._cycle_data_buffer[selector].append(cycle_data)
@@ -399,7 +352,9 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
     ) -> None:
         if selector not in self._cycle_stamp_buffers[parameter]:
             self._cycle_stamp_buffers[parameter][selector] = (
-                CycleStampSubscriptionBuffer(selector, buffer_size=self._buffer_size)
+                hystcomp_utils.ring_buffer.CycleStampRingBuffer(
+                    selector, buffer_size=self._buffer_size
+                )
             )
 
         self._cycle_stamp_buffers[parameter][selector].append(fspv)

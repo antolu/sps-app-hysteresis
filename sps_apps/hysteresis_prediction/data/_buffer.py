@@ -10,6 +10,7 @@ import logging
 import typing
 
 from hystcomp_utils.cycle_data import CycleData
+from hystcomp_utils.ring_buffer import CycleStampRingBuffer
 
 from ..utils import from_timestamp
 

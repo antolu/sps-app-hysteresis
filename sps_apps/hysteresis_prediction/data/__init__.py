@@ -9,7 +9,6 @@ from ._event_builder_abc import (
     BufferedSubscription,
     BufferedSubscriptionEventBuilder,
     CycleStampGroupedTriggeredEventBuilder,
-    CycleStampSubscriptionBuffer,
     EventBuilderAbc,
     Subscription,
 )
@@ -26,7 +25,6 @@ for _mod in (
     BufferedSubscriptionEventBuilder,
     Subscription,
     BufferedSubscription,
-    CycleStampSubscriptionBuffer,
     AddProgrammedEventBuilder,
     AddMeasurementReferencesEventBuilder,
     CycleStampedAddMeasurementsEventBuilder,
