@@ -50,25 +50,25 @@ class TrackFullEcoEventBuilder(BufferedSubscriptionEventBuilder):
         selector = str(fspv.value.header.selector)
 
         if parameter == TRIGGER:
-            if selector not in self._cycle_data_buffer:
-                log.error(f"Received trigger for cycle without data: {selector}.")
-                return
-
             cycle_data = self._cycle_data_buffer[selector]
 
             mmode = fspv.value.get("MACHINE_MODE")
 
             if mmode != "FULLECO":
-                log.info(f"{cycle_data} is not in FULLECO mode: {mmode}")
+                log.debug(f"{cycle_data} is not in FULLECO mode: {mmode}")
                 return None
+
+            if selector not in self._cycle_data_buffer:
+                log.error(f"Received trigger for cycle without data: {selector}.")
+                return
 
             log.info(f"{cycle_data} is in FULLECO mode")
 
             if cycle_data.cycle.endswith("FULLECO"):
-                log.info(f"{cycle_data} is already in FULLECO mode")
+                log.warning(f"{cycle_data} is already in FULLECO mode")
                 return None
             if cycle_data.cycle.endswith("DYNECO"):
-                log.info(f"{cycle_data} is in DYNECO mode")
+                log.warning(f"{cycle_data} is in DYNECO mode")
                 return None
 
             cycle_data.cycle = f"{cycle_data.cycle}_FULLECO"
