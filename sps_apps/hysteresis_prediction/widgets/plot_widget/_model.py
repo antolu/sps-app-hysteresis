@@ -107,7 +107,7 @@ class PlotModel(QtCore.QObject):
             self._field_predict_source.new_value(cycle_data.cycle_timestamp, predicted)
 
             if cycle_data.field_ref is not None:
-                log.debug(f"Plotting field diff for cycle {cycle_data.cycle}")
+                log.debug(f"{cycle_data}: Plotting field diff for cycle.")
                 delta = (cycle_data.field_ref[1, :] - predicted[1, :]) * 1e4
                 self._field_ref_diff_source.new_value(
                     cycle_data.cycle_timestamp,

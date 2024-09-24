@@ -121,7 +121,7 @@ class CurrentFieldSource(UpdateSource):
         :param cycle_timestamp: timestamp of the cycle.
         :param value: value of the cycle.
         """
-        time_range = value[0, :]
+        time_range = value[0, :] + cycle_timestamp / NS
         value = value[1, :]
 
         data = CurveData(time_range, value)
