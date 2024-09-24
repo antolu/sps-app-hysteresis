@@ -142,7 +142,7 @@ class EventBuilderAbc(QtCore.QObject):
         try:
             self._handle_acquisition_impl(fspv)
         except:  # noqa: E722
-            msg = f"Error handling acquisitin for {fspv.query.endpoint}@{fspv.query.context}."
+            msg = f"Error handling acquisition for {fspv.query.endpoint}@{fspv.query.context}."
             log.exception(msg)
 
     def _handle_acquisition_impl(

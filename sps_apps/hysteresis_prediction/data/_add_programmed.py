@@ -51,37 +51,32 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
         parameter = str(fspv.query.endpoint)
         selector = str(fspv.value.header.selector)
 
-        if parameter == TRIGGER:
-            if selector not in self._cycle_data_buffer:
-                log.error(f"Received trigger for cycle without data: {selector}.")
-                return
+        if parameter != TRIGGER:
+            msg = f"Received unknown acquisition for {parameter}@{selector}."
+            raise ValueError(msg)
 
-            cycle_data = self._cycle_data_buffer[selector]
+        if selector not in self._cycle_data_buffer:
+            log.error(f"Received trigger for cycle without data: {selector}.")
+            return
 
-            if cycle_data.cycle.endswith("ECO"):
-                msg = f"[{cycle_data}]: ECO cycle has already had programs updated."
-                log.debug(msg)
-                self.cycleDataAvailable.emit(cycle_data)
-                return
+        cycle_data = self._cycle_data_buffer[selector]
 
-            prog_i_df = self._get_buffered_data(PARAM_I_PROG, selector).value.get(
-                "value"
-            )
-            prog_b_df = self._get_buffered_data(PARAM_B_PROG, selector).value.get(
-                "value"
-            )
-
-            cycle_data.current_prog = np.vstack((prog_i_df.xs, prog_i_df.ys))
-            cycle_data.field_prog = np.vstack((prog_b_df.xs, prog_b_df.ys))
-
-            msg = f"[{cycle_data}]: Added programmed data."
+        if cycle_data.cycle.endswith("ECO"):
+            msg = f"[{cycle_data}]: ECO cycle has already had programs updated."
             log.debug(msg)
+            self.cycleDataAvailable.emit(cycle_data)
+            return
 
-            self.onNewCycleData(cycle_data)
+        prog_i_df = self._get_buffered_data(PARAM_I_PROG, selector).value.get("value")
+        prog_b_df = self._get_buffered_data(PARAM_B_PROG, selector).value.get("value")
 
-        # unknown parameter
-        msg = f"Received unknown acquisition for {parameter}@{selector}."
-        raise ValueError(msg)
+        cycle_data.current_prog = np.vstack((prog_i_df.xs, prog_i_df.ys))
+        cycle_data.field_prog = np.vstack((prog_b_df.xs, prog_b_df.ys))
+
+        msg = f"[{cycle_data}]: Added programmed data."
+        log.debug(msg)
+
+        self.cycleDataAvailable.emit(cycle_data)
 
     def onNewCycleData(self, cycle_data: hystcomp_utils.cycle_data.CycleData) -> None:
         msg = f"[{cycle_data}]: Received data, saving to buffer."
