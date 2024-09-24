@@ -41,8 +41,16 @@ def setup_logger(logging_level: int = 0) -> None:
     logging.getLogger("PyQt5.uic").setLevel(logging.WARNING)
     logging.getLogger("py4j").setLevel(logging.WARNING)
     logging.getLogger("cern").setLevel(logging.WARNING)
-    logging.getLogger("pyda").setLevel(logging.WARNING)
-    logging.getLogger("pyda_japc").setLevel(logging.WARNING)
+
+    set_module_logging("pyda", logging.WARNING)
+    set_module_logging("pyccda", logging.WARNING)
+    set_module_logging("torch", logging.WARNING)
+
+
+def set_module_logging(pattern: str, log_level: int = logging.WARNING) -> None:
+    for name in logging.root.manager.loggerDict:
+        if name.startswith(pattern):
+            logging.getLogger(name).setLevel(log_level)
 
 
 def main() -> None:
@@ -95,7 +103,7 @@ def main() -> None:
     data_thread.started.connect(flow_worker.start)
     application.aboutToQuit.connect(flow_worker.stop)
     application.aboutToQuit.connect(data_thread.quit)
-    # application.aboutToQuit.connect(data_thread.wait)
+    application.aboutToQuit.connect(data_thread.wait)
 
     data_thread.start()
     flow_worker.wait()
