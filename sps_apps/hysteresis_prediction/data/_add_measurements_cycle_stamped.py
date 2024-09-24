@@ -41,7 +41,8 @@ class CycleStampedAddMeasurementsEventBuilder(CycleStampGroupedTriggeredEventBui
 
     def onCycleStampGroupTriggered(self, cycle_stamp: float, selector: str) -> None:
         cycle_data = typing.cast(
-            hystcomp_utils.cycle_data.CycleData, self._cycle_data_buffer[selector]
+            hystcomp_utils.cycle_data.CycleData,
+            self._cycle_data_buffer[selector][cycle_stamp],
         )
 
         i_meas_fspv = self._cycle_stamp_buffers[PARAM_I_MEAS][selector][cycle_stamp]
