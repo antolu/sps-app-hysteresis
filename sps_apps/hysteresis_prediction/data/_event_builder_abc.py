@@ -164,6 +164,12 @@ class EventBuilderAbc(QtCore.QObject):
             log.debug(msg)
             handle.start()
 
+    def stop(self) -> None:
+        for handle in self._handles.values():
+            msg = f"Stopping subscription for {handle.query}."
+            log.debug(msg)
+            handle.stop()
+
     def handle_acquisition(self, fspv: pyda.data.PropertyRetrievalResponse) -> None:
 
         try:
@@ -337,6 +343,8 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
             if cycle_stamp not in buffer[selector]:
                 return False
         if self._track_cycle_data:
+            if selector not in self._cycle_data_buffer:
+                return False
             if cycle_stamp not in self._cycle_data_buffer[selector]:
                 return False
         return True
