@@ -39,7 +39,7 @@ dependencies = [
     "scikit-learn >= 1.4",
     "torch >= 2.2, < 3.0",
     "hysteresis-scripts[inference] >= 0.1.dev0, < 1.0",
-    "hystcomp-utils >= 0.1.0, < 1.0",
+    "hystcomp-utils >= 0.1.8, < 1.0",
     "op-app-context ~= 0.1",
 ]
 
