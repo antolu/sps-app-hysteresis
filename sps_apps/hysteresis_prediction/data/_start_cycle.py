@@ -38,12 +38,13 @@ class StartCycleEventBuilder(EventBuilderAbc):
         self, fspv: pyda.data.PropertyRetrievalResponse
     ) -> None:
         parameter = str(fspv.query.endpoint)
-        selector = str(fspv.query.context)
+        context = str(fspv.query.context)
 
         if parameter != TRIGGER:
-            msg = f"Received unknown acquisition for {parameter}@{selector}."
+            msg = f"Received unknown acquisition for {parameter}@{context}."
             raise ValueError(msg)
 
+        selector = str(fspv.value.header.selector)
         if selector not in self._cycle_data_buffer:
             log.error(f"Received trigger for cycle without data: {selector}.")
             return

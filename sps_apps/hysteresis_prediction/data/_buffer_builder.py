@@ -69,6 +69,8 @@ class BufferEventbuilder(EventBuilderAbc):
             msg = f"[{cycle_data}]: Insufficient data in buffer: {size}/{total}."
             log.info(msg)
 
+            return
+
         self.newBufferAvailable.emit(buffer)
 
     @QtCore.Slot(hystcomp_utils.cycle_data.CycleData)

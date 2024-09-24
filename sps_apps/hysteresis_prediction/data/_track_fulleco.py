@@ -47,7 +47,7 @@ class TrackFullEcoEventBuilder(BufferedSubscriptionEventBuilder):
         self, fspv: pyda.data.PropertyRetrievalResponse
     ) -> None:
         parameter = str(fspv.query.endpoint)
-        selector = str(fspv.query.context)
+        selector = str(fspv.value.header.selector)
 
         if parameter == TRIGGER:
             if selector not in self._cycle_data_buffer:

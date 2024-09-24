@@ -236,7 +236,7 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
             return
 
         parameter = str(fspv.query.endpoint)
-        selector = str(fspv.query.context)
+        selector = str(fspv.value.header.selector)
 
         msg = f"Received buffered acquisition for {parameter}@{selector}."
         log.debug(msg)
@@ -350,7 +350,7 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
             return
 
         parameter = str(fspv.query.endpoint)
-        selector = str(fspv.query.context)
+        selector = str(fspv.value.header.selector)
 
         msg = f"Received buffered acquisition for {parameter}@{selector}."
         log.debug(msg)

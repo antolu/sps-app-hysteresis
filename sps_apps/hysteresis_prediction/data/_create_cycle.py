@@ -50,7 +50,7 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
     def _handle_acquisition_impl(
         self, fspv: pyda.data.PropertyRetrievalResponse
     ) -> None:
-        selector = str(fspv.query.context)
+        selector = str(fspv.value.header.selector)
         msg = f"Received {fspv.query.endpoint} with {fspv.value.get('value')}"
         log.debug(msg)
 

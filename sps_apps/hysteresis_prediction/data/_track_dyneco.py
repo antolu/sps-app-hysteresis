@@ -43,13 +43,14 @@ class TrackDynEcoEventBuilder(EventBuilderAbc):
         self, fspv: pyda.data.PropertyRetrievalResponse
     ) -> None:
         parameter = str(fspv.query.endpoint)
-        selector = str(fspv.query.context)
+        context = str(fspv.query.context)
         header = fspv.value.header
         cycle_time_s = str(header.cycle_time())[:-7]
+        selector = str(header.selector)
         id_ = f"[{selector}@{cycle_time_s}]"
 
         if parameter != PARAM_DYNECO_IREF:
-            msg = f"Received unknown acquisition for {parameter}@{selector}."
+            msg = f"Received unknown acquisition for {parameter}@{context}."
             raise ValueError(msg)
 
         if selector not in self._cycle_data_buffer:
