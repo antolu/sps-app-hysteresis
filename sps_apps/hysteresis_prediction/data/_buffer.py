@@ -8,9 +8,7 @@ from __future__ import annotations
 import copy
 import logging
 import typing
-from collections import deque
 
-import numpy as np
 from hystcomp_utils.cycle_data import CycleData
 
 from ..utils import from_timestamp
@@ -54,20 +52,10 @@ class AcquisitionBuffer:
             collate samples from the buffer.
         """
         self._buffer_size = min_buffer_size
-        self._buffer_only_measured = buffer_only_measured
 
-        self._buffer: deque[CycleData] = deque()
-        self._buffer_next: deque[CycleData] = deque()
-
-        self._known_cycles: set[str] = set()  # LSA cycles the buffer has seen
-
-        # maps cycle time(stamp) to data
-        self._cycles_index: dict[float, CycleData] = {}
-        self._cycles_next_index: dict[float, CycleData] = {}
-
-    @property
-    def known_cycles(self) -> set[str]:
-        return self._known_cycles
+        self._buffer: CycleStampRingBuffer[CycleData] = CycleStampRingBuffer(
+            buffer_size=int(min_buffer_size // 1000)
+        )
 
     def new_cycle(
         self,
@@ -95,8 +83,7 @@ class AcquisitionBuffer:
 
         log_cycle("Adding new cycle data to NEXT buffer.", cycle, cycle_timestamp)
 
-        self._cycles_next_index[cycle_timestamp] = cycle_data
-        self._buffer_next.append(cycle_data)
+        self._buffer.append(cycle_data)
 
         try:
             self._check_buffer_integrity()
@@ -117,37 +104,9 @@ class AcquisitionBuffer:
         cycle_timestamp = int(round(cycle_timestamp, -6))
         log_cycle(f"Timestamp is {cycle_timestamp}.", cycle, cycle_timestamp)
 
-        def find_idx(cycle_data: CycleData, buffer: deque[CycleData]) -> int:
-            for i, c in enumerate(buffer):
-                if np.allclose(c.cycle_timestamp, cycle_data.cycle_timestamp):
-                    return i
-
-            return -1
-
-        if cycle_timestamp in self._cycles_index:
+        if cycle_timestamp in self._buffer:
             log_cycle("Updating cycle data in buffer.", cycle, cycle_timestamp)
-            self._cycles_index[cycle_timestamp] = cycle_data
-            deque_idx = find_idx(cycle_data, self._buffer)
-
-            if deque_idx == -1:
-                msg = f"Cycle data not found in buffer: {cycle_data}"
-                log.error(msg)
-                raise KeyError(msg)
-
-            self._buffer[deque_idx] = cycle_data
-            return
-
-        if cycle_timestamp in self._cycles_next_index:
-            log_cycle("Updating cycle data in NEXT buffer.", cycle, cycle_timestamp)
-            self._cycles_next_index[cycle_timestamp] = cycle_data
-            deque_idx = find_idx(cycle_data, self._buffer_next)
-
-            if deque_idx == -1:
-                msg = f"Cycle data not found in NEXT buffer: {cycle_data}"
-                log.error(msg)
-                raise KeyError(msg)
-
-            self._buffer_next[deque_idx] = cycle_data
+            self._buffer[cycle_timestamp] = cycle_data
             return
 
         msg = f"Cycle data not found in buffers: {cycle_data}"
@@ -184,25 +143,10 @@ class AcquisitionBuffer:
             "Building buffer."
         )
 
-        past_buffer = copy.deepcopy(list(self._buffer))
+        buffer = copy.deepcopy(list(self._buffer))
 
-        if not self._buffer_only_measured:
-            future_buffer = copy.deepcopy(list(self._buffer_next))
-
-            # TODO: log cycle data parsing
-            for cycle_data in past_buffer:
-                assert cycle_data.current_meas is not None
-                cycle_data.current_input = cycle_data.current_meas
-
-            for cycle_data in future_buffer:
-                cycle_data.current_input = cycle_data.current_meas
-        else:
-            future_buffer = []
-
-        past_buffer += future_buffer
-
-        log.debug(f"Collected {len(past_buffer)} cycle samples.")
-        return past_buffer
+        log.debug(f"Collected {len(buffer)} cycle samples.")
+        return buffer
 
     def _check_buffer_integrity(self) -> None:
         """
@@ -217,9 +161,9 @@ class AcquisitionBuffer:
             )
             return
 
-        def check_integrity(buffer: deque[CycleData]) -> list[int]:
+        def check_integrity(buffer: CycleStampRingBuffer[CycleData]) -> list[int]:
             to_remove: list[int] = []
-            buffer = buffer.copy()
+            buffer = list(buffer)
 
             if len(buffer) < 2:
                 return to_remove
@@ -274,67 +218,24 @@ class AcquisitionBuffer:
         if len(to_remove) > 0:
             log.debug(
                 "Current buffer state:\nNEXT"
-                + debug_msg(self._buffer_next)
+                + debug_msg(self._buffer)
                 + "\n\nBUFFER\n"
                 + debug_msg(self._buffer)
             )
             for i in reversed(to_remove):
                 log.info(f"Removing buffered cycle {self._buffer[i]} at index {i}.")
-                self._cycles_index.pop(self._buffer[i].cycle_timestamp)
-                del self._buffer[i]
+                self._buffer.popleft()
 
             to_remove = check_integrity(self._buffer)
             if len(to_remove) > 0:
-                log.debug(
-                    "Current buffer state:\nNEXT"
-                    + debug_msg(self._buffer_next)
-                    + "\n\nBUFFER\n"
-                    + debug_msg(self._buffer)
-                )
+                log.debug(f"BUFFER: {debug_msg(self._buffer)}")
                 log.error(
                     "Buffer integrity compromised. Could not fix "
                     "automatically. Clearing buffer."
                 )
                 self._buffer.clear()
-                self._cycles_index.clear()
         else:
             log.debug("Buffer is OK!")
-
-        log.debug("Checking NEXT buffer integrity.")
-        to_remove = check_integrity(self._buffer_next)
-        if len(to_remove) > 0:
-            log.debug(
-                "Current buffer state:\nNEXT"
-                + debug_msg(self._buffer_next)
-                + "\n\nBUFFER\n"
-                + debug_msg(self._buffer)
-            )
-            # for i in reversed(to_remove):
-            #     log.info(f"Removing buffered cycle {self._buffer_next[i].cycle}.")
-
-            # self._cycles_next_index.pop(self._buffer_next[i].cycle_timestamp)
-            # del self._buffer_next[i]
-
-            log.warning("CLEARNING BUFFER")
-            self.reset_buffer()
-
-            # to_remove = check_integrity(self._buffer_next)
-            # if len(to_remove) > 0:
-            #     log.debug(
-            #         "Current buffer state:\nNEXT"
-            #         + debug_msg(self._buffer_next)
-            #         + "\n\nBUFFER\n"
-            #         + debug_msg(self._buffer)
-            #     )
-            #     log.error(
-            #         "Buffer integrity compromised. Could not fix "
-            #         "automatically. Clearing buffer."
-            #     )
-            #
-            #     self._cycles_next_index.clear()
-            #     self._buffer_next.clear()
-        else:
-            log.debug("NEXT buffer is OK!")
 
     def _check_buffer_size(self) -> None:
         """
@@ -355,9 +256,9 @@ class AcquisitionBuffer:
             log.warning("Insufficient buffered cycles " f"({len(self._buffer)}).")
             return
 
-        if len(self._buffer_next) == 0:
-            log.warning("No buffered NEXT cycles.")
-            return
+        # if len(self._buffer_next) == 0:
+        #     log.warning("No buffered NEXT cycles.")
+        #     return
 
         def buffer_too_large(
             buffer: typing.Iterable[CycleData],
@@ -380,19 +281,7 @@ class AcquisitionBuffer:
                 f"(/{self._buffer_size})."
             )
 
-        if not self._buffer_only_measured:
-            if not buffer_too_large(self._buffer, self._buffer_next):
-                log.debug(logger_msg(self._buffer, self._buffer_next))
-            else:
-                while buffer_too_large(
-                    self._buffer, self._buffer_next
-                ) and buffer_too_large(list(self._buffer)[1:], self._buffer_next):
-                    log.debug(logger_msg(self._buffer, self._buffer_next))
-
-                    cycle_data = self._buffer.popleft()
-                    log.debug(f"Removing buffered cycle {cycle_data.cycle}.")
-                    self._cycles_index.pop(cycle_data.cycle_timestamp)
-        elif not buffer_size(self._buffer) > self._buffer_size:
+        if not buffer_size(self._buffer) > self._buffer_size:
             log.debug(
                 "Buffer size is within bounds:"
                 f"{buffer_size(self._buffer)} / {self._buffer_size}"
@@ -408,84 +297,11 @@ class AcquisitionBuffer:
 
                 cycle_data = self._buffer.popleft()
                 log.debug(f"Removing buffered cycle {cycle_data.cycle}.")
-                self._cycles_index.pop(cycle_data.cycle_timestamp)
-
-    def _check_move_to_buffer(self, cycle_data: CycleData) -> None:
-        """
-        Checks if the buffered cycle data is complete, and if so moves it
-        to the buffer queue.
-
-        :param cycle_data: The buffered cycle data to check.
-        """
-        cycle = cycle_data.cycle
-        cycle_time = cycle_data.cycle_time
-        cycle_timestamp = cycle_data.cycle_timestamp
-
-        if cycle_timestamp not in self._cycles_next_index:
-            log_cycle(
-                "NEXT buffered cycle data not found. "
-                f"Only {_cycle_buffer_str(self._buffer_next)}.",
-                cycle,
-                cycle_timestamp,
-            )
-            return
-        if cycle_timestamp in self._cycles_index:
-            log_cycle("Buffered cycle data already exists.", cycle, cycle_timestamp)
-            return
-
-        # we can only move the cycle data if we have both measured I and B
-        if cycle_data.current_meas is not None and cycle_data.field_meas is not None:
-            if self._buffer_next[0] is not cycle_data:
-                # if the cycle data is not the next in line, we need to
-                # remove the preceding cycles
-
-                if cycle_timestamp not in self._cycles_next_index:
-                    log.error(
-                        f"[{cycle}@{cycle_time}] cycle data not in NEXT "
-                        f"buffer: {_cycle_buffer_str(self._buffer_next)}."
-                    )
-                    return
-
-                # else
-                idx = list(self._buffer_next).index(cycle_data)
-
-                log.warning(
-                    f"[{cycle}@{cycle_time}] Cycle data is not the "
-                    f"next. It is at index {idx}. Preceding "
-                    "entries will be removed. Existing cycles are "
-                    + _cycle_buffer_str(self._buffer_next)
-                )
-
-                for _i in range(idx - 1):
-                    to_remove = self._buffer_next.popleft()
-                    self._cycles_next_index.pop(to_remove.cycle_timestamp)
-
-            log_cycle(
-                "Moving buffered cycle data to buffer queue.",
-                cycle,
-                cycle_timestamp,
-            )
-
-            # move the cycle data from NEXT to buffer
-            self._buffer_next.popleft()
-            self._cycles_next_index.pop(cycle_timestamp)
-
-            self._buffer.append(cycle_data)
-            self._cycles_index[cycle_timestamp] = cycle_data
-
-            log_cycle(
-                "Notifying new measured cycle available.",
-                cycle,
-                cycle_timestamp,
-            )
 
     def reset_buffer(self) -> None:
         log.debug("Resetting buffer...")
 
         self._buffer.clear()
-        self._buffer_next.clear()
-        self._cycles_index.clear()
-        self._cycles_next_index.clear()
 
     def _reset_except_last(self) -> None:
         """
@@ -493,18 +309,16 @@ class AcquisitionBuffer:
         cycle that is currently being measured.
         """
         log.debug("Resetting buffer except last cycle...")
-        if len(self._buffer_next) > 0:
-            last = self._buffer_next[-1]
+        if len(self._buffer) == 0:
+            log.debug("Buffer is empty.")
+            return
 
-            self.reset_buffer()
-
-            self._buffer_next.append(last)
-            self._cycles_next_index[last.cycle_timestamp] = last
+        last = self._buffer[-1]
+        self.reset_buffer()
+        self._buffer.append(last)
 
     def __len__(self) -> int:
-        if self._buffer_only_measured:
-            return buffer_size(self._buffer)
-        return buffer_size(self._buffer) + buffer_size(self._buffer_next)
+        return buffer_size(self._buffer)
 
 
 def buffer_size(buffer: typing.Iterable[CycleData]) -> int:
