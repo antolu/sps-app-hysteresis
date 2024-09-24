@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 PARAM_I_PROG = "rmi://virtual_sps/MBI/IREF"
 PARAM_B_PROG = "rmi://virtual_sps/SPSBEAM/B"
-TRIGGER = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/XTIM.UCAP.SCY-500/Acquisition"
+TRIGGER = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/XTIM.UCAP.SCY-CT-500/Acquisition"
 
 
 class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
