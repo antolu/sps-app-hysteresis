@@ -6,6 +6,7 @@ import datetime
 import logging
 import re
 import typing
+import sys
 
 import hystcomp_utils.cycle_data
 import pyda
@@ -15,6 +16,11 @@ import pyda.data
 import pyda.providers
 import pyda_japc
 from qtpy import QtCore
+
+if sys.version_info < (3, 12):
+    from typing_extensions import override
+else:
+    from typing import override
 
 log = logging.getLogger(__name__)
 
@@ -349,6 +355,7 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
                 return False
         return True
 
+    @override
     def _handle_buffered_acquisition_impl(
         self, fspv: pyda.data.PropertyRetrievalResponse
     ) -> None:
