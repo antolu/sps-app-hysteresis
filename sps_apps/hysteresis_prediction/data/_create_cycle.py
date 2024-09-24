@@ -20,7 +20,9 @@ log = logging.getLogger(__name__)
 
 PARAM_I_PROG = "rmi://virtual_sps/MBI/IREF"
 PARAM_B_PROG = "rmi://virtual_sps/SPSBEAM/B"
-PARAM_BHYS_CORRECTION = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/BHYS-CORRECTION/Acquisition"
+PARAM_BHYS_CORRECTION = (
+    "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPSBEAM.BHYS-CORRECTION/Acquisition"
+)
 
 
 class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
