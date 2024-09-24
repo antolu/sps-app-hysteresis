@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import typing
 
 import pyda_japc
 
@@ -17,8 +16,7 @@ from .data import (
 )
 from .inference import CalculateCorrection, Inference
 
-if typing.TYPE_CHECKING:
-    from qtpy import QtCore
+from qtpy import QtCore
 
 
 class DataFlow:
@@ -46,6 +44,58 @@ class DataFlow:
     @property
     def onCycleMeasured(self) -> QtCore.Signal:
         raise NotImplementedError
+
+
+class LocalFlowWorker(QtCore.QObject):
+    def __init__(
+        self,
+        provider: pyda_japc.JapcProvider,
+        buffer_size: int = 60000,
+        parent: QtCore.QObject | None = None,
+    ) -> None:
+        super().__init__(parent=parent)
+        self._data_flow: LocalDataFlow | None = None
+
+        self._provider = provider
+        self._buffer_size = buffer_size
+
+        self._mutex = QtCore.QMutex()
+        self.cv = QtCore.QWaitCondition()
+
+    def init_data_flow(self) -> None:
+        if self._data_flow is not None:
+            msg = "Data flow already initialized."
+            raise ValueError(msg)
+
+        with QtCore.QMutexLocker(self._mutex):
+            self._data_flow = LocalDataFlow(
+                provider=self._provider,
+                buffer_size=self._buffer_size,
+                parent=self.parent(),
+            )
+
+            self.cv.wakeAll()
+
+    def wait(self) -> None:
+        self.cv.wait(self._mutex)
+
+    def start(self) -> None:
+        if self._data_flow is None:
+            self.init_data_flow()
+
+        assert self._data_flow is not None
+        self._data_flow.start()
+
+    def stop(self) -> None:
+        if self._data_flow is not None:
+            self._data_flow.stop()
+
+    @property
+    def data_flow(self) -> LocalDataFlow:
+        if self._data_flow is None:
+            msg = "Data flow not initialized. Call init_data_flow() first."
+            raise ValueError(msg)
+        return self._data_flow
 
 
 class LocalDataFlow(DataFlow):
@@ -100,7 +150,7 @@ class LocalDataFlow(DataFlow):
         self._add_measurement_post.stop()
         self._add_measurement_ref.stop()
         self._track_dyneco.stop()
-        self._track_fulleco
+        self._track_fulleco.stop()
 
     def resetReference(self) -> None:
         self._add_measurement_ref.resetReference()
@@ -113,11 +163,13 @@ class LocalDataFlow(DataFlow):
         self._add_measurements_pre.cycleDataAvailable.connect(
             self._buffer.onNewCycleData
         )
+        self._add_measurements_pre.cycleDataAvailable.connect(
+            self._start_cycle.onNewCycleData
+        )
         self._buffer.newBufferAvailable.connect(self._predict.onNewCycleDataBuffer)
         self._buffer.newEcoBufferAvailable.connect(self._predict.onNewCycleDataBuffer)
         self._predict.cycleDataAvailable.connect(self._correction.onNewCycleData)
         self._correction.cycleDataAvailable.connect(self._add_programmed.onNewCycleData)
-        self._correction.cycleDataAvailable.connect(self._start_cycle.onNewCycleData)
 
         self._add_programmed.cycleDataAvailable.connect(self._buffer.onNewProgCycleData)
         self._add_programmed.cycleDataAvailable.connect(

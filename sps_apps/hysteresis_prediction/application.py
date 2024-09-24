@@ -5,11 +5,11 @@ from argparse import ArgumentParser
 import pyrbac
 import torch
 from accwidgets.qt import exec_app_interruptable
-from qtpy import QtWidgets
+from qtpy import QtWidgets, QtCore
 from rich.logging import RichHandler
 
 from . import __version__
-from ._data_flow import LocalDataFlow
+from ._data_flow import LocalFlowWorker
 from .main_window import MainWindow
 
 torch.set_float32_matmul_precision("high")
@@ -51,9 +51,9 @@ def main() -> None:
     parser.add_argument(
         "-b",
         "--buffer-size",
-        type=int,
-        default=150000,
         dest="buffer_size",
+        type=int,
+        default=60000,
         help="Buffer size for acquisition.",
     )
     parser.add_argument(
@@ -85,15 +85,30 @@ def main() -> None:
     except:  # noqa: E722
         pass
 
-    data_flow = LocalDataFlow(
+    data_thread = QtCore.QThread()
+    flow_worker = LocalFlowWorker(
         buffer_size=args.buffer_size,
         provider=context.japc_provider,
-        parent=application,
     )
+    flow_worker.moveToThread(data_thread)
 
-    main_window = MainWindow(data_flow)
+    data_thread.started.connect(flow_worker.start)
+    application.aboutToQuit.connect(flow_worker.stop)
+    application.aboutToQuit.connect(data_thread.quit)
+    # application.aboutToQuit.connect(data_thread.wait)
+
+    data_thread.start()
+    flow_worker.wait()
+
+    main_window: MainWindow | None = None
+
+    def exit_if_fail() -> None:
+        if main_window is None:
+            sys.exit(1)
+
+    data_thread.finished.connect(exit_if_fail)
+
+    main_window = MainWindow(data_flow=flow_worker.data_flow, parent=None)
     main_window.show()
-
-    data_flow.start()
 
     sys.exit(exec_app_interruptable(application))
