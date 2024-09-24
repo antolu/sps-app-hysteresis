@@ -41,6 +41,7 @@ def setup_logger(logging_level: int = 0) -> None:
     logging.getLogger("PyQt5.uic").setLevel(logging.WARNING)
     logging.getLogger("py4j").setLevel(logging.WARNING)
     logging.getLogger("cern").setLevel(logging.WARNING)
+    logging.getLogger("pyda").setLevel(logging.WARNING)
 
 
 def main() -> None:
@@ -78,6 +79,8 @@ def main() -> None:
     try:
         rbac_token = pyrbac.AuthenticationClient().login_location()
         context.set_rbac_token(rbac_token)
+
+        logging.getLogger(__name__).info(f"Logged in as {rbac_token.username}")
     except:  # noqa: E722
         pass
 
