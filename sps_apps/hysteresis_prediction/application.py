@@ -99,6 +99,7 @@ def main() -> None:
         provider=context.japc_provider,
     )
     flow_worker.moveToThread(data_thread)
+    flow_worker.init_data_flow()
 
     data_thread.started.connect(flow_worker.start)
     application.aboutToQuit.connect(flow_worker.stop)
@@ -106,7 +107,7 @@ def main() -> None:
     application.aboutToQuit.connect(data_thread.wait)
 
     data_thread.start()
-    flow_worker.wait()
+    # flow_worker.wait()
 
     main_window: MainWindow | None = None
 
