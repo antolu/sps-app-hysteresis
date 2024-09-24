@@ -53,7 +53,7 @@ class StartCycleEventBuilder(EventBuilderAbc):
         msg = f"[{cycle_data}]: Cycle is starting."
         log.debug(msg)
 
-        self.cycleDataAvailable(cycle_data)
+        self.cycleDataAvailable.emit(cycle_data)
 
     def onNewCycleData(self, cycle_data: hystcomp_utils.cycle_data.CycleData) -> None:
         msg = f"[{cycle_data}]: Received data, saving to buffer."
