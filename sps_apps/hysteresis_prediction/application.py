@@ -42,6 +42,7 @@ def setup_logger(logging_level: int = 0) -> None:
     logging.getLogger("py4j").setLevel(logging.WARNING)
     logging.getLogger("cern").setLevel(logging.WARNING)
     logging.getLogger("pyda").setLevel(logging.WARNING)
+    logging.getLogger("pyda_japc").setLevel(logging.WARNING)
 
 
 def main() -> None:
