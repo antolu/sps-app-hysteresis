@@ -64,7 +64,7 @@ class CalculateCorrection(EventBuilderAbc):
             correction = calc_new_correction(
                 cycle.correction, delta, self._gain.get(cycle.user, 1.0)
             )
-            cycle.correction = correction
+            cycle.correction_applied = correction
 
             msg = f"{cycle}: New correction calculated."
             log.debug(msg)

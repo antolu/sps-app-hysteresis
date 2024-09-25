@@ -154,9 +154,9 @@ class TrimModel(QtCore.QObject):
             raise RuntimeError("No selector set, cannot apply trim.")
 
         try:
-            assert cycle_data.correction is not None, "No correction found."
-            correction_t = cycle_data.correction[0]
-            correction_v = cycle_data.correction[1]
+            assert cycle_data.correction_applied is not None, "No correction found."
+            correction_t = cycle_data.correction_applied[0]
+            correction_v = cycle_data.correction_applied[1]
             # log shapes
             log.debug(
                 f"[{cycle_data}] Correction shape: {correction_t.shape}, {correction_v.shape}"
