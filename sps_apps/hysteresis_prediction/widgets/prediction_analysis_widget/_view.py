@@ -211,6 +211,8 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.actionExport_Predictions.triggered.connect(self._on_save_clicked)
         self.actionImport_Predictions.triggered.connect(self._on_load_clicked)
 
+        self.LsaSelector.contextSelectionChanged.connect(self.onUserChanged)
+
     def _get_model(self) -> PredictionAnalysisModel:
         if self._model is None:
             raise ValueError("Model has not been set.")
@@ -283,6 +285,13 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         )
 
         model.userChanged.connect(self.LsaSelector.select_user)
+
+    @QtCore.Slot(lsa_selector.AbstractLsaSelectorContext)
+    def onUserChanged(self, user: lsa_selector.AbstractLsaSelectorContext) -> None:
+        # if button state is off, trigger the button
+        log.debug(f"User changed to {user}")
+        if not self.buttonStartStop.state2Activated:
+            self.buttonStartStop.click()
 
     @QtCore.Slot(pg.PlotCurveItem, Plot)
     def onPlotAdded(self, plot: pg.PlotCurveItem, plot_type: Plot) -> None:
