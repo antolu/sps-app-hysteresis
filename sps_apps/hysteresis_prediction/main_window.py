@@ -197,7 +197,6 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         with load_cursor():
             model = TrimModel()
             widget = TrimWidgetView(model=model, parent=None)
-            widget.TrimSettingsWidget.FlattenCheckBox.setEnabled(False)
 
             self._data.onCycleCorrectionCalculated.connect(model.onNewPrediction)
             model.GainChanged.connect(self._data.setGain)

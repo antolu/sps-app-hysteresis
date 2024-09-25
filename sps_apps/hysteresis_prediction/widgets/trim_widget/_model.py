@@ -18,6 +18,7 @@ from pyda_lsa import LsaCycleContext, LsaEndpoint, LsaProvider
 from qtpy import QtCore
 
 from ...utils import ThreadWorker, time_execution
+from ...inference._correction import calc_delta_field, calc_new_correction
 
 log = logging.getLogger(__name__)
 
@@ -207,6 +208,10 @@ class TrimModel(QtCore.QObject, TrimSettings):
         if prediction.field_pred is None:
             raise ValueError(f"[{prediction}] No field prediction found.")
 
+        if self.flatten:
+            # update cycle data with flattened field within trim start and stop
+            self.calc_flatten_correction(prediction)
+
         _delta_t, delta_v = prediction.delta_applied
 
         max_val = np.max(np.abs(delta_v))
@@ -232,6 +237,23 @@ class TrimModel(QtCore.QObject, TrimSettings):
         )
 
         QtCore.QThreadPool.globalInstance().start(worker)
+
+    def calc_flatten_correction(self, cycle_data: CycleData) -> None:
+        assert cycle_data.field_ref is not None
+        assert cycle_data.field_pred is not None
+        assert cycle_data.correction is not None
+
+        delta = calc_delta_field(
+            cycle_data.field_ref,
+            cycle_data.field_pred,
+            self.trim_t_start,
+            self.trim_t_end,
+            flatten=True,
+        )
+        correction = calc_new_correction(cycle_data.correction, delta, self.gain)
+
+        cycle_data.correction_applied = correction
+        cycle_data.delta_applied = delta
 
     def apply_correction(
         self,

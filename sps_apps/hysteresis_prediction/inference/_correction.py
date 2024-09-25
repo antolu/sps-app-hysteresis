@@ -164,11 +164,12 @@ def calc_delta_field(
     )
 
     # only use this when flattening
-    # ref_v = np.interp(
-    #     pred_t,
-    #     np.array([beam_in or ref_t[0], beam_out or ref_t[-1]]),
-    #     np.array([pred_v[0], pred_v[0]]),
-    # )
+    if flatten:
+        ref_v = np.interp(
+            pred_t,
+            np.array([beam_in or ref_t[0], beam_out or ref_t[-1]]),
+            np.array([pred_v[0], pred_v[0]]),
+        )
 
     # cut trim beyond time limits
     delta_v = ref_v - pred_v
