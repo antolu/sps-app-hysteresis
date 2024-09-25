@@ -199,9 +199,12 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             uuid = str(uuid4())
             self._trim_widgets[uuid] = widget
 
-            def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+            def closeEvent(self: TrimWidgetView, event: QtGui.QCloseEvent) -> None:
                 event.ignore()
                 self.hide()
+
+                if self.toggle_button.state2Activated:
+                    self.toggle_button.click()
 
             widget.closeEvent = types.MethodType(closeEvent, widget)
 
