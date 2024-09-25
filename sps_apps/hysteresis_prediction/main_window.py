@@ -34,7 +34,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         data_flow: LocalDataFlow,
         parent: QtWidgets.QWidget | None = None,
     ):
-        ApplicationFrame.__init__(self, parent)
+        ApplicationFrame.__init__(self, parent, use_rbac=True)
         Ui_main_window.__init__(self)
 
         self.setupUi(self)
@@ -95,6 +95,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self._data._predict.model_loaded.connect(
             lambda: self._data._predict.set_do_inference(True)
         )
+
+        assert self.rba_widget is not None
+        self.rba_widget.model.login_succeeded.connect(context.set_rbac_token)
 
     def _connect_actions(self) -> None:
         self.actionShow_Plot_Settings.triggered.connect(self.toggle_plot_settings)
