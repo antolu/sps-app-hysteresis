@@ -35,7 +35,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         data_flow: LocalDataFlow,
         parent: QtWidgets.QWidget | None = None,
     ):
-        ApplicationFrame.__init__(self, parent, use_rbac=True)
+        ApplicationFrame.__init__(self, parent)
         Ui_main_window.__init__(self)
 
         self.setupUi(self)
