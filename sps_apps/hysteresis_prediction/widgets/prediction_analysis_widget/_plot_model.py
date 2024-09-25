@@ -544,7 +544,7 @@ def _make_diff_pred_vs_meas(
     assert cycle.field_pred is not None
     assert cycle.field_ref is not None
 
-    ref_t = cycle.field_ref[0, :]
+    ref_t = cycle.field_ref[0, :] * 1e3
     delta1 = calc_abs_diff(cycle.field_ref[1, :], cycle.field_pred[1, :])
 
     meas_t = _make_time_axis(item)
