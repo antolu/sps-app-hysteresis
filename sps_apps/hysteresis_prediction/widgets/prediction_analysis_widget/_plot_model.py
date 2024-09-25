@@ -554,7 +554,7 @@ def _make_diff_pred_vs_meas(
 
     delta = delta2 - delta1
 
-    return ref_t, delta
+    return ref_t, delta * 1e4
 
 
 def _update_curve(x: np.ndarray, y: np.ndarray, curve: pg.PlotCurveItem) -> None:
