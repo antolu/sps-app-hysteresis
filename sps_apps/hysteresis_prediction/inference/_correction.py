@@ -218,37 +218,65 @@ def match_array_size(
         # upsample LSA trim to match prediction, keep BP edges
         new_x = np.concatenate((new_correction[0], current_correction[0]))
         new_x = np.sort(np.unique(new_x))
-        current_correction = np.interp(
-            new_x,
-            *current_correction,
+        current_correction = np.vstack(
+            (
+                new_x,
+                np.interp(
+                    new_x,
+                    *current_correction,
+                ),
+            )
         )
 
         # upsample prediction to match new LSA trim
-        new_correction = np.interp(
-            new_x,
-            *new_correction,
+        new_correction = np.vstack(
+            (
+                new_x,
+                np.interp(
+                    new_x,
+                    *new_correction,
+                ),
+            )
         )
     elif current_correction[0].size > new_correction[0].size:
         # upsample prediction to match LSA trim
-        new_correction = np.interp(
-            current_correction[0],
-            *new_correction,
+        new_correction = np.vstack(
+            (
+                current_correction[0],
+                np.interp(
+                    current_correction[0],
+                    *new_correction,
+                ),
+            )
         )
+
         new_x = current_correction[0]
     else:
         new_x = np.concatenate((new_correction[0], current_correction[0]))
         new_x = np.sort(np.unique(new_x))
-        current_correction = np.interp(
-            new_x,
-            *current_correction,
+        current_correction = np.vstack(
+            (
+                new_x,
+                np.interp(
+                    new_x,
+                    *current_correction,
+                ),
+            )
         )
 
-        new_correction = np.interp(
-            new_x,
-            *new_correction,
+        new_correction = np.vstack(
+            (
+                new_x,
+                np.interp(
+                    new_x,
+                    *new_correction,
+                ),
+            )
         )
 
-    return np.vstack((new_x, current_correction)), np.vstack((new_x, new_correction))
+    return np.vstack((new_x, current_correction[1])), np.vstack(
+        (new_x, new_correction[1])
+    )
 
 
 def cut_trim_beyond_time(
@@ -301,6 +329,7 @@ def calc_new_correction(
 
     # calculate correction
     new_correction = (current_correction + gain * delta[1]).astype(np.float64)
+    new_correction = (current_correction[1] + gain * delta[1]).astype(np.float64)
 
     # smooth the correction
     # new_correction = signal.perona_malik_smooth(
