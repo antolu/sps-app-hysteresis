@@ -156,7 +156,7 @@ class TrimModel(QtCore.QObject, TrimSettings):
         parent : QtCore.QObject | None, optional
             The parent object, by default None
         """
-        QtCore.QtObject.__init__(self, parent=parent)
+        QtCore.QObject.__init__(self, parent=parent)
         TrimSettings.__init__(self)
 
         # to get beam in/out

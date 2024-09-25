@@ -7,6 +7,7 @@ from uuid import uuid4
 from accwidgets.app_frame import ApplicationFrame
 from accwidgets.log_console import LogConsole
 from accwidgets.timing_bar import TimingBar, TimingBarDomain, TimingBarModel
+from accwidgets.rbac import RbaButton
 from op_app_context import context
 from qtpy import QtGui, QtWidgets
 
@@ -45,6 +46,8 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         log_console = LogConsole(self)
         self.log_console = log_console
         log_console.toggleExpandedMode()
+
+        self.rba_widget = RbaButton(self)
 
         timing_model = TimingBarModel(
             domain=TimingBarDomain.SPS, japc=context.japc_client
