@@ -214,7 +214,6 @@ class LocalDataFlow(DataFlow):
     def onCycleMeasured(self) -> QtCore.Signal:
         return self._add_measurement_ref.cycleDataAvailable
 
-    @QtCore.Slot(str, float)
     def setGain(self, selector: str, gain: float) -> None:
         self._correction.setGain(selector, gain)
 

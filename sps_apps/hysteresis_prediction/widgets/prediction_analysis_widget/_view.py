@@ -290,7 +290,7 @@ class PredictionAnalysisWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
     def onUserChanged(self, user: lsa_selector.AbstractLsaSelectorContext) -> None:
         # if button state is off, trigger the button
         log.debug(f"User changed to {user}")
-        if not self.buttonStartStop.state2Activated:
+        if self.buttonStartStop.state1Activated:
             self.buttonStartStop.click()
 
     @QtCore.Slot(pg.PlotCurveItem, Plot)
