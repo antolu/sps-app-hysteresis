@@ -48,6 +48,10 @@ class DataFlow:
     def onCycleMeasured(self) -> QtCore.Signal:
         raise NotImplementedError
 
+    @QtCore.Slot(str, float)
+    def setGain(self, selector: str, gain: float) -> QtCore.Signal:
+        raise NotImplementedError
+
 
 class LocalFlowWorker(QtCore.QObject):
     def __init__(
@@ -209,6 +213,10 @@ class LocalDataFlow(DataFlow):
     @property
     def onCycleMeasured(self) -> QtCore.Signal:
         return self._add_measurement_ref.cycleDataAvailable
+
+    @QtCore.Slot(str, float)
+    def setGain(self, selector: str, gain: float) -> None:
+        self._correction.setGain(selector, gain)
 
 
 class UcapDataFlow(DataFlow): ...

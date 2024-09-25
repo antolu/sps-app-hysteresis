@@ -40,6 +40,9 @@ class TrimModel(QtCore.QObject):
     beamInRetrieved = QtCore.Signal(int, int)
     """ Signal emitted when beam in/out has been retrieved. (beam_in, beam_out) """
 
+    GainChanged = QtCore.Signal(str, float)  # selector, gain
+    """ Signal emitted when the gain has been changed. (selector, gain) """
+
     def __init__(self, parent: QtCore.QObject | None = None):
         """
         The TrimModel is responsible for the logic of the TrimWidget.
@@ -302,6 +305,8 @@ class TrimModel(QtCore.QObject):
 
         log.debug(f"Setting gain to {value:.2f} for selector {self.selector}.")
         self._gain = value
+
+        self.GainChanged.emit(self.selector, value)
 
     def set_gain(self, value: float) -> None:
         """

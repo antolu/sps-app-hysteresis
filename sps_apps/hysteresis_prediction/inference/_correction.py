@@ -24,12 +24,22 @@ class CalculateCorrection(EventBuilderAbc):
     def __init__(self, parent: QtCore.QObject | None = None) -> None:
         super().__init__(parent=parent)
 
-        self._gain = 1.0
         self._flatten = False
+
+        self._gain: dict[str, float] = {}
 
         # map cycle name to field reference [2, n_points]
         self._field_ref: dict[str, npt.NDArray[np.float64]] = {}
         self._field_ref_timestamps: dict[str, float] = {}
+
+    @QtCore.Slot(str, float)
+    def setGain(self, selector: str, gain: float) -> None:
+        log.debug(f"Setting gain for {selector} to {gain}.")
+        self._gain[selector] = gain
+
+    @QtCore.Slot(bool)
+    def setFlatten(self, flatten: bool) -> None:
+        self._flatten = flatten
 
     @QtCore.Slot(hystcomp_utils.cycle_data.CycleData)
     def onNewCycleData(self, cycle: hystcomp_utils.cycle_data.CycleData) -> None:
@@ -51,7 +61,9 @@ class CalculateCorrection(EventBuilderAbc):
         log.debug(msg)
 
         if cycle.correction is not None:  # and not cycle.cycle.endswith("ECO"):
-            correction = calc_new_correction(cycle.correction, delta, self._gain)
+            correction = calc_new_correction(
+                cycle.correction, delta, self._gain.get(cycle.user, 1.0)
+            )
             cycle.correction = correction
 
             msg = f"{cycle}: New correction calculated."
@@ -71,7 +83,6 @@ class CalculateCorrection(EventBuilderAbc):
             del self._field_ref[cycle_name]
         else:
             log.debug(f"{cycle_name}: Field reference not set. Nothing to reset.")
-        ...
 
     def _maybe_save_reference(
         self, cycle_data: hystcomp_utils.cycle_data.CycleData
