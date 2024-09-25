@@ -28,7 +28,8 @@ class IO:
         self._enabled = False
         return self
 
-    def set_enabled(self, enabled: bool) -> IO:
+    def set_enabled(self, enabled: bool = True) -> IO:
+        log.info("Setting IO enabled to {}".format(enabled))
         self._enabled = enabled
         return self
 
@@ -38,7 +39,7 @@ class IO:
 
     def save_data(self, cycle_data: CycleData) -> None:
         if not self.enabled:
-            log.debug("IO disabled, skipping save for {}".format(str(cycle_data)))
+            log.info("IO disabled, skipping save for {}".format(str(cycle_data)))
             return
 
         out_dir = Path(settings["save_dir", "."])
