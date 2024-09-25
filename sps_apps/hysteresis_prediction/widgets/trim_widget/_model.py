@@ -33,7 +33,102 @@ BEAM_IN = "SIX.MC-CTML/ControlValue#controlValue"
 BEAM_OUT = "SX.BEAM-OUT-CTML/ControlValue#controlValue"
 
 
-class TrimModel(QtCore.QObject):
+class TrimSettings:
+    def __init__(self) -> None:
+        self._gain: float = 1.0
+        self._dry_run = False
+        self._flatten = False
+
+        self._beam_in: int = 0
+        self._beam_out: int = 0
+
+        self._selector = ""
+
+    @property
+    def gain(self) -> float:
+        return self._gain
+
+    @gain.setter
+    def gain(self, value: float) -> None:
+        if value > 1.0:
+            log.warning(f"Gain {value:.2f} > 1.0, this may cause instability.")
+        elif value < 0.0:
+            raise ValueError(f"Gain {value:.2f} < 0.0, this is not allowed.")
+
+        log.debug(f"Setting gain to {value:.2f} for selector {self._selector}.")
+        self._gain = value
+
+    def set_gain(self, value: float) -> None:
+        """
+        Set the gain for the trim model.
+
+        Useful as a Qt slot.
+        """
+        self.gain = value
+
+    @property
+    def dry_run(self) -> bool:
+        return self._dry_run
+
+    @dry_run.setter
+    def dry_run(self, value: bool) -> None:
+        log.debug(f"Setting dry run to {value} for selector {self._selector}.")
+        self._dry_run = value
+
+    def set_dry_run(self, value: bool) -> None:
+        """
+        Set the dry run flag for the trim model.
+
+        Useful as a Qt slot.
+        """
+        self.dry_run = value
+
+    def set_trim_t_min(self, value: int) -> None:
+        if value < self._beam_in:
+            raise ValueError(
+                f"Trim t_min {value} < beam in {self._beam_in}, not allowed."
+            )
+        self._trim_t_min = value
+
+    def set_trim_t_max(self, value: int) -> None:
+        if value > self._beam_out:
+            raise ValueError(
+                f"Trim t_max {value} > beam out {self._beam_out}, not allowed."
+            )
+        self._trim_t_max = value
+
+    @property
+    def flatten(self) -> bool:
+        return self._flatten
+
+    @flatten.setter
+    def flatten(self, value: bool) -> None:
+        log.debug(f"Setting flatten to {value} for selector {self._selector}.")
+        self._flatten = value
+
+    def set_flatten(self, value: bool) -> None:
+        """
+        Set the flatten flag for the trim model.
+
+        Useful as a Qt slot.
+        """
+        self.flatten = value
+
+    def enable_trim(self) -> None:
+        """
+        Enable trim.
+        """
+        log.debug(f"Enabling trim for selector {self._selector}.")
+        self._trim_enabled = True
+
+    def disable_trim(self) -> None:
+        """
+        Disable trim.
+        """
+        log.debug(f"Disabling trim for selector {self._selector}")
+
+
+class TrimModel(QtCore.QObject, TrimSettings):
     trimApplied = QtCore.Signal(np.ndarray, datetime, str)
     """ Signal emitted when a trim has been applied. (corr_x, corr_y), time, comment """
 
@@ -61,7 +156,8 @@ class TrimModel(QtCore.QObject):
         parent : QtCore.QObject | None, optional
             The parent object, by default None
         """
-        super().__init__(parent=parent)
+        QtCore.QtObject.__init__(self, parent=parent)
+        TrimSettings.__init__(self)
 
         # to get beam in/out
         self._da = SimpleClient(provider=JapcProvider())
@@ -76,21 +172,17 @@ class TrimModel(QtCore.QObject):
             provider=LsaProvider(server=context.lsa_server, rbac_token=token)
         )
 
-        self._beam_in: int = 0
-        self._beam_out: int = 0
-        self._selector: str | None = None
-        self._reference_fields: dict[str, np.ndarray] = {}
-
         # settable properties
         self._trim_t_min: int = 0
         self._trim_t_max: int = 100000
-        self._gain: float = 1.0
-        self._dry_run = False
-        self._flatten = False
 
         # states
-        self._trim_enabled = False
         self._trim_lock = QtCore.QMutex()
+
+    def set_gain(self, value: float) -> None:
+        super().set_gain(value)
+
+        self.GainChanged.emit(self.selector, value)
 
     @QtCore.Slot(CycleData, name="onNewPrediction")
     def onNewPrediction(self, prediction: CycleData, *_: typing.Any) -> None:
@@ -291,92 +383,3 @@ class TrimModel(QtCore.QObject):
 
         log.info(f"Setting beam in/out to C{self._beam_in}/C{self._beam_out}.")
         self.beamInRetrieved.emit(self._beam_in, self._beam_out)
-
-    @property
-    def gain(self) -> float:
-        return self._gain
-
-    @gain.setter
-    def gain(self, value: float) -> None:
-        if value > 1.0:
-            log.warning(f"Gain {value:.2f} > 1.0, this may cause instability.")
-        elif value < 0.0:
-            raise ValueError(f"Gain {value:.2f} < 0.0, this is not allowed.")
-
-        log.debug(f"Setting gain to {value:.2f} for selector {self.selector}.")
-        self._gain = value
-
-        self.GainChanged.emit(self.selector, value)
-
-    def set_gain(self, value: float) -> None:
-        """
-        Set the gain for the trim model.
-
-        Useful as a Qt slot.
-        """
-        self.gain = value
-
-    @property
-    def dry_run(self) -> bool:
-        return self._dry_run
-
-    @dry_run.setter
-    def dry_run(self, value: bool) -> None:
-        log.debug(f"Setting dry run to {value} for selector {self.selector}.")
-        self._dry_run = value
-
-    def set_dry_run(self, value: bool) -> None:
-        """
-        Set the dry run flag for the trim model.
-
-        Useful as a Qt slot.
-        """
-        self.dry_run = value
-
-    @QtCore.Slot()
-    def reset_reference_fields(self) -> None:
-        self._reference_fields.clear()
-
-    def set_trim_t_min(self, value: int) -> None:
-        if value < self._beam_in:
-            raise ValueError(
-                f"Trim t_min {value} < beam in {self._beam_in}, not allowed."
-            )
-        self._trim_t_min = value
-
-    def set_trim_t_max(self, value: int) -> None:
-        if value > self._beam_out:
-            raise ValueError(
-                f"Trim t_max {value} > beam out {self._beam_out}, not allowed."
-            )
-        self._trim_t_max = value
-
-    @property
-    def flatten(self) -> bool:
-        return self._flatten
-
-    @flatten.setter
-    def flatten(self, value: bool) -> None:
-        log.debug(f"Setting flatten to {value} for selector {self.selector}.")
-        self._flatten = value
-
-    def set_flatten(self, value: bool) -> None:
-        """
-        Set the flatten flag for the trim model.
-
-        Useful as a Qt slot.
-        """
-        self.flatten = value
-
-    def enable_trim(self) -> None:
-        """
-        Enable trim.
-        """
-        log.debug(f"Enabling trim for selector {self.selector}.")
-        self._trim_enabled = True
-
-    def disable_trim(self) -> None:
-        """
-        Disable trim.
-        """
-        log.debug(f"Disabling trim for selector {self.selector}")
