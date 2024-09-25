@@ -42,6 +42,10 @@ class TrimSettings:
         self._beam_in: int = 0
         self._beam_out: int = 0
 
+        self._trim_enabled = False
+        self._trim_t_min: int = 0
+        self._trim_t_max: int = 100000
+
         self._selector = ""
 
     @property
