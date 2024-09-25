@@ -62,12 +62,12 @@ class CalculateCorrection(EventBuilderAbc):
     @QtCore.Slot(str)
     def resetReference(self, cycle_name: str | None = None) -> None:
         if cycle_name is None or cycle_name == "all":
-            log.debug("Resetting all field references.")
+            log.info("Resetting all field references.")
             self._field_ref.clear()
             return
 
         if cycle_name in self._field_ref:
-            log.debug(f"{cycle_name}: Resetting field reference.")
+            log.info(f"{cycle_name}: Resetting field reference.")
             del self._field_ref[cycle_name]
         else:
             log.debug(f"{cycle_name}: Field reference not set. Nothing to reset.")
@@ -152,11 +152,12 @@ def calc_delta_field(
         np.vstack((pred_t, pred_v)),
     )
 
-    ref_v = np.interp(
-        pred_t,
-        np.array([beam_in or ref_t[0], beam_out or ref_t[-1]]),
-        np.array([pred_v[0], pred_v[0]]),
-    )
+    # only use this when flattening
+    # ref_v = np.interp(
+    #     pred_t,
+    #     np.array([beam_in or ref_t[0], beam_out or ref_t[-1]]),
+    #     np.array([pred_v[0], pred_v[0]]),
+    # )
 
     # cut trim beyond time limits
     delta_v = ref_v - pred_v

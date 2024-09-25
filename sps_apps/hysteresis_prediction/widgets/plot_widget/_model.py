@@ -78,11 +78,7 @@ class PlotModel(QtCore.QObject):
                     - field_pred[1, :]
                 ) * 1e4
                 self._field_meas_diff_source.new_value(
-                    cycle_data.cycle_timestamp,
-                    np.stack(
-                        (field_pred[0, :], delta),
-                        axis=0,
-                    ),
+                    cycle_data.cycle_timestamp, np.vstack((field_pred[0, :], delta))
                 )
 
         except Exception:  # noqa: broad-except
@@ -113,7 +109,7 @@ class PlotModel(QtCore.QObject):
                 delta = (cycle_data.field_ref[1, :] - predicted[1, :]) * 1e4
                 self._field_ref_diff_source.new_value(
                     cycle_data.cycle_timestamp,
-                    np.stack([predicted[0, :], delta], axis=0),
+                    np.vstack([predicted[0, :], delta]),
                 )
         except Exception:  # noqa: broad-except
             log.exception("An exception occurred while publishing new predicted data.")

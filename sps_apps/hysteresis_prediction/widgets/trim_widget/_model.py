@@ -155,7 +155,7 @@ class TrimModel(QtCore.QObject):
             correction_t = cycle_data.correction[0]
             correction_v = cycle_data.correction[1]
             # log shapes
-            log.info(
+            log.debug(
                 f"[{cycle_data}] Correction shape: {correction_t.shape}, {correction_v.shape}"
             )
 

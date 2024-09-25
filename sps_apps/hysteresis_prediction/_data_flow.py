@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 import pyda_japc
 from qtpy import QtCore
 
@@ -15,6 +17,9 @@ from .data import (
     TrackFullEcoEventBuilder,
 )
 from .inference import CalculateCorrection, Inference
+
+
+log = logging.getLogger(__name__)
 
 
 class DataFlow:
@@ -151,8 +156,11 @@ class LocalDataFlow(DataFlow):
         self._track_fulleco.stop()
 
     def resetReference(self) -> None:
-        self._add_measurement_ref.resetReference()
-        self._correction.resetReference()
+        try:
+            self._add_measurement_ref.resetReference()
+            self._correction.resetReference()
+        except Exception:
+            log.exception("Error resetting reference.")
 
     def _connect_signals(self) -> None:
         self._create_cycle.cycleDataAvailable.connect(

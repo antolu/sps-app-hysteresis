@@ -65,7 +65,7 @@ class AddMeasurementReferencesEventBuilder(EventBuilderAbc):
                 log.error(f"{cycle_data}: field_meas is None")
                 return
 
-            log.error(f"{cycle_data}: Saving reference for the first time.")
+            log.debug(f"{cycle_data}: Saving reference for the first time.")
 
             self._reference_timestamps[cycle_data.cycle] = cycle_data.cycle_timestamp
             self._reference_fields[cycle_data.cycle] = cycle_data.field_meas
