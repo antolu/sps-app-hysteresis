@@ -68,7 +68,7 @@ class AddMeasurementReferencesEventBuilder(EventBuilderAbc):
             log.debug(f"{cycle_data}: Saving reference for the first time.")
 
             self._reference_timestamps[cycle_data.cycle] = cycle_data.cycle_timestamp
-            self._reference_fields[cycle_data.cycle] = cycle_data.field_meas
+            self._reference_fields[cycle_data.cycle] = cycle_data.field_meas.copy()
             return
 
         if cycle_data.reference_timestamp is None:
@@ -92,7 +92,7 @@ class AddMeasurementReferencesEventBuilder(EventBuilderAbc):
             )
 
             self._reference_timestamps[cycle_data.cycle] = cycle_data.cycle_timestamp
-            self._reference_fields[cycle_data.cycle] = cycle_data.field_meas
+            self._reference_fields[cycle_data.cycle] = cycle_data.field_meas.copy()
             return
 
     def resetReference(self, cycle_name: str | None = None) -> None:
