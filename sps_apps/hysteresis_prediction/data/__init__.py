@@ -1,4 +1,3 @@
-from ._acquisition import Acquisition  # noqa: F401
 from ._add_measurement_reference import AddMeasurementReferencesEventBuilder
 from ._add_measurements import AddMeasurementsEventBuilder
 from ._add_measurements_cycle_stamped import CycleStampedAddMeasurementsEventBuilder
@@ -17,7 +16,6 @@ from ._track_dyneco import TrackDynEcoEventBuilder
 from ._track_fulleco import TrackFullEcoEventBuilder
 
 for _mod in (
-    Acquisition,
     CreateCycleEventBuilder,
     AddMeasurementsEventBuilder,
     BufferEventbuilder,
