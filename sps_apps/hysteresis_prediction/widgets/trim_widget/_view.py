@@ -177,11 +177,11 @@ class TrimWidgetView(QtWidgets.QWidget):
 
         self.menu_bar = QtWidgets.QMenuBar(parent=self)
         self.menu_bar.setNativeMenuBar(False)
-        self.menu_bar.addAction("File")
+        self.file_menu = QtWidgets.QMenu("&File", parent=self.menu_bar)
         self.actionRefreshLsaSelector = QtWidgets.QAction(
             "Refresh LSA Selector", parent=self
         )
-        self.menu_bar.addAction(self.actionRefreshLsaSelector)
+        self.file_menu.addAction(self.actionRefreshLsaSelector)
         self.actionRefreshLsaSelector.triggered.connect(self.LsaSelector.model.refetch)
 
         self.TrimInfoWidget = TrimInfoWidget(parent=self)
