@@ -172,10 +172,10 @@ class PredictionAnalysisModel(QtCore.QObject):
                 self._n_acq_since_supercycle += 1
 
         if cycle_data.field_pred is None:
-            log.debug(f"No field prediction for {cycle_data.user}. Discarding.")
+            log.debug(f"[{cycle_data}]: No field prediction. Discarding.")
             return
 
-        log.debug(f"Adding new data to model for {cycle_data.user}.")
+        log.debug(f"[{cycle_data}]: Adding new data to model.")
         self._list_model.append(cycle_data)
 
     def _on_supercycle_changed(self) -> None:

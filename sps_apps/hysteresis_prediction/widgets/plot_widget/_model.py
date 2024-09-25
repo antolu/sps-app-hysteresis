@@ -72,7 +72,9 @@ class PlotModel(QtCore.QObject):
                 field_pred = cycle_data.field_pred
                 downsample_factor = cycle_data.field_meas.size // field_pred.shape[-1]
                 delta = (
-                    downsample_tf(cycle_data.field_meas, downsample_factor, "interval")
+                    downsample_tf(
+                        cycle_data.field_meas.flatten(), downsample_factor, "interval"
+                    )
                     - field_pred[1, :]
                 ) * 1e4
                 self._field_meas_diff_source.new_value(

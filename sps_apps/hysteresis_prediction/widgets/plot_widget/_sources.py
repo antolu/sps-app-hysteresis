@@ -104,8 +104,8 @@ class CurrentFieldSource(UpdateSource):
         on the length of the array. The sampling rate is assumed to be
         1kHz.
         """
-        time_range = np.arange(len(value)) / MS + cycle_timestamp / NS
         value = value.flatten()
+        time_range = np.arange(len(value)) / MS + cycle_timestamp / NS
 
         data = CurveData(x=time_range[:: self.downsample], y=value[:: self.downsample])
         self.send_data(data)

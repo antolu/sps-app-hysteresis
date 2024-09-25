@@ -75,23 +75,31 @@ class PredictionPlotModel(QtCore.QObject):
             item.diff_plot_item = _make_curve_item(x, y, color)
         except ValueError:  # missing reference
             log.debug("Reference not set, not plotting main plot.")
-        item.pred_plot_item = _make_curve_item(*_make_pred_curve(item), color)
+        try:
+            item.pred_plot_item = _make_curve_item(*_make_pred_curve(item), color)
 
-        assert item.cycle_data.field_meas is not None
-        assert item.cycle_data.current_meas is not None
-        item.meas_i_plot_item = _make_curve_item(
-            *_make_meas_curve(item, item.cycle_data.current_meas, self._meas_plot_mode),
-            color,
-        )
-        item.meas_b_plot_item = _make_curve_item(
-            *_make_meas_curve(item, item.cycle_data.field_meas, self._meas_plot_mode),
-            color,
-        )
-        item.delta_plot_item = _make_curve_item(
-            item.cycle_data.delta_applied[0],
-            item.cycle_data.delta_applied[1] * 1e4,
-            color,
-        )
+            assert item.cycle_data.field_meas is not None
+            assert item.cycle_data.current_meas is not None
+            item.meas_i_plot_item = _make_curve_item(
+                *_make_meas_curve(
+                    item, item.cycle_data.current_meas, self._meas_plot_mode
+                ),
+                color,
+            )
+            item.meas_b_plot_item = _make_curve_item(
+                *_make_meas_curve(
+                    item, item.cycle_data.field_meas, self._meas_plot_mode
+                ),
+                color,
+            )
+            item.delta_plot_item = _make_curve_item(
+                item.cycle_data.delta_applied[0],
+                item.cycle_data.delta_applied[1] * 1e4,
+                color,
+            )
+        except Exception:
+            log.exception(f"Failed to plot item {item}.")
+            return
 
         if item.diff_plot_item is not None:
             self.plotAdded.emit(item.diff_plot_item, Plot.Diff)
@@ -362,7 +370,7 @@ def make_meas_vs_meas(
     cycle_data: CycleData,
 ) -> tuple[np.ndarray, np.ndarray]:
     assert cycle_data.field_meas is not None
-    y = cycle_data.field_meas
+    y = cycle_data.field_meas.flatten()
 
     x = np.arange(0, cycle_data.num_samples)
 
@@ -376,7 +384,7 @@ def make_pred_vs_meas(
     assert cycle_data.field_meas is not None
 
     field_pred = cycle_data.field_pred[1, :]
-    field_meas = cycle_data.field_meas
+    field_meas = cycle_data.field_meas.flatten()
 
     downsample = calc_downsample(field_meas, field_pred)
 
@@ -417,8 +425,8 @@ def make_meas_vs_ref(
     assert cycle_data.field_meas is not None
     assert reference.field_meas is not None
 
-    field_meas = cycle_data.field_meas
-    field_ref = reference.field_meas
+    field_meas = cycle_data.field_meas.flatten()
+    field_ref = reference.field_meas.flatten()
 
     y = calc_abs_diff(field_ref, field_meas) * 1e4
     x = np.arange(0, cycle_data.num_samples)
@@ -501,6 +509,7 @@ def _make_meas_curve(
     item: PredictionItem, y: np.ndarray, meas_mode: MeasPlotMode
 ) -> tuple[np.ndarray, np.ndarray]:
     x = _make_time_axis(item)
+    y = y.flatten()
     if meas_mode is MeasPlotMode.RawMeas:
         return x, y
     elif meas_mode is MeasPlotMode.DownsampledMeas:
