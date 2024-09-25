@@ -97,6 +97,10 @@ class PredictionPlotModel(QtCore.QObject):
                 item.cycle_data.delta_applied[1] * 1e4,
                 color,
             )
+            item.ref_diff_plot_item = _make_curve_item(
+                *_make_diff_pred_vs_meas(item),
+                color,
+            )
         except Exception:
             log.exception(f"Failed to plot item {item}.")
             return
@@ -108,6 +112,7 @@ class PredictionPlotModel(QtCore.QObject):
         self.plotAdded.emit(item.meas_i_plot_item, Plot.MeasI)
         self.plotAdded.emit(item.meas_b_plot_item, Plot.MeasB)
         self.plotAdded.emit(item.delta_plot_item, Plot.Delta)
+        self.plotAdded.emit(item.ref_diff_plot_item, Plot.RefDiff)
 
         self._plotted_items.add(item)
         item.is_shown = True
@@ -210,6 +215,12 @@ class PredictionPlotModel(QtCore.QObject):
         if item.meas_b_plot_item is not None:
             self.plotRemoved.emit(item.meas_b_plot_item, Plot.MeasB)
             item.meas_b_plot_item = None
+        if item.delta_plot_item is not None:
+            self.plotRemoved.emit(item.delta_plot_item, Plot.Delta)
+            item.delta_plot_item = None
+        if item.ref_diff_plot_item is not None:
+            self.plotRemoved.emit(item.ref_diff_plot_item, Plot.RefDiff)
+            item.ref_diff_plot_item = None
 
         if item.color is not None:
             self._color_pool.return_color(item.color)
@@ -390,11 +401,7 @@ def make_pred_vs_meas(
 
     time_axis = _make_time_axis(cycle_data)
     time_axis_downsampled = time_axis[::downsample]
-    print("Pred vs meas", len(time_axis), len(time_axis_downsampled))
-    # if len(time_axis_downsampled) >= len(field_pred):
-    #     time_axis_downsampled = time_axis_downsampled[: len(field_pred)]
-    # else:
-    #     field_pred = field_pred[: len(time_axis_downsampled)]
+
     field_pred = np.interp(time_axis, time_axis_downsampled, field_pred)
     y = calc_abs_diff(field_meas, field_pred) * 1e4
 
@@ -520,6 +527,34 @@ def _make_meas_curve(
         return x[::downsample], y
     else:
         raise ValueError(f"Invalid plot mode {meas_mode.name}")
+
+
+def _make_diff_pred_vs_meas(
+    item: PredictionItem,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Calculates:
+        delta1 = field_pred_ref - field_pred
+        delta2 = field_meas_ref - field_meas
+        delta = delta2 - delta1
+    """
+    cycle = item.cycle_data
+    assert cycle.field_meas is not None
+    assert cycle.field_meas_ref is not None
+    assert cycle.field_pred is not None
+    assert cycle.field_ref is not None
+
+    ref_t = cycle.field_ref[0, :]
+    delta1 = calc_abs_diff(cycle.field_ref[1, :], cycle.field_pred[1, :])
+
+    meas_t = _make_time_axis(item)
+
+    delta2 = calc_abs_diff(cycle.field_meas_ref, cycle.field_meas).flatten()
+    delta2 = np.interp(ref_t, meas_t, delta2)
+
+    delta = delta2 - delta1
+
+    return ref_t, delta
 
 
 def _update_curve(x: np.ndarray, y: np.ndarray, curve: pg.PlotCurveItem) -> None:
