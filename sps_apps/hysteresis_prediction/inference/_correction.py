@@ -7,8 +7,10 @@ import hystcomp_utils.cycle_data
 import numpy as np
 import numpy.typing as npt
 import pyda
+import scipy.signal
 import pyda.data
 from qtpy import QtCore
+from transformertf.utils import signal
 
 from ..data import EventBuilderAbc
 
@@ -55,15 +57,21 @@ class CalculateCorrection(EventBuilderAbc):
             return
 
         delta = calc_delta_field(self._field_ref[cycle.cycle], cycle.field_pred)
+        # delta[1] = scipy.signal.savgol_filter(delta[1], 11, 2)
+        delta[1] = signal.perona_malik_smooth(delta[1], 5.0, 5e-2, 2.0)
         cycle.delta_applied = delta
 
         msg = f"{cycle}: Delta calculated."
         log.debug(msg)
 
         if cycle.correction is not None:  # and not cycle.cycle.endswith("ECO"):
-            correction = calc_new_correction(
-                cycle.correction, delta, self._gain.get(cycle.user, 1.0)
-            )
+            try:
+                correction = calc_new_correction(
+                    cycle.correction, delta, self._gain.get(cycle.user, 1.0)
+                )
+            except:
+                log.exception(f"{cycle}: Could not calculate correction.")
+                return
             cycle.correction_applied = correction
 
             msg = f"{cycle}: New correction calculated."
@@ -218,37 +226,38 @@ def match_array_size(
         # upsample LSA trim to match prediction, keep BP edges
         new_x = np.concatenate((new_correction[0], current_correction[0]))
         new_x = np.sort(np.unique(new_x))
-        current_correction = np.interp(
+        current_correction = np.vstack((new_x, np.interp(
             new_x,
             *current_correction,
-        )
+        )))
 
         # upsample prediction to match new LSA trim
-        new_correction = np.interp(
+        new_correction = np.vstack((new_x, np.interp(
             new_x,
             *new_correction,
-        )
+        )))
     elif current_correction[0].size > new_correction[0].size:
         # upsample prediction to match LSA trim
-        new_correction = np.interp(
+        new_correction = np.vstack((current_correction[0], np.interp(
             current_correction[0],
             *new_correction,
-        )
+        )))
+
         new_x = current_correction[0]
     else:
         new_x = np.concatenate((new_correction[0], current_correction[0]))
         new_x = np.sort(np.unique(new_x))
-        current_correction = np.interp(
+        current_correction = np.vstack((new_x, np.interp(
             new_x,
             *current_correction,
-        )
+        )))
 
-        new_correction = np.interp(
+        new_correction = np.vstack((new_x, np.interp(
             new_x,
             *new_correction,
-        )
+        )))
 
-    return np.vstack((new_x, current_correction)), np.vstack((new_x, new_correction))
+    return np.vstack((new_x, current_correction[1])), np.vstack((new_x, new_correction[1]))
 
 
 def cut_trim_beyond_time(
@@ -300,7 +309,8 @@ def calc_new_correction(
     )
 
     # calculate correction
-    new_correction = (current_correction + gain * delta[1]).astype(np.float64)
+    new_correction = (current_correction[1] + gain * delta[1]).astype(np.float64)
+    log.warning(current_correction[1])
 
     # smooth the correction
     # new_correction = signal.perona_malik_smooth(

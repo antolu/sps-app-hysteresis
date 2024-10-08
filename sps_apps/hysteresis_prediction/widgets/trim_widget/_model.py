@@ -367,6 +367,9 @@ class TrimModel(QtCore.QObject, TrimSettings):
         if comment is None:
             comment = "Hysteresis prediction correction " + str(now)[:-7]
 
+        msg = f"Sending trim to LSA with {time_axis}: {correction}"
+        log.debug(msg)
+
         func: DiscreteFunction = DiscreteFunction(time_axis, correction)
         resp_set = self._lsa.set(
             endpoint=LsaEndpoint(
