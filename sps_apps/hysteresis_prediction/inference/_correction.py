@@ -7,7 +7,6 @@ import hystcomp_utils.cycle_data
 import numpy as np
 import numpy.typing as npt
 import pyda
-import scipy.signal
 import pyda.data
 from qtpy import QtCore
 from transformertf.utils import signal
@@ -69,7 +68,7 @@ class CalculateCorrection(EventBuilderAbc):
                 correction = calc_new_correction(
                     cycle.correction, delta, self._gain.get(cycle.user, 1.0)
                 )
-            except:
+            except:  # noqa: E722
                 log.exception(f"{cycle}: Could not calculate correction.")
                 return
             cycle.correction_applied = correction
