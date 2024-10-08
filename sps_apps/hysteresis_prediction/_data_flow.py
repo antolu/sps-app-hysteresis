@@ -16,6 +16,7 @@ from .data import (
     TrackDynEcoEventBuilder,
     TrackFullEcoEventBuilder,
 )
+from .signals import TrackPrecycleEventBuilder
 from .inference import CalculateCorrection, Inference
 
 
@@ -130,6 +131,9 @@ class LocalDataFlow(DataFlow):
 
         self._track_dyneco = TrackDynEcoEventBuilder(provider=provider, parent=parent)
         self._track_fulleco = TrackFullEcoEventBuilder(provider=provider, parent=parent)
+        self._track_precycle = TrackPrecycleEventBuilder(
+            precycle_sequence=["SPS.USER.LHCPILOT", "SPS.USER.MD1"], parent=parent
+        )
 
         self._connect_signals()
 
@@ -171,8 +175,9 @@ class LocalDataFlow(DataFlow):
             self._add_measurements_pre.onNewCycleData
         )
         self._add_measurements_pre.cycleDataAvailable.connect(
-            self._buffer.onNewCycleData
+            self._track_precycle.onNewCycleData
         )
+        self._track_precycle.cycleDataAvailable.connect(self._buffer.onNewCycleData)
         self._add_measurements_pre.cycleDataAvailable.connect(
             self._start_cycle.onNewCycleData
         )
