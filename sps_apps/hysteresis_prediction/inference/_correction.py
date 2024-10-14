@@ -88,6 +88,7 @@ class CalculateCorrection(EventBuilderAbc):
         if cycle_name in self._field_ref:
             log.info(f"{cycle_name}: Resetting field reference.")
             del self._field_ref[cycle_name]
+            del self._field_ref_timestamps[cycle_name]
         else:
             log.debug(f"{cycle_name}: Field reference not set. Nothing to reset.")
 
@@ -103,14 +104,20 @@ class CalculateCorrection(EventBuilderAbc):
             and np.allclose(cycle_data.cycle_timestamp, cycle_data.reference_timestamp)
             and cycle_data.cycle.endswith("ECO")
         ):
-            msg = (
-                f"{cycle_data}: Last cycle was ECO, need to delete the last reference."
-            )
-            log.debug(msg)
-
             cycle_name = "_".join(cycle_data.cycle.split("_")[:-1])
-            self.resetReference(cycle_name)
+
+            # compare non-ECO cycle to ECO cycle, if the same, delete the reference
+            # because the ECO cycle is the reference
+            if self._field_ref_timestamps[cycle_name] == cycle_data.cycle_timestamp:
+                msg = (
+                    f"{cycle_data}: Last cycle was ECO, need to delete the last reference."
+                )
+                log.debug(msg)
+
+                self.resetReference(cycle_name)
             cycle_data.reference_timestamp = None
+
+            # then, save or update the reference with the ECO cycle name
 
         if cycle_data.cycle not in self._field_ref:
             log.debug(
