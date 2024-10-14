@@ -5,6 +5,7 @@ import logging
 import numpy as np
 from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
+import scipy.signal
 from transformertf.data import downsample as downsample_tf
 
 from ..._data_flow import DataFlow
@@ -107,6 +108,7 @@ class PlotModel(QtCore.QObject):
             if cycle_data.field_ref is not None:
                 log.debug(f"{cycle_data}: Plotting field diff for cycle.")
                 delta = (cycle_data.field_ref[1, :] - predicted[1, :]) * 1e4
+                delta = scipy.signal.savgol_filter(delta, 5, 3)
                 self._field_ref_diff_source.new_value(
                     cycle_data.cycle_timestamp,
                     np.vstack([predicted[0, :], delta]),

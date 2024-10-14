@@ -79,8 +79,8 @@ class TrackDynEcoEventBuilder(EventBuilderAbc):
         log.debug(msg)
 
         if cycle_data.cycle.endswith("ECO"):
-            msg = f"{id_} Cycle data is already ECO. This shouldn't happen."
-            log.error(msg)
+            msg = f"{id_} Cycle data is already ECO. Skipping."
+            log.warning(msg)
             return None
 
         orig_cycle = cycle_data.cycle
@@ -90,7 +90,7 @@ class TrackDynEcoEventBuilder(EventBuilderAbc):
         msg = f"{id_} Updated cycle data {orig_cycle} -> {cycle_data.cycle}."
         log.debug(msg)
 
-        self.onNewCycleData(cycle_data)
+        self.cycleDataAvailable.emit(cycle_data)
 
     def onNewCycleData(self, cycle_data: hystcomp_utils.cycle_data.CycleData) -> None:
         msg = f"[{cycle_data}]: Received data, saving to buffer."

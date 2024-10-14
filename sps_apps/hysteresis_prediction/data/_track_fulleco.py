@@ -97,10 +97,10 @@ class TrackFullEcoEventBuilder(BufferedSubscriptionEventBuilder):
             if cycle_data.cycle.endswith("ECO"):
                 msg = f"[{cycle_data}]: ECO cycle has already had programs updated."
                 log.debug(msg)
-                self.cycleDataAvailable.emit(cycle_data)
+                # self.cycleDataAvailable.emit(cycle_data)
                 return
 
-            self.onNewCycleData(cycle_data)
+            self.cycleDataAvailable.emit(cycle_data)
 
         # unknown parameter
         msg = f"Received unknown acquisition for {parameter}@{selector}."
