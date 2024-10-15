@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import logging
+import typing
 
 import pyda_japc
 from qtpy import QtCore
 
-from .data import (
+from ..data import (
     AddMeasurementReferencesEventBuilder,
     AddMeasurementsEventBuilder,
     AddProgrammedEventBuilder,
@@ -16,50 +17,21 @@ from .data import (
     TrackDynEcoEventBuilder,
     TrackFullEcoEventBuilder,
 )
-from .signals import TrackPrecycleEventBuilder
-from .inference import CalculateCorrection, Inference
+from ..signals import TrackPrecycleEventBuilder
+from ..inference import CalculateCorrection, Inference
+from ._data_flow import DataFlow, FlowWorker
 
 
 log = logging.getLogger(__name__)
 
 
-class DataFlow:
-    def start(self) -> None:
-        raise NotImplementedError
 
-    def stop(self) -> None:
-        raise NotImplementedError
-
-    def resetReference(self) -> None:
-        raise NotImplementedError
-
-    @property
-    def onCycleForewarning(self) -> QtCore.Signal:
-        raise NotImplementedError
-
-    @property
-    def onCycleStart(self) -> QtCore.Signal:
-        raise NotImplementedError
-
-    @property
-    def onCycleCorrectionCalculated(self) -> QtCore.Signal:
-        raise NotImplementedError
-
-    @property
-    def onCycleMeasured(self) -> QtCore.Signal:
-        raise NotImplementedError
-
-    @QtCore.Slot(str, float)
-    def setGain(self, selector: str, gain: float) -> QtCore.Signal:
-        raise NotImplementedError
-
-
-class LocalFlowWorker(QtCore.QObject):
+class LocalFlowWorker(FlowWorker):
     def __init__(
-        self,
-        provider: pyda_japc.JapcProvider,
-        buffer_size: int = 60000,
-        parent: QtCore.QObject | None = None,
+            self,
+            provider: pyda_japc.JapcProvider,
+            buffer_size: int = 60000,
+            parent: QtCore.QObject | None = None,
     ) -> None:
         super().__init__(parent=parent)
         self._data_flow: LocalDataFlow | None = None
@@ -67,36 +39,12 @@ class LocalFlowWorker(QtCore.QObject):
         self._provider = provider
         self._buffer_size = buffer_size
 
-        self._mutex = QtCore.QMutex()
-        self.cv = QtCore.QWaitCondition()
-
-    def init_data_flow(self) -> None:
-        if self._data_flow is not None:
-            msg = "Data flow already initialized."
-            raise ValueError(msg)
-
-        with QtCore.QMutexLocker(self._mutex):
-            self._data_flow = LocalDataFlow(
-                provider=self._provider,
-                buffer_size=self._buffer_size,
-                parent=self.parent(),
-            )
-
-            self.cv.wakeAll()
-
-    def wait(self) -> None:
-        self.cv.wait(self._mutex)
-
-    def start(self) -> None:
-        if self._data_flow is None:
-            self.init_data_flow()
-
-        assert self._data_flow is not None
-        self._data_flow.start()
-
-    def stop(self) -> None:
-        if self._data_flow is not None:
-            self._data_flow.stop()
+    def _init_data_flow_impl(self) -> None:
+        self._data_flow = LocalDataFlow(
+            provider=self._provider,
+            buffer_size=self._buffer_size,
+            parent=self.parent(),
+        )
 
     @property
     def data_flow(self) -> LocalDataFlow:
@@ -108,10 +56,10 @@ class LocalFlowWorker(QtCore.QObject):
 
 class LocalDataFlow(DataFlow):
     def __init__(
-        self,
-        provider: pyda_japc.JapcProvider,
-        buffer_size: int = 60000,
-        parent: QtCore.QObject | None = None,
+            self,
+            provider: pyda_japc.JapcProvider,
+            buffer_size: int = 60000,
+            parent: QtCore.QObject | None = None,
     ) -> None:
         self._create_cycle = CreateCycleEventBuilder(provider=provider, parent=parent)
         self._add_measurements_pre = AddMeasurementsEventBuilder(
@@ -222,5 +170,3 @@ class LocalDataFlow(DataFlow):
     def setGain(self, selector: str, gain: float) -> None:
         self._correction.setGain(selector, gain)
 
-
-class UcapDataFlow(DataFlow): ...

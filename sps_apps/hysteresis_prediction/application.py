@@ -9,7 +9,7 @@ from qtpy import QtCore, QtWidgets
 from rich.logging import RichHandler
 
 from . import __version__
-from ._data_flow import LocalFlowWorker
+from .flow import LocalFlowWorker, UcapFlowWorker
 from .main_window import MainWindow
 
 torch.set_float32_matmul_precision("high")
@@ -65,6 +65,13 @@ def main() -> None:
         help="Buffer size for acquisition.",
     )
     parser.add_argument(
+        "-d",
+        "--data-source",
+        dest="data_source",
+        choices=["local", "ucap"],
+        default="local",
+    )
+    parser.add_argument(
         "--lsa-server",
         dest="lsa_server",
         choices=["sps", "next"],
@@ -94,10 +101,18 @@ def main() -> None:
         pass
 
     data_thread = QtCore.QThread()
-    flow_worker = LocalFlowWorker(
-        buffer_size=args.buffer_size,
-        provider=context.japc_provider,
-    )
+    if args.data_source == "local":
+        flow_worker = LocalFlowWorker(
+            buffer_size=args.buffer_size,
+            provider=context.japc_provider,
+        )
+    elif args.data_source == "ucap":
+        flow_worker = UcapFlowWorker(
+            provider=context.japc_provider,
+        )
+    else:
+        raise ValueError(f"Invalid data source: {args.data_source}")
+
     flow_worker.moveToThread(data_thread)
     flow_worker.init_data_flow()
 

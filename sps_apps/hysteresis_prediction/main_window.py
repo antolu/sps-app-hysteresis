@@ -11,7 +11,7 @@ from accwidgets.rbac import RbaButton
 from op_app_context import context
 from qtpy import QtGui, QtWidgets
 
-from ._data_flow import LocalDataFlow
+from .flow import LocalDataFlow
 from .generated.main_window_ui import Ui_main_window
 from .io import IO
 from .utils import load_cursor
