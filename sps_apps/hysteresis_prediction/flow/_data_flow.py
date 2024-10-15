@@ -71,6 +71,12 @@ class FlowWorker(QtCore.QObject):
         assert self._data_flow is not None
         self._data_flow.start()
 
+    def stop(self) -> None:
+        if self._data_flow is None:
+            return
+
+        self._data_flow.stop()
+
     @property
     def data_flow(self) -> DataFlow:
         raise NotImplementedError
