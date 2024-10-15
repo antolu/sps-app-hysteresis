@@ -109,9 +109,7 @@ class CalculateCorrection(EventBuilderAbc):
             # compare non-ECO cycle to ECO cycle, if the same, delete the reference
             # because the ECO cycle is the reference
             if self._field_ref_timestamps[cycle_name] == cycle_data.cycle_timestamp:
-                msg = (
-                    f"{cycle_data}: Last cycle was ECO, need to delete the last reference."
-                )
+                msg = f"{cycle_data}: Last cycle was ECO, need to delete the last reference."
                 log.debug(msg)
 
                 self.resetReference(cycle_name)
