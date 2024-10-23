@@ -19,11 +19,19 @@ class DataFlow:
         raise NotImplementedError
 
     @property
+    def onModelLoaded(self) -> QtCore.Signal:
+        raise NotImplementedError
+
+    @property
     def onCycleForewarning(self) -> QtCore.Signal:
         raise NotImplementedError
 
     @property
     def onCycleStart(self) -> QtCore.Signal:
+        raise NotImplementedError
+
+    @property
+    def resetState(self) -> QtCore.Signal:
         raise NotImplementedError
 
     @property
@@ -79,4 +87,8 @@ class FlowWorker(QtCore.QObject):
 
     @property
     def data_flow(self) -> DataFlow:
-        raise NotImplementedError
+        if self._data_flow is None:
+            self.init_data_flow()
+
+        assert self._data_flow is not None
+        return self._data_flow

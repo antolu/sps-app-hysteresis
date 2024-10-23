@@ -43,6 +43,8 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
     _onCorrectionCalculated = QtCore.Signal(hystcomp_utils.cycle_data.CycleData)
     _onCycleMeasured = QtCore.Signal(hystcomp_utils.cycle_data.CycleData)
 
+    _dummy = QtCore.Signal()
+
     def __init__(self, provider: pyda_japc.JapcProvider, parent: QtCore.QObject | None = None) -> None:
         super().__init__(parent=parent)
         self._provider = provider
@@ -59,21 +61,29 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
         )
 
         self._should_stop = False
-        self._handles = self._setup_subscriptions()
+        self._handles: list[pyda.clients.asyncio.AsyncIOSubscription] = []
 
     def _setup_subscriptions(self) -> list[pyda.clients.asyncio.AsyncIOSubscription]:
+        matches = [ENDPOINT_RE.match(CYCLE_WARNING), ENDPOINT_RE.match(CYCLE_CORRECTION), ENDPOINT_RE.match(CYCLE_MEASURED)]
         return [
-            self._da.subscribe(CYCLE_WARNING, context="SPS.USER.ALL"),
-            self._da.subscribe(CYCLE_CORRECTION, context="SPS.USER.ALL"),
-            self._da.subscribe(CYCLE_MEASURED, context="SPS.USER.ALL"),
+            self._da.subscribe(
+                endpoint=pyda.data.StandardEndpoint(
+                    device_name=match.group("device"),
+                    property_name=match.group("property"),
+                ),
+                context="SPS.USER.ALL"
+            )
+            for match in matches
         ]
 
     def start(self) -> None:
         self._start_cycle_event_builder.start()
 
-        asyncio.create_task(self._start())
+        asyncio.run(self._start())
 
     async def _start(self) -> None:
+        self._handles = self._setup_subscriptions()
+
         async for sub in pyda.AsyncIOClient.merge_subscriptions(*self._handles):
             if self._should_stop:
                 break
@@ -95,6 +105,14 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
 
     def stop(self) -> None:
         self._should_stop = True
+
+    @property
+    def onModelLoaded(self) -> QtCore.Signal:
+        return self._dummy
+
+    @property
+    def resetState(self) -> QtCore.Signal:
+        return self._dummy
 
     @property
     def onCycleStart(self) -> QtCore.Signal:

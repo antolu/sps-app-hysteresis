@@ -55,6 +55,8 @@ class LocalFlowWorker(FlowWorker):
 
 
 class LocalDataFlow(DataFlow):
+    _resetState = QtCore.Signal()
+
     def __init__(
             self,
             provider: pyda_japc.JapcProvider,
@@ -150,6 +152,16 @@ class LocalDataFlow(DataFlow):
         self._correction.cycleDataAvailable.connect(self._track_fulleco.onNewCycleData)
         self._track_dyneco.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)
         self._track_fulleco.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)
+
+        self._resetState.connect(self._predict.reset_state)
+
+    @property
+    def onModelLoaded(self) -> QtCore.Signal:
+        return self._predict.model_loaded
+
+    @property
+    def resetState(self) -> QtCore.Signal:
+        return self._resetState
 
     @property
     def onCycleForewarning(self) -> QtCore.Signal:

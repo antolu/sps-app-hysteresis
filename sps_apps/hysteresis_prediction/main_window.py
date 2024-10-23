@@ -88,14 +88,14 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         self._data.onCycleMeasured.connect(self._io.save_data)
 
-        self._data._predict.model_loaded.connect(
+        self._data.onModelLoaded.connect(
             lambda: QtWidgets.QMessageBox.information(
                 self,
                 "Model loaded",
                 "Model successfully loaded.\nPredictions will now start.",
             )
         )
-        self._data._predict.model_loaded.connect(
+        self._data.onModelLoaded.connect(
             lambda: self._data._predict.set_do_inference(True)
         )
 
@@ -118,7 +118,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
                 self.actionAutoregressive.isChecked()
             )
         )
-        self.actionReset_state.triggered.connect(self._data._predict.reset_state)
+        self.actionReset_state.triggered.connect(self._data.resetState.emit)
 
         self.actionPrediction_Analysis.triggered.connect(self.show_prediction_analysis)
         self.action_Trim_View.triggered.connect(self.show_trim_widget)
@@ -129,18 +129,18 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         #         AppStatus.INFERENCE_ENABLED if enabled else AppStatus.INFERENCE_DISABLED
         #     )
         # )
-        self._data._predict.model_loaded.connect(
+        self._data.onModelLoaded.connect(
             lambda *_: self._status_manager.statusChanged.emit(AppStatus.MODEL_LOADED)
             and self._status_manager.statusChanged.emit(AppStatus.INFERENCE_ENABLED)
         )
-        self._data._predict.predictionStarted.connect(
-            lambda *_: self._status_manager.statusChanged.emit(
-                AppStatus.INFERENCE_RUNNING
-            )
-        )
-        self._data._predict.predictionFinished.connect(
-            lambda *_: self._status_manager.statusChanged.emit(AppStatus.INFERENCE_IDLE)
-        )
+        # self._data._predict.predictionStarted.connect(
+        #     lambda *_: self._status_manager.statusChanged.emit(
+        #         AppStatus.INFERENCE_RUNNING
+        #     )
+        # )
+        # self._data._predict.predictionFinished.connect(
+        #     lambda *_: self._status_manager.statusChanged.emit(AppStatus.INFERENCE_IDLE)
+        # )
         self._status_manager.setStatus.connect(self.widgetSettings.status_changed.emit)
 
         self._status_manager.statusChanged.emit(AppStatus.NO_MODEL)
