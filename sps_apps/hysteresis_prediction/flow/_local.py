@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import typing
 
 import pyda_japc
 from qtpy import QtCore
@@ -25,13 +24,12 @@ from ._data_flow import DataFlow, FlowWorker
 log = logging.getLogger(__name__)
 
 
-
 class LocalFlowWorker(FlowWorker):
     def __init__(
-            self,
-            provider: pyda_japc.JapcProvider,
-            buffer_size: int = 60000,
-            parent: QtCore.QObject | None = None,
+        self,
+        provider: pyda_japc.JapcProvider,
+        buffer_size: int = 60000,
+        parent: QtCore.QObject | None = None,
     ) -> None:
         super().__init__(parent=parent)
         self._data_flow: LocalDataFlow | None = None
@@ -58,10 +56,10 @@ class LocalDataFlow(DataFlow):
     _resetState = QtCore.Signal()
 
     def __init__(
-            self,
-            provider: pyda_japc.JapcProvider,
-            buffer_size: int = 60000,
-            parent: QtCore.QObject | None = None,
+        self,
+        provider: pyda_japc.JapcProvider,
+        buffer_size: int = 60000,
+        parent: QtCore.QObject | None = None,
     ) -> None:
         self._create_cycle = CreateCycleEventBuilder(provider=provider, parent=parent)
         self._add_measurements_pre = AddMeasurementsEventBuilder(
@@ -181,4 +179,3 @@ class LocalDataFlow(DataFlow):
 
     def setGain(self, selector: str, gain: float) -> None:
         self._correction.setGain(selector, gain)
-

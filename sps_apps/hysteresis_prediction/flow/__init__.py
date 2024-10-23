@@ -8,7 +8,14 @@ from ._ucap import UcapFlowWorker, UcapDataFlow
 from ._local import LocalFlowWorker, LocalDataFlow
 
 
-for _mod in (DataFlow, FlowWorker, UcapFlowWorker, UcapDataFlow, LocalFlowWorker, LocalDataFlow):
+for _mod in (
+    DataFlow,
+    FlowWorker,
+    UcapFlowWorker,
+    UcapDataFlow,
+    LocalFlowWorker,
+    LocalDataFlow,
+):
     replace_modname(_mod, __name__)
 
 del replace_modname
