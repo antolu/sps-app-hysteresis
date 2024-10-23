@@ -89,7 +89,8 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
                 ),
                 context="SPS.USER.ALL",
             )
-            for match in matches if match is not None
+            for match in matches
+            if match is not None
         ]
 
     def start(self) -> None:
