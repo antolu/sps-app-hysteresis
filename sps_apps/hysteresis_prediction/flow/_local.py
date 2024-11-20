@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from PyQt5.QtCore import QObject
 
 import pyda_japc
 from qtpy import QtCore
@@ -52,7 +53,7 @@ class LocalFlowWorker(FlowWorker):
         return self._data_flow
 
 
-class LocalDataFlow(DataFlow):
+class LocalDataFlow(DataFlow, QtCore.QObject):
     _resetState = QtCore.Signal()
 
     def __init__(
@@ -61,6 +62,7 @@ class LocalDataFlow(DataFlow):
         buffer_size: int = 60000,
         parent: QtCore.QObject | None = None,
     ) -> None:
+        QObject.__init__(self, parent=parent)
         self._create_cycle = CreateCycleEventBuilder(provider=provider, parent=parent)
         self._add_measurements_pre = AddMeasurementsEventBuilder(
             provider=provider, parent=parent
