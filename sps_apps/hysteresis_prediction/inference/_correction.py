@@ -9,7 +9,8 @@ import numpy.typing as npt
 import pyda
 import pyda.data
 from qtpy import QtCore
-from transformertf.utils import signal
+import scipy.signal
+import scipy.ndimage
 
 from ..data import EventBuilderAbc
 
@@ -57,7 +58,8 @@ class CalculateCorrection(EventBuilderAbc):
 
         delta = calc_delta_field(self._field_ref[cycle.cycle], cycle.field_pred)
         # delta[1] = scipy.signal.savgol_filter(delta[1], 11, 2)
-        delta[1] = signal.perona_malik_smooth(delta[1], 5.0, 5e-2, 2.0)
+        # delta[1] = signal.perona_malik_smooth(delta[1], 5.0, 5e-2, 2.0)
+        delta[1] = scipy.ndimage.gaussian_filter(delta[1], sigma=4)
         cycle.delta_applied = delta
 
         msg = f"{cycle}: Delta calculated."
