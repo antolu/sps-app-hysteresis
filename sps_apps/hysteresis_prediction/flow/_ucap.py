@@ -101,11 +101,9 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
     async def _start(self) -> None:
         self._handles = self._setup_subscriptions()
 
-        async for sub in pyda.AsyncIOClient.merge_subscriptions(*self._handles):
+        async for response in pyda.AsyncIOClient.merge_subscriptions(*self._handles):
             if self._should_stop:
                 break
-
-            response = await sub
 
             if response.exception is not None:
                 log.error(f"Error in subscription: {response.exception}")

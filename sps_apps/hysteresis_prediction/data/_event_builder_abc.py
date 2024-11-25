@@ -11,6 +11,7 @@ import hystcomp_utils.cycle_data
 import hystcomp_utils.ring_buffer
 import pyda
 import pyda._metadata
+import pyda.metadata
 import pyda.clients.callback
 import pyda.access
 import pyda.providers
@@ -78,7 +79,7 @@ class EventBuilderAbc(QtCore.QObject):
                 provider=(
                     pyda.providers.Provider(
                         data_source=provider,
-                        metadata_source=pyda._metadata.NoMetadataSource(),
+                        metadata_source=pyda.metadata.NoMetadataSource(),
                     )
                     if no_metadata_source
                     else provider
