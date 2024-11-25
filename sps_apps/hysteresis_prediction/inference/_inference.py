@@ -4,7 +4,7 @@ import logging
 import typing
 
 import numpy as np
-import pyda.data
+import pyda.access
 from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore, QtWidgets
 from sps_mlp_hystcomp import PETEPredictor, TFTPredictor
@@ -50,7 +50,7 @@ class Inference(EventBuilderAbc):
         self._prev_state: typing.Any | None = None
 
     def _handle_acquisition_impl(
-        self, fspv: pyda.data.PropertyRetrievalResponse
+        self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
         pass
 

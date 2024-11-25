@@ -12,10 +12,13 @@ import hystcomp_utils.ring_buffer
 import pyda
 import pyda._metadata
 import pyda.clients.callback
-import pyda.data
+import pyda.access
 import pyda.providers
 import pyda_japc
 from qtpy import QtCore
+
+
+from ._pyda import JapcEndpoint
 
 if sys.version_info < (3, 12):
     from typing_extensions import override
@@ -43,21 +46,8 @@ ENDPOINT_RE = re.compile(
 
 
 T = typing.TypeVar(
-    "T", pyda.data.PropertyRetrievalResponse, hystcomp_utils.cycle_data.CycleData
+    "T", pyda.access.PropertyRetrievalResponse, hystcomp_utils.cycle_data.CycleData
 )
-
-
-def endpoint_from_str(value: str) -> pyda.data.StandardEndpoint:
-    m = ENDPOINT_RE.match(value)
-
-    if not m:
-        msg = f"Not a valid endpoint: {value}."
-        raise ValueError(msg)
-
-    return pyda.data.StandardEndpoint(
-        device_name=m.group("device"),
-        property_name=m.group("property"),
-    )
 
 
 class EventBuilderAbc(QtCore.QObject):
@@ -113,7 +103,7 @@ class EventBuilderAbc(QtCore.QObject):
 
         handles = {}
         for sub in subscriptions:
-            endpoint = endpoint_from_str(sub.parameter)
+            endpoint = JapcEndpoint.from_str(sub.parameter)
             handle = self._da.subscribe(
                 endpoint=endpoint,
                 context=sub.selector,
@@ -137,7 +127,7 @@ class EventBuilderAbc(QtCore.QObject):
             log.debug(msg)
             handle.stop()
 
-    def handle_acquisition(self, fspv: pyda.data.PropertyRetrievalResponse) -> None:
+    def handle_acquisition(self, fspv: pyda.access.PropertyRetrievalResponse) -> None:
 
         try:
             self._handle_acquisition_impl(fspv)
@@ -146,7 +136,7 @@ class EventBuilderAbc(QtCore.QObject):
             log.exception(msg)
 
     def _handle_acquisition_impl(
-        self, fspv: pyda.data.PropertyRetrievalResponse
+        self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
         raise NotImplementedError
 
@@ -166,7 +156,7 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
         no_metadata_source: bool = False,
         parent: QtCore.QObject | None = None,
     ):
-        self._buffers: dict[str, dict[str, pyda.data.PropertyRetrievalResponse]] = (
+        self._buffers: dict[str, dict[str, pyda.access.PropertyRetrievalResponse]] = (
             {}
         )  # endpoint -> selector -> buffer
         self._buffered_subscriptions = (
@@ -188,7 +178,7 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
     def _needs_da(self) -> bool:
         return super()._needs_da() or len(self._buffered_subscriptions) > 0
 
-    def handle_acquisition(self, fspv: pyda.data.PropertyRetrievalResponse) -> None:
+    def handle_acquisition(self, fspv: pyda.access.PropertyRetrievalResponse) -> None:
         if str(fspv.query.endpoint) in self._buffered_subscriptions:
             try:
                 self._handle_buffered_acquisition_impl(fspv)
@@ -201,7 +191,7 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
         super().handle_acquisition(fspv)
 
     def _handle_buffered_acquisition_impl(
-        self, fspv: pyda.data.PropertyRetrievalResponse
+        self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
         if fspv.exception is not None:
             msg = f"Received exception for {fspv.query.endpoint}@{fspv.query.context}: {fspv.exception}."
@@ -209,7 +199,7 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
             return
 
         parameter = str(fspv.query.endpoint)
-        selector = str(fspv.value.header.selector)
+        selector = str(fspv.header.selector)
 
         msg = f"Received buffered acquisition for {parameter}@{selector}."
         log.debug(msg)
@@ -223,7 +213,7 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
 
     def _get_buffered_data(
         self, parameter: str, selector: str
-    ) -> pyda.data.PropertyRetrievalResponse:
+    ) -> pyda.access.PropertyRetrievalResponse:
         return self._buffers[parameter][selector]
 
 
@@ -252,7 +242,7 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
             dict[
                 str,
                 hystcomp_utils.ring_buffer.CycleStampRingBuffer[
-                    pyda.data.PropertyRetrievalResponse
+                    pyda.access.PropertyRetrievalResponse
                 ],
             ],
         ] = {sub.parameter: {} for sub in buffered_subscriptions or []}
@@ -292,7 +282,7 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
             self._clear_older_than(cycle_data.cycle_timestamp, selector)
 
     def _handle_acquisition_impl(
-        self, fspv: pyda.data.PropertyRetrievalResponse
+        self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
         msg = f"{self.__class__.__name__} does not subscribe to triggers."
         raise NotImplementedError(msg)
@@ -326,7 +316,7 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
 
     @override
     def _handle_buffered_acquisition_impl(
-        self, fspv: pyda.data.PropertyRetrievalResponse
+        self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
         if fspv.exception is not None:
             msg = f"Received exception for {fspv.query.endpoint}@{fspv.query.context}: {fspv.exception}."
@@ -334,21 +324,21 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
             return
 
         parameter = str(fspv.query.endpoint)
-        selector = str(fspv.value.header.selector)
+        selector = str(fspv.header.selector)
 
         msg = f"Received buffered acquisition for {parameter}@{selector}."
         log.debug(msg)
 
         self._add_to_buffer(parameter, selector, fspv)
 
-        if self._check_ready(fspv.value.header.cycle_timestamp, selector):
-            msg = f"Received all buffered acquisitions for {selector} with cycle time {fspv.value.header.cycle_time()}"
+        if self._check_ready(fspv.header.cycle_timestamp, selector):
+            msg = f"Received all buffered acquisitions for {selector} with cycle time {fspv.header.cycle_time()}"
             log.debug(msg)
-            self.onCycleStampGroupTriggered(fspv.value.header.cycle_timestamp, selector)
-            self._clear_older_than(fspv.value.header.cycle_timestamp, selector)
+            self.onCycleStampGroupTriggered(fspv.header.cycle_timestamp, selector)
+            self._clear_older_than(fspv.header.cycle_timestamp, selector)
 
     def _add_to_buffer(
-        self, parameter: str, selector: str, fspv: pyda.data.PropertyRetrievalResponse
+        self, parameter: str, selector: str, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
         if selector not in self._cycle_stamp_buffers[parameter]:
             self._cycle_stamp_buffers[parameter][selector] = (
@@ -364,5 +354,5 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
 
     def _get_buffered_data(
         self, parameter: str, selector: str
-    ) -> pyda.data.PropertyRetrievalResponse:
+    ) -> pyda.access.PropertyRetrievalResponse:
         raise NotImplementedError("This method is not implemented.")

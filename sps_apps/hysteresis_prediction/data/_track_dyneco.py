@@ -6,7 +6,7 @@ import logging
 import hystcomp_utils.cycle_data
 import numpy as np
 import pyda
-import pyda.data
+import pyda.access
 import pyda_japc
 from qtpy import QtCore
 
@@ -40,11 +40,11 @@ class TrackDynEcoEventBuilder(EventBuilderAbc):
         self._cycle_data_buffer: dict[str, hystcomp_utils.cycle_data.CycleData] = {}
 
     def _handle_acquisition_impl(
-        self, fspv: pyda.data.PropertyRetrievalResponse
+        self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
         parameter = str(fspv.query.endpoint)
         context = str(fspv.query.context)
-        header = fspv.value.header
+        header = fspv.header
         cycle_time_s = str(header.cycle_time())[:-7]
         selector = str(header.selector)
         id_ = f"[{selector}@{cycle_time_s}]"

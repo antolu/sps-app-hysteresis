@@ -7,7 +7,7 @@ import hystcomp_utils.cycle_data
 import numpy as np
 import numpy.typing as npt
 import pyda
-import pyda.data
+import pyda.access
 from qtpy import QtCore
 import scipy.signal
 import scipy.ndimage
@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 
 class CalculateCorrection(EventBuilderAbc):
     def _handle_acquisition_impl(
-        self, fspv: pyda.data.PropertyRetrievalResponse
+        self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
         pass
 

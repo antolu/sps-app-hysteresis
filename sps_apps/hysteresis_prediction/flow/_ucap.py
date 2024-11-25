@@ -6,14 +6,15 @@ import logging
 from qtpy import QtCore
 import pyda_japc
 import pyda._metadata
+import pyda.metadata
 import pyda.providers
 import asyncio
-import pyda.data
+import pyda.access
 import pyda.clients
 import re
 import hystcomp_utils.cycle_data
 
-from ..data import StartCycleEventBuilder
+from ..data import StartCycleEventBuilder, JapcEndpoint
 
 from ._data_flow import DataFlow, FlowWorker
 
@@ -64,7 +65,7 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
         self._da = pyda.AsyncIOClient(
             provider=pyda.providers.Provider(
                 data_source=self._provider,
-                metadata_source=pyda._metadata.NoMetadataSource(),
+                metadata_source=pyda.metadata.NoMetadataSource(),
             )
         )
 
@@ -83,13 +84,12 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
         ]
         return [
             self._da.subscribe(
-                endpoint=pyda.data.StandardEndpoint(
-                    device_name=match.group("device"),
-                    property_name=match.group("property"),
-                ),
+                endpoint=JapcEndpoint.from_str(endpoint),
                 context="SPS.USER.ALL",
             )
-            for match in matches
+            for match, endpoint in zip(
+                matches, [CYCLE_WARNING, CYCLE_CORRECTION, CYCLE_MEASURED]
+            )
             if match is not None
         ]
 
@@ -149,31 +149,39 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
 
     async def handle_cycle_forewarning(
         self,
-        response: pyda.data.PropertyRetrievalResponse[pyda.data.PropertyAccessQuery],
+        response: pyda.access.PropertyRetrievalResponse[
+            pyda.access.PropertyAccessQuery
+        ],
     ) -> None:
         cycle_data = extract_cycle_data(response.value)
         self._onCycleForewarning.emit(cycle_data)
 
     async def handle_cycle_correction_calculated(
         self,
-        response: pyda.data.PropertyRetrievalResponse[pyda.data.PropertyAccessQuery],
+        response: pyda.access.PropertyRetrievalResponse[
+            pyda.access.PropertyAccessQuery
+        ],
     ) -> None:
         cycle_data = extract_cycle_data(response.value)
         self._onCorrectionCalculated.emit(cycle_data)
 
     async def handle_cycle_measured(
         self,
-        response: pyda.data.PropertyRetrievalResponse[pyda.data.PropertyAccessQuery],
+        response: pyda.access.PropertyRetrievalResponse[
+            pyda.access.PropertyAccessQuery
+        ],
     ) -> None:
         cycle_data = extract_cycle_data(response.value)
         self._onCycleMeasured.emit(cycle_data)
 
-    async def handle_set_gain(self, response: pyda.data.PropertyUpdateResponse) -> None:
+    async def handle_set_gain(
+        self, response: pyda.access.PropertyUpdateResponse
+    ) -> None:
         pass
 
 
 def extract_cycle_data(
-    apv: pyda.data.AcquiredPropertyData,
+    apv: pyda.access.AcquiredPropertyData,
 ) -> hystcomp_utils.cycle_data.CycleData:
 
     return hystcomp_utils.cycle_data.CycleData.from_dict(apv.mutable_copy())

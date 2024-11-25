@@ -4,7 +4,7 @@ import logging
 
 import hystcomp_utils.cycle_data
 import pyda
-import pyda.data
+import pyda.access
 import pyda_japc
 from qtpy import QtCore
 
@@ -35,7 +35,7 @@ class StartCycleEventBuilder(EventBuilderAbc):
         self._cycle_data_buffer: dict[str, hystcomp_utils.cycle_data.CycleData] = {}
 
     def _handle_acquisition_impl(
-        self, fspv: pyda.data.PropertyRetrievalResponse
+        self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
         parameter = str(fspv.query.endpoint)
         context = str(fspv.query.context)
@@ -44,7 +44,7 @@ class StartCycleEventBuilder(EventBuilderAbc):
             msg = f"Received unknown acquisition for {parameter}@{context}."
             raise ValueError(msg)
 
-        selector = str(fspv.value.header.selector)
+        selector = str(fspv.header.selector)
         if selector not in self._cycle_data_buffer:
             log.error(f"Received trigger for cycle without data: {selector}.")
             return

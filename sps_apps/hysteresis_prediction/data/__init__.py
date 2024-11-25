@@ -14,6 +14,7 @@ from ._event_builder_abc import (
 from ._start_cycle import StartCycleEventBuilder
 from ._track_dyneco import TrackDynEcoEventBuilder
 from ._track_fulleco import TrackFullEcoEventBuilder
+from ._pyda import JapcEndpoint
 
 for _mod in (
     CreateCycleEventBuilder,
@@ -30,6 +31,7 @@ for _mod in (
     TrackFullEcoEventBuilder,
     TrackDynEcoEventBuilder,
     StartCycleEventBuilder,
+    JapcEndpoint,
 ):
     _mod.__module__ = __name__
 

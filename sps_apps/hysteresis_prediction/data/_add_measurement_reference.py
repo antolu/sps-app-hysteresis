@@ -7,7 +7,7 @@ import hystcomp_utils.cycle_data
 import numpy as np
 import numpy.typing as npt
 import pyda
-import pyda.data
+import pyda.access
 from qtpy import QtCore
 
 from ._event_builder_abc import EventBuilderAbc
@@ -32,7 +32,7 @@ class AddMeasurementReferencesEventBuilder(EventBuilderAbc):
         self._reference_fields: dict[str, npt.NDArray[np.float64]] = {}
 
     def _handle_acquisition_impl(
-        self, fspv: pyda.data.PropertyRetrievalResponse
+        self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
         msg = f"{self.__class__.__name__} does not subscribe to triggers."
         raise NotImplementedError(msg)

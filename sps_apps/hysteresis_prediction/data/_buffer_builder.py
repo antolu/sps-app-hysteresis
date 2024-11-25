@@ -6,7 +6,7 @@ import logging
 import hystcomp_utils.cycle_data
 import numpy as np
 import pyda
-import pyda.data
+import pyda.access
 from qtpy import QtCore
 
 from ._buffer import AcquisitionBuffer, InsufficientDataError
@@ -43,7 +43,7 @@ class BufferEventbuilder(EventBuilderAbc):
         self._acquisition_buffer = AcquisitionBuffer(buffer_size)
 
     def _handle_acquisition_impl(
-        self, fspv: pyda.data.PropertyRetrievalResponse
+        self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
         # no need to handle acquisition
         msg = f"{self.__class__.__name__} does not subscribe to triggers."

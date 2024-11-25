@@ -5,7 +5,7 @@ import logging
 import hystcomp_utils.cycle_data
 import numpy as np
 import pyda
-import pyda.data
+import pyda.access
 import pyda_japc
 from qtpy import QtCore
 
@@ -50,9 +50,9 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
         self._trigger = cycle_warning
 
     def _handle_acquisition_impl(
-        self, fspv: pyda.data.PropertyRetrievalResponse
+        self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
-        selector = str(fspv.value.header.selector)
+        selector = str(fspv.header.selector)
         msg = f"Received {fspv.query.endpoint} with {fspv.value.get('value')}"
         log.debug(msg)
 
@@ -92,7 +92,7 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
             cycle_data = hystcomp_utils.cycle_data.CycleData(
                 cycle=str(fspv.value.get("lsaCycleName")),
                 user=selector,
-                cycle_timestamp=fspv.value.header.cycle_timestamp,
+                cycle_timestamp=fspv.header.cycle_timestamp,
                 current_prog=current_prog,
                 field_prog=field_prog,
                 correction=bhys_corr,

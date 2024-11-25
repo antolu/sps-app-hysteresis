@@ -5,7 +5,7 @@ import logging
 import hystcomp_utils.cycle_data
 import numpy as np
 import pyda
-import pyda.data
+import pyda.access
 import pyda_japc
 from qtpy import QtCore
 
@@ -44,11 +44,11 @@ class TrackFullEcoEventBuilder(BufferedSubscriptionEventBuilder):
         self._cycle_data_buffer: dict[str, hystcomp_utils.cycle_data.CycleData] = {}
 
     def _handle_acquisition_impl(
-        self, fspv: pyda.data.PropertyRetrievalResponse
+        self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
         parameter = str(fspv.query.endpoint)
-        selector = str(fspv.value.header.selector)
-        cycle_time = fspv.value.header.cycle_time()
+        selector = str(fspv.header.selector)
+        cycle_time = fspv.header.cycle_time()
         cycle = fspv.value.get("lsaCycleName")
 
         if parameter == TRIGGER:

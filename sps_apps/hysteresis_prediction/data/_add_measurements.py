@@ -4,7 +4,7 @@ import logging
 
 import hystcomp_utils.cycle_data
 import pyda
-import pyda.data
+import pyda.access
 import pyda_japc
 from qtpy import QtCore
 
@@ -34,7 +34,7 @@ class AddMeasurementsEventBuilder(BufferedSubscriptionEventBuilder):
         )
 
     def _handle_acquisition_impl(
-        self, fspv: pyda.data.PropertyRetrievalResponse
+        self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
         msg = f"{self.__class__.__name__} does not subscribe to triggers."
         raise NotImplementedError(msg)
