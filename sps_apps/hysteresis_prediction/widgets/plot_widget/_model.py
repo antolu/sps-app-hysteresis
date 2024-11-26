@@ -9,7 +9,7 @@ import scipy.signal
 import scipy.ndimage
 from transformertf.data import downsample as downsample_tf
 
-from ..._data_flow import DataFlow
+from ...flow import DataFlow
 from ._sources import AcquiredDataType, CurrentFieldSource
 
 log = logging.getLogger(__name__)
