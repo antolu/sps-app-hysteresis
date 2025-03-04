@@ -16,13 +16,9 @@ from .generated.main_window_ui import Ui_main_window
 from .io import IO
 from .utils import load_cursor
 from .widgets import ModelLoadDialog, PlotModel
-from .widgets.plot_settings_widget import AppStatus
-from .widgets.prediction_analysis_widget import (
-    PredictionAnalysisModel,
-    PredictionAnalysisWidget,
-)
-from .widgets.status_tracker import StatusManager
 from .widgets.trim_widget import TrimModel, TrimWidgetView
+from .history import PredictionHistory
+from .widgets.history_widget import HistoryWidget
 
 log = logging.getLogger(__name__)
 
@@ -40,7 +36,6 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         self.setupUi(self)
 
-        self._analysis_widgets: dict[str, PredictionAnalysisWidget] = {}
         self._trim_widgets: dict[str, TrimWidgetView] = {}
 
         log_console = LogConsole(self)
@@ -56,22 +51,19 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self.timing_bar = timing_bar
 
         self._data = data_flow
-
-        self._status_manager = StatusManager(self)
+        self._history = PredictionHistory(self)
 
         plot_model = PlotModel(self._data, parent=self)
         self.widgetPlot.model = plot_model
 
         self._io = IO()
+        self._history_widget = HistoryWidget(self._history, parent=None)
 
         self._connect_signals()
         self._connect_actions()
 
-        # status messages
-        self._connect_status()
-
         self.show_trim_widget()
-        self.show_prediction_analysis()
+        self._history_widget.show()
 
     def _connect_signals(self) -> None:
         self.widgetSettings.timespan_changed.connect(self.widgetPlot.set_time_span)
@@ -87,6 +79,11 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         )
 
         self._data.onCycleMeasured.connect(self._io.save_data)
+
+        # connect history
+        self._data.onCycleCorrectionCalculated.connect(self._history.add_cycle)
+        self._data.onCycleStart.connect(self._history.add_cycle)
+        self._data.onCycleMeasured.connect(self._history.update_cycle)
 
         self._data.onModelLoaded.connect(
             lambda: QtWidgets.QMessageBox.information(
@@ -120,30 +117,8 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         )
         self.actionReset_state.triggered.connect(self._data.resetState.emit)
 
-        self.actionPrediction_Analysis.triggered.connect(self.show_prediction_analysis)
+        self.actionPrediction_Analysis.triggered.connect(self._history_widget.show)
         self.action_Trim_View.triggered.connect(self.show_trim_widget)
-
-    def _connect_status(self) -> None:
-        # self.widgetSettings.toggle_predictions.connect(
-        #     lambda enabled, *_: self._status_manager.statusChanged.emit(
-        #         AppStatus.INFERENCE_ENABLED if enabled else AppStatus.INFERENCE_DISABLED
-        #     )
-        # )
-        self._data.onModelLoaded.connect(
-            lambda *_: self._status_manager.statusChanged.emit(AppStatus.MODEL_LOADED)
-            and self._status_manager.statusChanged.emit(AppStatus.INFERENCE_ENABLED)
-        )
-        # self._data._predict.predictionStarted.connect(
-        #     lambda *_: self._status_manager.statusChanged.emit(
-        #         AppStatus.INFERENCE_RUNNING
-        #     )
-        # )
-        # self._data._predict.predictionFinished.connect(
-        #     lambda *_: self._status_manager.statusChanged.emit(AppStatus.INFERENCE_IDLE)
-        # )
-        self._status_manager.setStatus.connect(self.widgetSettings.status_changed.emit)
-
-        self._status_manager.statusChanged.emit(AppStatus.NO_MODEL)
 
     def on_load_model_triggered(self) -> None:
         dialog = ModelLoadDialog(parent=self)
@@ -159,32 +134,6 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self.widgetSettings.show()
         else:
             self.widgetSettings.hide()
-
-    def show_prediction_analysis(self) -> None:
-        if len(self._analysis_widgets) > 0:
-            uuid = list(self._analysis_widgets.keys())[0]
-            widget = self._analysis_widgets[uuid]
-            widget.show()
-            widget.raise_()
-
-            return
-
-        with load_cursor():
-            model = PredictionAnalysisModel()
-            widget = PredictionAnalysisWidget(model=model, parent=None)
-
-            self._data.onCycleMeasured.connect(model.onNewMeasuredData)
-
-            uuid = str(uuid4())
-            self._analysis_widgets[uuid] = widget
-
-            def closeEvent(self, event: QtGui.QCloseEvent) -> None:
-                event.ignore()
-                self.hide()
-
-            widget.closeEvent = types.MethodType(closeEvent, widget)  # type: ignore
-
-        widget.show()
 
     def show_trim_widget(self) -> None:
         if len(self._trim_widgets) > 0:

@@ -1,0 +1,47 @@
+from __future__ import annotations
+
+import logging
+
+from qtpy import QtCore
+
+from ._list_model import HistoryListModel
+from hystcomp_utils.cycle_data import CycleData
+
+
+log = logging.getLogger(__name__)
+
+
+class PredictionHistory(QtCore.QObject):
+    def __init__(self, parent: QtCore.QObject | None = None):
+        super().__init__(parent)
+
+        # map from cycle name to list model
+        self._history: dict[str, HistoryListModel] = {}
+
+    def add_cycle(self, cycle_data: CycleData) -> None:
+        """
+        Function to be called when new predictions are made, and a new cycle
+        should be added to the history.
+        """
+        if cycle_data.cycle not in self._history:
+            self._history[cycle_data.cycle] = HistoryListModel()
+
+        self._history[cycle_data.cycle].append(cycle_data)
+
+    def update_cycle(self, cycle_data: CycleData) -> None:
+        """
+        Function to be called whenever fields in a CycleData is updated, and the corresponding plots
+        should be updated as well.
+        """
+        if cycle_data.cycle in self._history:
+            self._history[cycle_data.cycle].update(cycle_data)
+        else:
+            msg = f"Cycle {cycle_data.cycle} not found in history, cannot update."
+            log.error(msg)
+
+    def model(self, cycle: str) -> HistoryListModel:
+        # create new model if cycle does not exist, to always keep track of history
+        if cycle not in self._history:
+            self._history[cycle] = HistoryListModel()
+
+        return self._history[cycle]

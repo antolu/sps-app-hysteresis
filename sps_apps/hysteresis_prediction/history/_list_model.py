@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import typing
 from collections import deque
+import logging
 
 from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
 
-from ._dataclass import PredictionItem
+log = logging.getLogger(__name__)
 
 
-class PredictionListModel(QtCore.QAbstractListModel):
+class HistoryListModel(QtCore.QAbstractListModel):
     """
     Model for list of predicted cycles.
 
@@ -17,25 +18,24 @@ class PredictionListModel(QtCore.QAbstractListModel):
     unique color.
     """
 
-    itemAdded = QtCore.Signal(PredictionItem)
+    itemAdded = QtCore.Signal(CycleData)
     """ Emitted when an item is added to the list. """
-    itemRemoved = QtCore.Signal(PredictionItem)
+    itemUpdated = QtCore.Signal(CycleData)
+    itemRemoved = QtCore.Signal(CycleData)
     """ Emitted when an item is removed from the list. """
 
     def __init__(self, max_len: int = 10, parent: QtCore.QObject | None = None) -> None:
         super().__init__(parent=parent)
 
-        self._data: deque[PredictionItem] = deque(maxlen=max_len)
+        self._data: deque[CycleData] = deque(maxlen=max_len)
 
     def data(self, index: QtCore.QModelIndex, role: int = 0) -> typing.Any:
         row = self._calc_real_row(index.row())
 
         if role == QtCore.Qt.ItemDataRole.DisplayRole:
-            cycle_data = self._data[row].cycle_data
+            cycle_data = self._data[row]
 
             return f"{str(cycle_data.cycle_time)[:-7]}"
-        elif role == QtCore.Qt.ItemDataRole.BackgroundRole:
-            return self._data[row].color
 
         return None
 
@@ -54,7 +54,7 @@ class PredictionListModel(QtCore.QAbstractListModel):
 
         return None
 
-    def itemAt(self, index: QtCore.QModelIndex) -> PredictionItem:
+    def itemAt(self, index: QtCore.QModelIndex) -> CycleData:
         row = self._calc_real_row(index.row())
 
         return self._data[row]
@@ -85,8 +85,7 @@ class PredictionListModel(QtCore.QAbstractListModel):
             self.rowsRemoved.emit(*index)
             self.itemRemoved.emit(to_remove)
 
-        item = PredictionItem(cycle_data=data)
-        self._data.append(item)
+        self._data.append(data)
         index = (
             QtCore.QModelIndex(),
             len(self._data) - 1,
@@ -94,7 +93,33 @@ class PredictionListModel(QtCore.QAbstractListModel):
         )
         self.rowsAboutToBeInserted.emit(*index)
         self.rowsInserted.emit(*index)
-        self.itemAdded.emit(item)
+        self.itemAdded.emit(data)
+
+    def update(self, data: CycleData) -> None:
+        # check if the cycle is already in the list
+        idx = self._deque_idx(data)
+
+        if idx == -1:
+            msg = f"Cycle {data.cycle_timestamp} not found in the list. Cannot update entry."
+            log.error(msg)
+            return
+
+        self._data[idx] = data
+
+        index = (
+            QtCore.QModelIndex(),
+            idx,
+            idx,
+        )
+        self.dataChanged.emit(index, index, [QtCore.Qt.DisplayRole])
+        self.itemUpdated.emit(data)
+
+    def _deque_idx(self, data: CycleData) -> int:
+        for idx, item in enumerate(self._data):
+            if item.cycle_timestamp == data.cycle_timestamp:
+                return idx
+
+        return -1
 
     def clear(self) -> None:
         for data in self._data:
@@ -110,7 +135,7 @@ class PredictionListModel(QtCore.QAbstractListModel):
         self.dataChanged.emit(index, index, [QtCore.Qt.BackgroundRole])
 
     @property
-    def buffered_data(self) -> list[PredictionItem]:
+    def buffered_data(self) -> list[CycleData]:
         return list(self._data)
 
     def _calc_real_row(self, row: int) -> int:
