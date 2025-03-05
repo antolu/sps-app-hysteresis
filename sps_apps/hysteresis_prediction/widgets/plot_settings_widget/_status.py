@@ -10,7 +10,7 @@ from enum import Enum, auto
 log = logging.getLogger(__name__)
 
 
-__all__ = ["AppStatus", "LOG_MESSAGES"]
+__all__ = ["LOG_MESSAGES", "AppStatus"]
 
 
 class AppStatus(Enum):

@@ -7,11 +7,11 @@ from __future__ import annotations
 import logging
 import typing
 
+from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore, QtGui
 
-from ._dataclass import PlotItem
 from ...history import HistoryListModel
-from hystcomp_utils.cycle_data import CycleData
+from ._dataclass import PlotItem
 
 log = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class PredictionListModel(QtCore.QAbstractListModel):
         self._plot_metadata: dict[int, PlotItem] = {}
         self._reference: PlotItem | None = None
 
-        for cycle_data in self.data_source._data:
+        for cycle_data in self.data_source._data:  # noqa: SLF001
             self.newItem(cycle_data)
         self.modelReset.emit()
 
@@ -65,20 +65,18 @@ class PredictionListModel(QtCore.QAbstractListModel):
 
         if value is not None:
             return value
-        elif value is None and role == QtCore.Qt.ItemDataRole.BackgroundColorRole:
+        if value is None and role == QtCore.Qt.ItemDataRole.BackgroundColorRole:
             item = self._plot_metadata.get(cycle_data.cycle_timestamp)
             if item is None:
-                return
+                return None
             return QtGui.QColor(item.color or "white")
-        if role == QtCore.Qt.ItemDataRole.FontRole:
-            if (
-                self._reference is not None
-                and cycle_data.cycle_timestamp
-                == self._reference.cycle_data.cycle_timestamp
-            ):
-                font = QtGui.QFont()
-                font.setBold(True)
-                return font
+        if role == QtCore.Qt.ItemDataRole.FontRole and (
+            self._reference is not None
+            and cycle_data.cycle_timestamp == self._reference.cycle_data.cycle_timestamp
+        ):
+            font = QtGui.QFont()
+            font.setBold(True)
+            return font
 
         return None
 
@@ -92,7 +90,7 @@ class PredictionListModel(QtCore.QAbstractListModel):
         if role == QtCore.Qt.ItemDataRole.DisplayRole:
             if orientation == QtCore.Qt.Horizontal:
                 return "Cycle"
-            elif orientation == QtCore.Qt.Vertical:
+            if orientation == QtCore.Qt.Vertical:
                 return str(section + 1)
 
         return None

@@ -17,8 +17,8 @@ from pyda_japc import JapcProvider
 from pyda_lsa import LsaCycleContext, LsaEndpoint, LsaProvider
 from qtpy import QtCore
 
-from ...utils import ThreadWorker, time_execution
 from ...inference._correction import calc_delta_field, calc_new_correction
+from ...utils import ThreadWorker, time_execution
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +58,8 @@ class TrimSettings:
         if value > 1.0:
             log.warning(f"Gain {value:.2f} > 1.0, this may cause instability.")
         elif value < 0.0:
-            raise ValueError(f"Gain {value:.2f} < 0.0, this is not allowed.")
+            msg = f"Gain {value:.2f} < 0.0, this is not allowed."
+            raise ValueError(msg)
 
         log.debug(f"Setting gain to {value:.2f} for selector {self._selector}.")
         self._gain = value
@@ -80,7 +81,7 @@ class TrimSettings:
         log.debug(f"Setting dry run to {value} for selector {self._selector}.")
         self._dry_run = value
 
-    def set_dry_run(self, value: bool) -> None:
+    def set_dry_run(self, *, value: bool) -> None:
         """
         Set the dry run flag for the trim model.
 
@@ -90,16 +91,14 @@ class TrimSettings:
 
     def set_trim_t_min(self, value: int) -> None:
         if value < self._beam_in:
-            raise ValueError(
-                f"Trim t_min {value} < beam in {self._beam_in}, not allowed."
-            )
+            msg = f"Trim t_min {value} < beam in {self._beam_in}, not allowed."
+            raise ValueError(msg)
         self._trim_t_min = value
 
     def set_trim_t_max(self, value: int) -> None:
         if value > self._beam_out:
-            raise ValueError(
-                f"Trim t_max {value} > beam out {self._beam_out}, not allowed."
-            )
+            msg = f"Trim t_max {value} > beam out {self._beam_out}, not allowed."
+            raise ValueError(msg)
         self._trim_t_max = value
 
     @property
@@ -111,7 +110,7 @@ class TrimSettings:
         log.debug(f"Setting flatten to {value} for selector {self._selector}.")
         self._flatten = value
 
-    def set_flatten(self, value: bool) -> None:
+    def set_flatten(self, *, value: bool) -> None:
         """
         Set the flatten flag for the trim model.
 
@@ -170,7 +169,7 @@ class TrimModel(QtCore.QObject, TrimSettings):
         # to send trims
         token = context.rbac_token
         if token is None:
-            import pyrbac
+            import pyrbac  # noqa: PLC0415
 
             token = pyrbac.AuthenticationClient().login_location()
         self._lsa = SimpleClient(
@@ -200,13 +199,12 @@ class TrimModel(QtCore.QObject, TrimSettings):
             return
 
         if self.selector != prediction.user:
-            log.debug(
-                f"Selector {self.selector} != {prediction.user}, " "skipping trim."
-            )
+            log.debug(f"Selector {self.selector} != {prediction.user}, skipping trim.")
             return
 
         if prediction.field_pred is None:
-            raise ValueError(f"[{prediction}] No field prediction found.")
+            msg = f"[{prediction}] No field prediction found."
+            raise ValueError(msg)
 
         if self.flatten:
             # update cycle data with flattened field within trim start and stop
@@ -227,8 +225,7 @@ class TrimModel(QtCore.QObject, TrimSettings):
                 f"skipping trim (margin {time_margin:.02f}s < 1.0s."
             )
             return
-        else:
-            log.info(f"[{prediction}] Time margin: {time_margin:.02f}s.")
+        log.info(f"[{prediction}] Time margin: {time_margin:.02f}s.")
 
         # trim in a new thread
         worker = ThreadWorker(self.apply_correction, prediction)
@@ -263,13 +260,12 @@ class TrimModel(QtCore.QObject, TrimSettings):
             log.warning("Already applying trim, skipping.")
             return
 
-        comment = (
-            "Hysteresis prediction correction " f"{str(cycle_data.cycle_time)[:-7]}"
-        )
+        comment = f"Hysteresis prediction correction {str(cycle_data.cycle_time)[:-7]}"
 
         if self.selector is None:
             # this should not happen, but just in case
-            raise RuntimeError("No selector set, cannot apply trim.")
+            msg = "No selector set, cannot apply trim."
+            raise RuntimeError(msg)
 
         try:
             assert cycle_data.correction_applied is not None, "No correction found."
@@ -303,7 +299,7 @@ class TrimModel(QtCore.QObject, TrimSettings):
                 trim_time_d = datetime.now()
 
             self.trimApplied.emit(np.vstack((delta_t, delta_v)), trim_time_d, comment)
-        except:  # noqa E722
+        except:
             log.exception("Failed to apply trim to LSA.")
             raise
         finally:

@@ -220,9 +220,11 @@ class PredictionPlotModel(QtCore.QObject):
             if getattr(item, attr) is not None:
                 self.setCurveWidth(getattr(item, attr), 4)
 
-            if current_reference is not None:
-                if getattr(current_reference, attr) is not None:
-                    self.setCurveWidth(getattr(current_reference, attr), 2)
+            if (
+                current_reference is not None
+                and getattr(current_reference, attr) is not None
+            ):
+                self.setCurveWidth(getattr(current_reference, attr), 2)
 
     def updateReferencePlots(self, item: PlotItem) -> None:
         """
@@ -272,18 +274,14 @@ class PredictionPlotModel(QtCore.QObject):
             return
 
         max_val = max(
-            [
-                item.cycle_data.field_pred[1, :].max()
-                for item in self._plotted_items
-                if item.cycle_data.field_pred is not None
-            ]
+            item.cycle_data.field_pred[1, :].max()
+            for item in self._plotted_items
+            if item.cycle_data.field_pred is not None
         )
         min_val = min(
-            [
-                item.cycle_data.field_pred[1, :].min()
-                for item in self._plotted_items
-                if item.cycle_data.field_pred is not None
-            ]
+            item.cycle_data.field_pred[1, :].min()
+            for item in self._plotted_items
+            if item.cycle_data.field_pred is not None
         )
 
         self.setYRange.emit(min_val - 0.1, max_val + 0.1)

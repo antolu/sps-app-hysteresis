@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import logging
 
+from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
 
 from ._list_model import HistoryListModel
-from hystcomp_utils.cycle_data import CycleData
-
 
 log = logging.getLogger(__name__)
 

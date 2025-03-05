@@ -1,27 +1,25 @@
 from __future__ import annotations
 
-import logging
-
-
-from qtpy import QtCore
-import pyda_japc
-import pyda._metadata
-import pyda.metadata
-import pyda.providers
 import asyncio
+import logging
+import re
+
+import hystcomp_utils.cycle_data
+import pyda._metadata
 import pyda.access
 import pyda.clients
-import re
-import hystcomp_utils.cycle_data
+import pyda.metadata
+import pyda.providers
+import pyda_japc
+from qtpy import QtCore
 
-from ..data import StartCycleEventBuilder, JapcEndpoint
-
+from ..data import JapcEndpoint, StartCycleEventBuilder
 from ._data_flow import DataFlow, FlowWorker
 
 log = logging.getLogger(__name__)
 ENDPOINT_RE = re.compile(
     r"^(?P<device>(?P<protocol>.+:\/\/)?[\w\/\.-]+)/(?P<property>[\w\#\.-]+)$"
-)  # noqa: E501
+)
 
 
 CYCLE_WARNING = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.ECO/CycleDataFCY"
@@ -88,7 +86,7 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
                 context="SPS.USER.ALL",
             )
             for match, endpoint in zip(
-                matches, [CYCLE_WARNING, CYCLE_CORRECTION, CYCLE_MEASURED]
+                matches, [CYCLE_WARNING, CYCLE_CORRECTION, CYCLE_MEASURED], strict=False
             )
             if match is not None
         ]
@@ -181,5 +179,4 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
 def extract_cycle_data(
     apv: pyda.access.AcquiredPropertyData,
 ) -> hystcomp_utils.cycle_data.CycleData:
-
     return hystcomp_utils.cycle_data.CycleData.from_dict(apv.mutable_copy())

@@ -295,7 +295,8 @@ class TrimWidgetView(QtWidgets.QWidget):
 
     def on_user_selected_lsa(self, user: str) -> None:
         if self.model is None:
-            raise RuntimeError("Model is not set.")
+            msg = "Model is not set."
+            raise RuntimeError(msg)
 
         if user != self.model.selector:
             self.toggle_button.setEnabled(False)

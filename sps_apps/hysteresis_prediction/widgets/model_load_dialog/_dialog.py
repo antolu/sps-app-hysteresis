@@ -46,7 +46,7 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QtWidgets.QDialog):
             self.comboDevice.setCurrentIndex(self.last_selected_device)
 
         self.last_selected_model = settings["last_selected_model", ""]
-        if self.last_selected_model != "":
+        if not self.last_selected_model:
             self.comboBoxModel.setCurrentIndex(
                 self.comboBoxModel.findText(self.last_selected_model)
             )
@@ -82,7 +82,7 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QtWidgets.QDialog):
     def on_ok_clicked(self) -> None:
         ckpt_path = self.textCkptPath.text()
 
-        if ckpt_path == "":
+        if ckpt_path:
             QtWidgets.QMessageBox.warning(
                 self, "Model load error", "No checkpoint path specified."
             )

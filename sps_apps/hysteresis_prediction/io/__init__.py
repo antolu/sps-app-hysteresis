@@ -1,4 +1,4 @@
-from ._io import IO  # noqa: F401
+from ._io import IO
 
 IO.__module__ = __name__
 

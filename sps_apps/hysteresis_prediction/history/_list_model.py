@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import logging
 import typing
 from collections import deque
-import logging
 
 from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
@@ -49,7 +49,7 @@ class HistoryListModel(QtCore.QAbstractListModel):
         if role == QtCore.Qt.ItemDataRole.DisplayRole:
             if orientation == QtCore.Qt.Horizontal:
                 return "Cycle"
-            elif orientation == QtCore.Qt.Vertical:
+            if orientation == QtCore.Qt.Vertical:
                 return str(section + 1)
 
         return None
@@ -61,7 +61,8 @@ class HistoryListModel(QtCore.QAbstractListModel):
 
     def set_max_len(self, max_len: int) -> None:
         if max_len < 1:
-            raise ValueError("Max length must be greater than 1.")
+            msg = "Max length must be greater than 1."
+            raise ValueError(msg)
 
         assert self._data.maxlen is not None
         if max_len < self._data.maxlen and len(self._data) > max_len:
@@ -143,6 +144,7 @@ class HistoryListModel(QtCore.QAbstractListModel):
         Show the data in reverse order, i.e. the last item is shown first.
         """
         if row >= len(self._data):
-            raise IndexError("Index out of range.")
+            msg = "Index out of range."
+            raise IndexError(msg)
 
         return len(self._data) - row - 1

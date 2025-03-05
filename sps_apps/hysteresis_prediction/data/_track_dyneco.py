@@ -81,7 +81,7 @@ class TrackDynEcoEventBuilder(EventBuilderAbc):
         if cycle_data.cycle.endswith("ECO"):
             msg = f"{id_} Cycle data is already ECO. Skipping."
             log.warning(msg)
-            return None
+            return
 
         orig_cycle = cycle_data.cycle
         cycle_data.cycle += "_DYNECO"

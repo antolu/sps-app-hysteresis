@@ -23,7 +23,7 @@ class StatusManager(QObject):
 
         self.statusChanged.connect(self._on_status_changed)
 
-    def _on_status_changed(self, status: AppStatus) -> None:  # noqa: C901
+    def _on_status_changed(self, status: AppStatus) -> None:
         """
         Update the status and emit a signal if it has changed.
         """
@@ -92,6 +92,7 @@ class StatusManager(QObject):
             self._current_state.add(AppStatus.INFERENCE_DISABLED)
             self.setStatus.emit(status)
         else:
-            raise NotImplementedError(f"Unknown status: {status}")
+            msg = f"Unknown status: {status}"
+            raise NotImplementedError(msg)
 
         self._current_state.add(status)

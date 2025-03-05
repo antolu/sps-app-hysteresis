@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import datetime
 
-import numpy as np
-from sps_apps.hysteresis_prediction.signals import TrackPrecycleEventBuilder
 import hystcomp_utils.cycle_data
+import numpy as np
+
+from sps_apps.hysteresis_prediction.signals import TrackPrecycleEventBuilder
 
 
 def create_cycle_data(user: str) -> hystcomp_utils.cycle_data.CycleData:

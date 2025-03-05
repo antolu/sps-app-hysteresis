@@ -87,7 +87,7 @@ def main() -> None:
     application.setOrganizationDomain("cern.ch")
     application.setApplicationName("SPS Hysteresis Prediction")
 
-    from op_app_context import context, settings
+    from op_app_context import context, settings  # noqa: PLC0415
 
     context.lsa_server = args.lsa_server
     settings.configure_application(application)
@@ -111,7 +111,8 @@ def main() -> None:
             provider=context.japc_provider,
         )
     else:
-        raise ValueError(f"Invalid data source: {args.data_source}")
+        msg = f"Invalid data source: {args.data_source}"
+        raise ValueError(msg)
 
     flow_worker.moveToThread(data_thread)
     flow_worker.init_data_flow()

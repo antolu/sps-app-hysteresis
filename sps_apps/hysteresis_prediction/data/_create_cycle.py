@@ -70,24 +70,18 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
             field_prog_fspv = self._get_buffered_data(PARAM_B_PROG, selector)
             bhys_corr_fspv = self._get_buffered_data(PARAM_BHYS_CORRECTION, selector)
 
-            current_prog = np.vstack(
-                (
-                    current_prog_fspv.value.get("value").xs,
-                    current_prog_fspv.value.get("value").ys,
-                )
-            )
-            field_prog = np.vstack(
-                (
-                    field_prog_fspv.value.get("value").xs,
-                    field_prog_fspv.value.get("value").ys,
-                )
-            )
-            bhys_corr = np.vstack(
-                (
-                    bhys_corr_fspv.value.get("value").xs,
-                    bhys_corr_fspv.value.get("value").ys,
-                )
-            )
+            current_prog = np.vstack((
+                current_prog_fspv.value.get("value").xs,
+                current_prog_fspv.value.get("value").ys,
+            ))
+            field_prog = np.vstack((
+                field_prog_fspv.value.get("value").xs,
+                field_prog_fspv.value.get("value").ys,
+            ))
+            bhys_corr = np.vstack((
+                bhys_corr_fspv.value.get("value").xs,
+                bhys_corr_fspv.value.get("value").ys,
+            ))
 
             cycle_data = hystcomp_utils.cycle_data.CycleData(
                 cycle=str(fspv.value.get("lsaCycleName")),

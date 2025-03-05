@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import logging
-from PyQt5.QtCore import QObject
 
 import pyda_japc
+from PyQt5.QtCore import QObject
 from qtpy import QtCore
 
 from ..data import (
@@ -17,10 +17,9 @@ from ..data import (
     TrackDynEcoEventBuilder,
     TrackFullEcoEventBuilder,
 )
-from ..signals import TrackPrecycleEventBuilder
 from ..inference import CalculateCorrection, Inference
+from ..signals import TrackPrecycleEventBuilder
 from ._data_flow import DataFlow, FlowWorker
-
 
 log = logging.getLogger(__name__)
 

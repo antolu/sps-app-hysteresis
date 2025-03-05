@@ -56,7 +56,7 @@ class TrackFullEcoEventBuilder(BufferedSubscriptionEventBuilder):
 
             if mmode != "FULLECO":
                 log.debug(f"{cycle}@{cycle_time} is not in FULLECO mode: {mmode}")
-                return None
+                return
 
             if selector not in self._cycle_data_buffer:
                 log.error(f"Received trigger for cycle without data: {selector}.")
@@ -67,10 +67,10 @@ class TrackFullEcoEventBuilder(BufferedSubscriptionEventBuilder):
             log.info(f"{cycle_data} is in FULLECO mode")
             if cycle_data.cycle.endswith("FULLECO"):
                 log.warning(f"{cycle_data} is already in FULLECO mode")
-                return None
+                return
             if cycle_data.cycle.endswith("DYNECO"):
                 log.warning(f"{cycle_data} is in DYNECO mode")
-                return None
+                return
 
             cycle_data.cycle = f"{cycle_data.cycle}_FULLECO"
 

@@ -3,10 +3,10 @@ from __future__ import annotations
 import logging
 
 import numpy as np
+import scipy.ndimage
+import scipy.signal
 from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
-import scipy.signal
-import scipy.ndimage
 from transformertf.data import downsample as downsample_tf
 
 from ...flow import DataFlow
@@ -84,9 +84,7 @@ class PlotModel(QtCore.QObject):
                 )
 
         except Exception:  # noqa: broad-except
-            log.exception(
-                "An exception occurred while publishing new " "measured data."
-            )
+            log.exception("An exception occurred while publishing new measured data.")
             return
 
     def _handle_new_programmed(self, cycle_data: CycleData) -> None:
@@ -95,9 +93,7 @@ class PlotModel(QtCore.QObject):
                 cycle_data.cycle_timestamp, cycle_data.current_prog
             )
         except Exception:  # noqa: broad-except
-            log.exception(
-                "An exception occurred while publishing new " "programmed data."
-            )
+            log.exception("An exception occurred while publishing new programmed data.")
             return
 
     @QtCore.Slot(CycleData)
@@ -154,9 +150,11 @@ class PlotModel(QtCore.QObject):
     @downsample.setter
     def downsample(self, value: int) -> None:
         if not isinstance(value, int):
-            raise TypeError(f"downsample must be int, not {type(value)}.")
+            msg = f"downsample must be int, not {type(value)}."
+            raise TypeError(msg)
         if value < 1:
-            raise ValueError(f"downsample must be >= 1, not {value}.")
+            msg = f"downsample must be >= 1, not {value}."
+            raise ValueError(msg)
 
         self._downsample = value
 

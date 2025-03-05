@@ -82,7 +82,8 @@ def _main_thread() -> QtCore.QThread:
     # We reach here in tests that don't (want to) create a QApplication.
     if int(QtCore.QThread.currentThreadId()) == get_ident():
         return QtCore.QThread.currentThread()
-    raise RuntimeError("Could not determine main thread")
+    msg = "Could not determine main thread"
+    raise RuntimeError(msg)
 
 
 run_in_main_thread = run_in_thread(_main_thread)
@@ -96,7 +97,7 @@ class Executor:
     _INSTANCE = None
 
     @classmethod
-    def instance(cls) -> "Executor":
+    def instance(cls) -> Executor:
         if cls._INSTANCE is None:
             cls._INSTANCE = cls(QApplication.instance())
         return cls._INSTANCE
@@ -116,16 +117,16 @@ class Executor:
         self,
         qthread: QtCore.QThread,
         f: t.Callable,
-        args: t.Tuple,
-        kwargs: t.Dict,
+        args: tuple,
+        kwargs: dict,
     ) -> t.Callable:
         if QtCore.QThread.currentThread() == qthread:
             return f(*args, **kwargs)
-        elif self._app_is_about_to_quit:
+        if self._app_is_about_to_quit:
             # In this case, the target thread's event loop most likely is not
             # running any more. This would mean that our task (which is
             # submitted to the event loop via events/slots) is never run.
-            raise SystemExit()
+            raise SystemExit
         task = Task(f, args, kwargs)
         self._pending_tasks.append(task)
         try:
@@ -165,7 +166,8 @@ class Task:
     @property
     def result(self) -> t.Any:
         if not self.has_run.is_set():
-            raise ValueError("Hasn't run.")
+            msg = "Hasn't run."
+            raise ValueError(msg)
         if self._exception:
             raise self._exception
         return self._result
@@ -176,7 +178,7 @@ class Sender(QtCore.QObject):
 
 
 class Receiver(QtCore.QObject):
-    def __init__(self, callback: t.Callable, parent: t.Optional[QtCore.QObject] = None):
+    def __init__(self, callback: t.Callable, parent: QtCore.QObject | None = None):
         super().__init__(parent)
         self.callback = callback
 

@@ -1,7 +1,5 @@
-from .track_precycle import TrackPrecycleEventBuilder
-
 from .._mod_replace import replace_modname
-
+from .track_precycle import TrackPrecycleEventBuilder
 
 replace_modname(TrackPrecycleEventBuilder, __name__)
 

@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-
-import pyda.access
 import re
 
+import pyda.access
 
 ENDPOINT_RE = re.compile(
     r"^(?P<device>(?P<protocol>.+:\/\/)?[\w\/\.-]+)/(?P<property>[\w\#\.-]+)$"
-)  # noqa: E501
+)
 
 
 class JapcEndpoint(pyda.access.StandardEndpoint):
@@ -24,7 +23,8 @@ class JapcEndpoint(pyda.access.StandardEndpoint):
         m = ENDPOINT_RE.match(value)
 
         if not m:
-            raise ValueError(f"Not a valid endpoint: {value}.")
+            msg = f"Not a valid endpoint: {value}."
+            raise ValueError(msg)
 
         return cls(
             device_name=m.group("device"),

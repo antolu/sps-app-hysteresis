@@ -4,7 +4,6 @@ import logging
 
 from qtpy import QtCore
 
-
 log = logging.getLogger(__name__)
 
 
@@ -48,7 +47,6 @@ class DataFlow:
 
 
 class FlowWorker(QtCore.QObject):
-
     def __init__(self, parent: QtCore.QObject | None = None) -> None:
         super().__init__(parent=parent)
 

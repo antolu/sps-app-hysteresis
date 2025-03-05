@@ -1,6 +1,6 @@
-from ._widget import HistoryWidget
-from ._model import PredictionListModel
 from ..._mod_replace import replace_modname
+from ._model import PredictionListModel
+from ._widget import HistoryWidget
 
 for _mod in (HistoryWidget, PredictionListModel):
     replace_modname(_mod, __name__)

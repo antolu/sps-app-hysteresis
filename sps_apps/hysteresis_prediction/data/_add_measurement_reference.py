@@ -38,7 +38,6 @@ class AddMeasurementReferencesEventBuilder(EventBuilderAbc):
         raise NotImplementedError(msg)
 
     def onNewCycleData(self, cycle_data: hystcomp_utils.cycle_data.CycleData) -> None:
-
         log.debug(f"{cycle_data}: Triggered to add reference")
 
         self._maybe_save_reference(cycle_data)
@@ -46,14 +45,14 @@ class AddMeasurementReferencesEventBuilder(EventBuilderAbc):
         log.debug(f"{cycle_data}: Adding reference field to the cycle data")
         if cycle_data.cycle not in self._reference_timestamps:
             log.error(f"{cycle_data}: No reference found")
-            return None
+            return
 
         cycle_data.field_meas_ref = self._reference_fields[cycle_data.cycle]
 
         ref_time = datetime.datetime.fromtimestamp(
             self._reference_timestamps[cycle_data.cycle] * NS2S
         )
-        log.debug(f"{cycle_data}: Added reference field from " f"timestamp {ref_time}")
+        log.debug(f"{cycle_data}: Added reference field from timestamp {ref_time}")
 
         self.cycleDataAvailable.emit(cycle_data)
 

@@ -8,9 +8,9 @@ import numpy as np
 import numpy.typing as npt
 import pyda
 import pyda.access
-from qtpy import QtCore
-import scipy.signal
 import scipy.ndimage
+import scipy.signal
+from qtpy import QtCore
 
 from ..data import EventBuilderAbc
 
@@ -40,7 +40,7 @@ class CalculateCorrection(EventBuilderAbc):
         self._gain[selector] = gain
 
     @QtCore.Slot(bool)
-    def setFlatten(self, flatten: bool) -> None:
+    def setFlatten(self, flatten: bool) -> None:  # noqa: FBT001
         self._flatten = flatten
 
     @QtCore.Slot(hystcomp_utils.cycle_data.CycleData)
@@ -232,61 +232,51 @@ def match_array_size(
         # upsample LSA trim to match prediction, keep BP edges
         new_x = np.concatenate((new_correction[0], current_correction[0]))
         new_x = np.sort(np.unique(new_x))
-        current_correction = np.vstack(
-            (
+        current_correction = np.vstack((
+            new_x,
+            np.interp(
                 new_x,
-                np.interp(
-                    new_x,
-                    *current_correction,
-                ),
-            )
-        )
+                *current_correction,
+            ),
+        ))
 
         # upsample prediction to match new LSA trim
-        new_correction = np.vstack(
-            (
+        new_correction = np.vstack((
+            new_x,
+            np.interp(
                 new_x,
-                np.interp(
-                    new_x,
-                    *new_correction,
-                ),
-            )
-        )
+                *new_correction,
+            ),
+        ))
     elif current_correction[0].size > new_correction[0].size:
         # upsample prediction to match LSA trim
-        new_correction = np.vstack(
-            (
+        new_correction = np.vstack((
+            current_correction[0],
+            np.interp(
                 current_correction[0],
-                np.interp(
-                    current_correction[0],
-                    *new_correction,
-                ),
-            )
-        )
+                *new_correction,
+            ),
+        ))
 
         new_x = current_correction[0]
     else:
         new_x = np.concatenate((new_correction[0], current_correction[0]))
         new_x = np.sort(np.unique(new_x))
-        current_correction = np.vstack(
-            (
+        current_correction = np.vstack((
+            new_x,
+            np.interp(
                 new_x,
-                np.interp(
-                    new_x,
-                    *current_correction,
-                ),
-            )
-        )
+                *current_correction,
+            ),
+        ))
 
-        new_correction = np.vstack(
-            (
+        new_correction = np.vstack((
+            new_x,
+            np.interp(
                 new_x,
-                np.interp(
-                    new_x,
-                    *new_correction,
-                ),
-            )
-        )
+                *new_correction,
+            ),
+        ))
 
     return current_correction, new_correction
 

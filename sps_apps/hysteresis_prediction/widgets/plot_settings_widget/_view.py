@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Any, Optional
+from typing import Any
 
 import hystcomp_utils.cycle_data
 from qtpy.QtCore import QTimer, Signal, Slot
@@ -24,7 +24,7 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
     toggle_predictions = Signal(bool)
     status_changed = Signal(AppStatus)
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         QWidget.__init__(self, parent=parent)
 
         self.setupUi(self)

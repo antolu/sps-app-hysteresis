@@ -5,16 +5,16 @@ LHCPILOT - MD1 - LHCPILOT - MD1 - LHCPILOT - MD1
 
 from __future__ import annotations
 
-import os
-import pandas as pd
-import typing
-import pathlib
 import logging
+import os
+import pathlib
+import typing
 
 import hystcomp_utils.cycle_data
-from ...data import EventBuilderAbc
+import pandas as pd
 from qtpy import QtCore
 
+from ...data import EventBuilderAbc
 
 DEFAULT_PRECYCLE_SEQUENCE = [
     "SPS.USER.LHCPILOT",

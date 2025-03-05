@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import typing
 
-import hystcomp_utils.cycle_data  # noqa: F401
+import hystcomp_utils.cycle_data
 import pyda_japc
 from qtpy import QtCore
 
@@ -23,7 +23,7 @@ class CycleStampedAddMeasurementsEventBuilder(CycleStampGroupedTriggeredEventBui
     def __init__(
         self,
         provider: pyda_japc.JapcProvider | None = None,
-        track_cycle_data: bool = True,
+        track_cycle_data: bool = True,  # noqa: FBT001, FBT002
         buffer_size: int = 10,
         *,
         parent: QtCore.QObject | None = None,

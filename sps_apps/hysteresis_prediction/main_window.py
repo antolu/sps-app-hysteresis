@@ -6,19 +6,19 @@ from uuid import uuid4
 
 from accwidgets.app_frame import ApplicationFrame
 from accwidgets.log_console import LogConsole
-from accwidgets.timing_bar import TimingBar, TimingBarDomain, TimingBarModel
 from accwidgets.rbac import RbaButton
+from accwidgets.timing_bar import TimingBar, TimingBarDomain, TimingBarModel
 from op_app_context import context
 from qtpy import QtGui, QtWidgets
 
 from .flow import LocalDataFlow
 from .generated.main_window_ui import Ui_main_window
+from .history import PredictionHistory
 from .io import IO
 from .utils import load_cursor
 from .widgets import ModelLoadDialog, PlotModel
-from .widgets.trim_widget import TrimModel, TrimWidgetView
-from .history import PredictionHistory
 from .widgets.history_widget import HistoryWidget
+from .widgets.trim_widget import TrimModel, TrimWidgetView
 
 log = logging.getLogger(__name__)
 
@@ -93,7 +93,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             )
         )
         self._data.onModelLoaded.connect(
-            lambda: self._data._predict.set_do_inference(True)
+            lambda: self._data._predict.set_do_inference(True)  # noqa: SLF001
         )
 
         assert self.rba_widget is not None
@@ -106,12 +106,12 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         self.action_Load_Model.triggered.connect(self.on_load_model_triggered)
         self.actionProgrammed_current.triggered.connect(
-            lambda x: self._data._predict.set_use_programmed_current(
-                self.actionProgrammed_current.isChecked()
+            lambda x: self._data._predict.set_use_programmed_current(  # noqa: SLF001
+                state=self.actionProgrammed_current.isChecked()
             )
         )
         self.actionAutoregressive.triggered.connect(
-            lambda x: self._data._predict.set_autoregressive(
+            lambda x: self._data._predict.set_autoregressive(  # noqa: SLF001
                 self.actionAutoregressive.isChecked()
             )
         )
@@ -122,7 +122,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
     def on_load_model_triggered(self) -> None:
         dialog = ModelLoadDialog(parent=self)
-        dialog.load_checkpoint.connect(self._data._predict.loadModel)
+        dialog.load_checkpoint.connect(self._data._predict.loadModel)  # noqa: SLF001
         result = dialog.exec()
 
         if result == QtWidgets.QDialog.Rejected:
@@ -137,7 +137,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
     def show_trim_widget(self) -> None:
         if len(self._trim_widgets) > 0:
-            uuid = list(self._trim_widgets.keys())[0]
+            uuid = next(iter(self._trim_widgets.keys()))
             widget = self._trim_widgets[uuid]
             widget.show()
             widget.raise_()

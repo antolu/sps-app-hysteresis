@@ -22,7 +22,7 @@ _thread: QtCore.QThread | None = None
 
 
 def inference_thread() -> QtCore.QThread:
-    global _thread
+    global _thread  # noqa: PLW0603
     if _thread is None:
         _thread = QtCore.QThread()
     return _thread
@@ -100,15 +100,15 @@ class Inference(EventBuilderAbc):
     def predict_last_cycle(self, cycle_data: list[CycleData]) -> None:
         if self._predictor is None:
             log.debug("Model not loaded. Cannot predict.")
-            return None
+            return
 
         if not self._do_inference:
             log.debug("Inference is disabled. Not predicting.")
-            return None
+            return
 
         if self._predictor.busy:
-            log.warning("Inference is already underway. " "Cannot do more in parallel.")
-            return None
+            log.warning("Inference is already underway. Cannot do more in parallel.")
+            return
 
         self.predictionStarted.emit()
         # first check if all data has current set
@@ -206,14 +206,12 @@ class Inference(EventBuilderAbc):
 
     @property
     def model_is_loaded(self) -> bool:
-        return (
-            self._predictor is not None and self._predictor._module is not None
-        )  # noqa: SLF001
+        return self._predictor is not None and self._predictor._module is not None  # noqa: SLF001
 
-    def set_do_inference(self, state: bool) -> None:
+    def set_do_inference(self, state: bool) -> None:  # noqa: FBT001
         self._do_inference = state
 
-    def set_autoregressive(self, state: bool) -> None:
+    def set_autoregressive(self, state: bool) -> None:  # noqa: FBT001
         self._autoregressive = state
 
     @property
@@ -224,7 +222,7 @@ class Inference(EventBuilderAbc):
     def autoregressive(self, value: bool) -> None:
         self.set_autoregressive(value)
 
-    def set_use_programmed_current(self, state: bool) -> None:
+    def set_use_programmed_current(self, *, state: bool) -> None:
         self._use_programmed_current = state
 
     @property
@@ -233,7 +231,7 @@ class Inference(EventBuilderAbc):
 
     @use_programmed_current.setter
     def use_programmed_current(self, value: bool) -> None:
-        self.set_use_programmed_current(value)
+        self.set_use_programmed_current(state=value)
 
     def reset_state(self) -> None:
         if self._predictor is not None:

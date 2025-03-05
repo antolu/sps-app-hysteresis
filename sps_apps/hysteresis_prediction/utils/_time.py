@@ -5,15 +5,15 @@ Time utilities for handling acquired data
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
-from typing import Literal, Union
+from datetime import UTC, datetime
+from typing import Literal, Self
 
 __all__ = ["from_timestamp"]
 
 UNIT_TO_SCALE = {"s": 1, "ms": 1e3, "us": 1e6, "ns": 1e9}
 
 
-class time_execution:
+class time_execution:  # noqa: N801
     """
     Convenience class for timing execution. Used simply as
     >>> with time_execution() as t:
@@ -26,7 +26,7 @@ class time_execution:
         self.end = 0.0
         self.duration = 0.0
 
-    def __enter__(self) -> time_execution:
+    def __enter__(self) -> Self:
         self.start = time.time()
 
         return self
@@ -37,9 +37,10 @@ class time_execution:
 
 
 def from_timestamp(
-    timestamp: Union[float, int],
-    from_utc: bool = True,
+    timestamp: float,
     unit: Literal["s", "ms", "us", "ns"] = "ns",
+    *,
+    from_utc: bool = True,
 ) -> datetime:
     """
     Converts a timestamp to a datetime object.
@@ -50,13 +51,14 @@ def from_timestamp(
     :param unit: The unit of the timestamp. Can be "s", "ms", "us", or "ns".
     """
     if unit not in UNIT_TO_SCALE:
-        raise ValueError(f"Invalid unit: {unit}.")
+        msg = f"Invalid unit: {unit}."
+        raise ValueError(msg)
 
     scale = UNIT_TO_SCALE[unit]
 
     dt = datetime.fromtimestamp(timestamp / scale)
 
     if from_utc:
-        dt = dt.astimezone().astimezone(timezone.utc).replace(tzinfo=None)
+        dt = dt.astimezone().astimezone(UTC).replace(tzinfo=None)
 
     return dt

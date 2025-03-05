@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import traceback
+import types
 import typing
 
 from qtpy.QtCore import Qt
@@ -20,16 +20,21 @@ def set_cursor_normal() -> None:
     QApplication.restoreOverrideCursor()
 
 
-class load_cursor:
+class load_cursor:  # noqa: N801
     """
     Convenience class for showing a loading cursor while doing some time
     intensive task.
     """
 
-    def __enter__(self) -> load_cursor:
+    def __enter__(self) -> typing.Self:
         set_cursor_busy()
 
         return self
 
-    def __exit__(self, exc_type: typing.Type[Exception], exc_val: Exception, exc_tb: traceback.FrameSummary) -> None:  # type: ignore
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: types.TracebackType | None,
+    ) -> None:  # type: ignore
         set_cursor_normal()

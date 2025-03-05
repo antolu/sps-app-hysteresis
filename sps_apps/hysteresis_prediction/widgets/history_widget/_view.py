@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import logging
-from qtpy import QtCore, QtGui, QtWidgets
-import pyqtgraph as pg
-from ...generated.reference_selector_dialog_ui import Ui_ReferenceSelectorDialog
-from ...generated.prediction_history_widget_ui import Ui_PredictionAnalysisWidget
-from ._model import PredictionListModel
-from ...history import HistoryListModel
-from ._plot_model import PredictionPlotModel
 
+import pyqtgraph as pg
+from qtpy import QtCore, QtGui, QtWidgets
+
+from ...generated.prediction_history_widget_ui import Ui_PredictionAnalysisWidget
+from ...generated.reference_selector_dialog_ui import Ui_ReferenceSelectorDialog
+from ...history import HistoryListModel
+from ._model import PredictionListModel
+from ._plot_model import PredictionPlotModel
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +39,8 @@ class ReferenceSelectorDialog(QtWidgets.QDialog, Ui_ReferenceSelectorDialog):
 
     def _get_model(self) -> QtCore.QAbstractProxyModel:
         if self._model is None:
-            raise ValueError("Model has not been set.")
+            msg = "Model has not been set."
+            raise ValueError(msg)
         return self._model
 
     def _set_model(self, model: QtCore.QAbstractListModel) -> None:
@@ -59,7 +61,7 @@ class ReferenceSelectorDialog(QtWidgets.QDialog, Ui_ReferenceSelectorDialog):
 
 class PlotContainer(QtCore.QObject):
     def __init__(
-        self, parent: pg.GraphicsLayoutWidget, plot_measured: bool = True
+        self, parent: pg.GraphicsLayoutWidget, *, plot_measured: bool = True
     ) -> None:
         super().__init__(parent)
 

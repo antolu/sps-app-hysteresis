@@ -135,7 +135,7 @@ class AcquisitionBuffer:
 
         total_samples = len(self)
         if total_samples < self._buffer_size:
-            msg = f"Buffer size is less than {self._buffer_size} " f"({total_samples})."
+            msg = f"Buffer size is less than {self._buffer_size} ({total_samples})."
             raise InsufficientDataError(msg)
 
         log.debug(
@@ -209,8 +209,7 @@ class AcquisitionBuffer:
 
             if len(to_remove) > 0:
                 log.warning(
-                    "Found offending cycles at index "
-                    f"{', '.join(map(str, to_remove))}."
+                    f"Found offending cycles at index {', '.join(map(str, to_remove))}."
                 )
             return to_remove
 
@@ -254,7 +253,7 @@ class AcquisitionBuffer:
             return
 
         if len(self._buffer) == 1:
-            log.warning("Insufficient buffered cycles " f"({len(self._buffer)}).")
+            log.warning(f"Insufficient buffered cycles ({len(self._buffer)}).")
             return
 
         # if len(self._buffer_next) == 0:
@@ -292,9 +291,7 @@ class AcquisitionBuffer:
                 buffer_size(self._buffer) > self._buffer_size
                 and buffer_size(list(self._buffer)[1:]) > self._buffer_size
             ):
-                log.debug(
-                    "Buffer size is too large. Removing oldest buffered " "cycle."
-                )
+                log.debug("Buffer size is too large. Removing oldest buffered cycle.")
 
                 cycle_data = self._buffer.popleft()
                 log.debug(f"Removing buffered cycle {cycle_data.cycle}.")

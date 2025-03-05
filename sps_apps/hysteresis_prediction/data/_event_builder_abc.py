@@ -11,20 +11,19 @@ import hystcomp_utils.cycle_data
 import hystcomp_utils.ring_buffer
 import pyda
 import pyda._metadata
-import pyda.metadata
-import pyda.clients.callback
 import pyda.access
+import pyda.clients.callback
+import pyda.metadata
 import pyda.providers
 import pyda_japc
 from qtpy import QtCore
 
-
 from ._pyda import JapcEndpoint
 
-if sys.version_info < (3, 12):
-    from typing_extensions import override
-else:
+if sys.version_info >= (3, 12):
     from typing import override
+else:
+    from typing_extensions import override
 
 log = logging.getLogger(__name__)
 
@@ -43,7 +42,7 @@ class BufferedSubscription(Subscription):
 
 ENDPOINT_RE = re.compile(
     r"^(?P<device>(?P<protocol>.+:\/\/)?[\w\/\.-]+)/(?P<property>[\w\#\.-]+)$"
-)  # noqa: E501
+)
 
 
 T = typing.TypeVar(
@@ -129,7 +128,6 @@ class EventBuilderAbc(QtCore.QObject):
             handle.stop()
 
     def handle_acquisition(self, fspv: pyda.access.PropertyRetrievalResponse) -> None:
-
         try:
             self._handle_acquisition_impl(fspv)
         except:  # noqa: E722
@@ -157,9 +155,9 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
         no_metadata_source: bool = False,
         parent: QtCore.QObject | None = None,
     ):
-        self._buffers: dict[str, dict[str, pyda.access.PropertyRetrievalResponse]] = (
-            {}
-        )  # endpoint -> selector -> buffer
+        self._buffers: dict[
+            str, dict[str, pyda.access.PropertyRetrievalResponse]
+        ] = {}  # endpoint -> selector -> buffer
         self._buffered_subscriptions = (
             [sub.parameter for sub in buffered_subscriptions]
             if buffered_subscriptions
@@ -186,8 +184,6 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
             except:  # noqa: E722
                 msg = f"Error handling buffered acquisition for {fspv.query.endpoint}@{fspv.query.context}."
                 log.exception(msg)
-            finally:
-                return
 
         super().handle_acquisition(fspv)
 
@@ -356,4 +352,5 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
     def _get_buffered_data(
         self, parameter: str, selector: str
     ) -> pyda.access.PropertyRetrievalResponse:
-        raise NotImplementedError("This method is not implemented.")
+        msg = "This method is not implemented."
+        raise NotImplementedError(msg)
