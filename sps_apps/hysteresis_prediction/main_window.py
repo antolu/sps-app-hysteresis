@@ -51,12 +51,12 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self.timing_bar = timing_bar
 
         self._data = data_flow
-        self._history = PredictionHistory(self)
 
         plot_model = PlotModel(self._data, parent=self)
         self.widgetPlot.model = plot_model
 
         self._io = IO()
+        self._history = PredictionHistory(self)
         self._history_widget = HistoryWidget(self._history, parent=None)
 
         self._connect_signals()
