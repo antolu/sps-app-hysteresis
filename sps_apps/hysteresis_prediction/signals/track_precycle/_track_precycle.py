@@ -67,7 +67,7 @@ class TrackPrecycleEventBuilder(EventBuilderAbc):
                 f"Expected user: {cycle_data.user} == {next_user}, in precycle sequence."
             )
             self._precycle_index += 1
-        elif self._precycle_index > 0:
+        elif self._precycle_index == 0:
             log.info(
                 f"Unexpected user: {cycle_data.user} != {next_user}, no longer in precycle sequence."
             )
