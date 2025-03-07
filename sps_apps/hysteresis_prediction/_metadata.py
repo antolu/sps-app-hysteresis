@@ -1,0 +1,3 @@
+ORGANIZATION_NAME = "CERN"
+ORGANIZATION_DOMAIN = "cern.ch"
+APP_NAME = "SPS Hysteresis Prediction"

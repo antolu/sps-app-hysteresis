@@ -9,6 +9,7 @@ from qtpy import QtCore, QtWidgets
 from rich.logging import RichHandler
 
 from . import __version__
+from ._metadata import APP_NAME, ORGANIZATION_DOMAIN, ORGANIZATION_NAME
 from .flow import LocalFlowWorker, UcapFlowWorker
 from .main_window import MainWindow
 
@@ -83,9 +84,9 @@ def main() -> None:
 
     application = QtWidgets.QApplication([])
     application.setApplicationVersion(__version__)
-    application.setOrganizationName("CERN")
-    application.setOrganizationDomain("cern.ch")
-    application.setApplicationName("SPS Hysteresis Prediction")
+    application.setOrganizationName(ORGANIZATION_NAME)
+    application.setOrganizationDomain(ORGANIZATION_DOMAIN)
+    application.setApplicationName(APP_NAME)
 
     from op_app_context import context, settings  # noqa: PLC0415
 
