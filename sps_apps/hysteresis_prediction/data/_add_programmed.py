@@ -26,17 +26,20 @@ TRIGGER = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/XTIM.UCAP.SCY-CT-500/Acquisition"
 class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
     def __init__(
         self,
+        param_i_prog: str = PARAM_I_PROG,
+        param_b_prog: str = PARAM_B_PROG,
+        trigger: str = TRIGGER,
         provider: pyda_japc.JapcProvider | None = None,
         *,
         parent: QtCore.QObject | None = None,
     ):
         super().__init__(
             subscriptions=[
-                Subscription("SCY", TRIGGER, ignore_first_updates=True),
+                Subscription("SCY", trigger, ignore_first_updates=True),
             ],
             buffered_subscriptions=[
-                BufferedSubscription("I_PROG", PARAM_I_PROG),
-                BufferedSubscription("B_PROG", PARAM_B_PROG),
+                BufferedSubscription("I_PROG", param_i_prog),
+                BufferedSubscription("B_PROG", param_b_prog),
             ],
             provider=provider,
             parent=parent,

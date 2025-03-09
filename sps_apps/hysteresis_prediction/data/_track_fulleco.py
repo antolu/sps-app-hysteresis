@@ -25,16 +25,18 @@ TRIGGER = "XTIM.SX.FCY-MMODE-CT/Acquisition"
 class TrackFullEcoEventBuilder(BufferedSubscriptionEventBuilder):
     def __init__(
         self,
+        param_fulleco_iref: str = PARAM_FULLECO_IREF,
+        param_fulleco_trigger: str = TRIGGER,
         provider: pyda_japc.JapcProvider | None = None,
         *,
         parent: QtCore.QObject | None = None,
     ):
         super().__init__(
             subscriptions=[
-                Subscription("MMODE", TRIGGER, ignore_first_updates=True),
+                Subscription("MMODE", param_fulleco_trigger, ignore_first_updates=True),
             ],
             buffered_subscriptions=[
-                BufferedSubscription("FULLECO_IREF", PARAM_FULLECO_IREF),
+                BufferedSubscription("FULLECO_IREF", param_fulleco_iref),
             ],
             provider=provider,
             parent=parent,

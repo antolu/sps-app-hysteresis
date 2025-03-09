@@ -22,6 +22,7 @@ TRIGGER = "XTIM.SX.SCY-CT/Acquisition"
 class StartCycleEventBuilder(EventBuilderAbc):
     def __init__(
         self,
+        trigger: str = TRIGGER,
         provider: pyda_japc.JapcProvider | None = None,
         *,
         parent: QtCore.QObject | None = None,

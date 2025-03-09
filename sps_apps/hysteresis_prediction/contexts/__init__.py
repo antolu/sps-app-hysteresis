@@ -37,6 +37,7 @@ _context_recipes: dict[str, ContextRecipe] = {
     #     "trim_settings": OnlineTrimSettings,
     # },
 }
+_app_context: ApplicationContext | None = None
 
 
 def set_context(
@@ -67,10 +68,21 @@ def set_context(
         param_names=recipe["param_names"],
         trim_settings=trim_settings,
     )
-    global app_context  # noqa: PLW0603
-    app_context = context
+    global _app_context  # noqa: PLW0603
+    _app_context = context
 
     return context
 
 
-app_context: ApplicationContext | NotSetContext = NotSetContext()
+def app_context() -> ApplicationContext:
+    if isinstance(_app_context, NotSetContext) or _app_context is None:
+        msg = "Context not set, call set_context before accessing app_context"
+        raise AttributeError(msg)
+
+    return _app_context
+
+
+__all__ = [
+    "app_context",
+    "set_context",
+]

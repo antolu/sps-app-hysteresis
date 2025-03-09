@@ -3,9 +3,10 @@ from __future__ import annotations
 from ._base_context import ParameterNames
 
 MBI_PARAMS = ParameterNames(
-    TRIGGER="rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/XTIM.UCAP.SCY-CT-500/Acquisition",
+    TRIGGER="SX.CZERO-CTML/CycleWarning",
     I_PROG="rmi://virtual_sps/MBI/IREF",
     B_PROG="rmi://virtual_sps/SPSBEAM/B",
+    ADD_PROG_TRIGGER="rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/XTIM.UCAP.SCY-CT-500/Acquisition",
     B_CORRECTION="rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPSBEAM.BHYS-CORRECTION/Acquisition",
     CYCLE_START="XTIM.SX.SCY-CT/Acquisition",
     I_PROG_DYNECO="rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.MBI.DYNECO/IREF",

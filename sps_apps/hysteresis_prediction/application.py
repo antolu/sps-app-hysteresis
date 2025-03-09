@@ -9,7 +9,7 @@ from qtpy import QtCore, QtWidgets
 from rich.logging import RichHandler
 
 from . import __version__
-from ._metadata import APP_NAME, ORGANIZATION_DOMAIN, ORGANIZATION_NAME
+from .contexts import app_context, set_context
 from .flow import LocalFlowWorker, UcapFlowWorker
 from .main_window import MainWindow
 
@@ -67,10 +67,15 @@ def main() -> None:
     )
     parser.add_argument(
         "-d",
-        "--data-source",
-        dest="data_source",
-        choices=["local", "ucap"],
-        default="local",
+        "--device",
+        choices=["MBI", "QF", "QD"],
+        required=True,
+        help="Device to apply field compensation to. Available magnetic circuits are SPS main dipoles (MBI), SPS focusing quadrupoles (QF) and SPS defocusing quadrupoles (QD).",
+    )
+    parser.add_argument(
+        "--online",
+        action="store_true",
+        help="Online prediction and trim monitoring. No predictions are done locally.",
     )
     parser.add_argument(
         "--lsa-server",
@@ -84,14 +89,16 @@ def main() -> None:
 
     application = QtWidgets.QApplication([])
     application.setApplicationVersion(__version__)
-    application.setOrganizationName(ORGANIZATION_NAME)
-    application.setOrganizationDomain(ORGANIZATION_DOMAIN)
-    application.setApplicationName(APP_NAME)
+    application.setOrganizationName("CERN")
+    application.setOrganizationDomain("cern.ch")
+    application.setApplicationName("SPS Hysteresis Prediction")
 
     from op_app_context import context, settings  # noqa: PLC0415
 
     context.lsa_server = args.lsa_server
     settings.configure_application(application)
+
+    set_context(args.device, online=args.online)
 
     try:
         rbac_token = pyrbac.AuthenticationClient().login_location()
@@ -99,11 +106,14 @@ def main() -> None:
 
         logging.getLogger(__name__).info(f"Logged in as {rbac_token.username}")
     except:  # noqa: E722
-        pass
+        logging.getLogger(__name__).warning(
+            "No RBAC by location, you will have to login manually."
+        )
 
     data_thread = QtCore.QThread()
     if args.data_source == "local":
         flow_worker = LocalFlowWorker(
+            param_names=app_context().PARAMS,
             buffer_size=args.buffer_size,
             provider=context.japc_provider,
         )
@@ -119,12 +129,11 @@ def main() -> None:
     flow_worker.init_data_flow()
 
     data_thread.started.connect(flow_worker.start)
+
+    # quit the worker when the application is about to quit
     application.aboutToQuit.connect(flow_worker.stop)
     application.aboutToQuit.connect(data_thread.quit)
     application.aboutToQuit.connect(data_thread.wait)
-
-    data_thread.start()
-    # flow_worker.wait()
 
     main_window: MainWindow | None = None
 
@@ -133,6 +142,7 @@ def main() -> None:
             sys.exit(1)
 
     data_thread.finished.connect(exit_if_fail)
+    data_thread.start()
 
     main_window = MainWindow(data_flow=flow_worker.data_flow, parent=None)
     main_window.show()

@@ -24,13 +24,14 @@ PARAM_DYNECO_IREF = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.MBI.DYNECO/IREF"
 class TrackDynEcoEventBuilder(EventBuilderAbc):
     def __init__(
         self,
+        param_dyneco_iref: str = PARAM_DYNECO_IREF,
         provider: pyda_japc.JapcProvider | None = None,
         *,
         parent: QtCore.QObject | None = None,
     ):
         super().__init__(
             subscriptions=[
-                Subscription("DYNECO", PARAM_DYNECO_IREF, ignore_first_updates=True),
+                Subscription("DYNECO", param_dyneco_iref, ignore_first_updates=True),
             ],
             provider=provider,
             parent=parent,

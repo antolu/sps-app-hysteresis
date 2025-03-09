@@ -4,9 +4,8 @@ import typing
 
 import pyda
 from op_app_context import context
+from op_app_context import settings as app_settings
 from qtpy import QtCore
-
-from .._metadata import APP_NAME, ORGANIZATION_NAME
 
 
 class TrimSettings(QtCore.QObject):
@@ -92,32 +91,24 @@ class LocalTrimSettings(TrimSettings):
 
         self.prefix = prefix
 
-        self.settings = QtCore.QSettings(
-            ORGANIZATION_NAME,
-            APP_NAME,
-        )
-        self.settings.sync()
-
     def trim_enabled(self) -> typing.MutableMapping[str, bool]:
         return LocalTrimSettingsContainer(  # type: ignore[return-value]
-            self.settings, key=f"{self.prefix}/trim_enabled"
+            app_settings, key=f"{self.prefix}/trim_enabled"
         )
 
     def initial_trim_enabled(self) -> typing.MutableMapping[str, bool]:
         return LocalTrimSettingsContainer(  # type: ignore[return-value]
-            self.settings, key=f"{self.prefix}/initial_trim_enabled"
+            app_settings, key=f"{self.prefix}/initial_trim_enabled"
         )
 
     def dry_run(self) -> typing.MutableMapping[str, bool]:
         return LocalTrimSettingsContainer(self.settings, key=f"{self.prefix}/dry_run")  # type: ignore[return-value]
 
     def trim_start(self) -> typing.MutableMapping[str, float]:
-        return LocalTrimSettingsContainer(
-            self.settings, key=f"{self.prefix}/trim_start"
-        )
+        return LocalTrimSettingsContainer(app_settings, key=f"{self.prefix}/trim_start")
 
     def trim_end(self) -> typing.MutableMapping[str, float]:
-        return LocalTrimSettingsContainer(self.settings, key=f"{self.prefix}/trim_end")
+        return LocalTrimSettingsContainer(app_settings, key=f"{self.prefix}/trim_end")
 
 
 class OnlineTrimSettingsContainer(typing.MutableMapping[str, bool | float]):

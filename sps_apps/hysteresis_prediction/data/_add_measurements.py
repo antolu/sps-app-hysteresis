@@ -20,14 +20,17 @@ PARAM_B_MEAS = "SR.BMEAS-SP-B-SD/CycleSamples#samples"
 class AddMeasurementsEventBuilder(BufferedSubscriptionEventBuilder):
     def __init__(
         self,
+        param_i_meas: str = PARAM_I_MEAS,
+        param_b_meas: str | None = PARAM_B_MEAS,
         provider: pyda_japc.JapcProvider | None = None,
         *,
         parent: QtCore.QObject | None = None,
     ):
+        assert param_b_meas is not None, "B_MEAS parameter must be provided."
         super().__init__(
             buffered_subscriptions=[
-                BufferedSubscription("I_MEAS", PARAM_I_MEAS),
-                BufferedSubscription("B_MEAS", PARAM_B_MEAS),
+                BufferedSubscription("I_MEAS", param_i_meas),
+                BufferedSubscription("B_MEAS", param_b_meas),
             ],
             provider=provider,
             parent=parent,

@@ -29,6 +29,9 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
     def __init__(
         self,
         cycle_warning: str = "SX.CZERO-CTML/CycleWarning",
+        param_i_prog: str = PARAM_I_PROG,
+        param_b_prog: str = PARAM_B_PROG,
+        param_b_correction: str = PARAM_BHYS_CORRECTION,
         provider: pyda_japc.JapcProvider | None = None,
         *,
         parent: QtCore.QObject | None = None,

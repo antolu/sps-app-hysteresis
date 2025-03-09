@@ -19,6 +19,7 @@ class ParameterNames:
     TRIGGER: str
     I_PROG: str
     B_PROG: str
+    ADD_PROG_TRIGGER: str
     B_CORRECTION: str
     CYCLE_START: str
 

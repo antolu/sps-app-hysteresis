@@ -6,6 +6,7 @@ import pyda_japc
 from PyQt5.QtCore import QObject
 from qtpy import QtCore
 
+from ..contexts import ParameterNames
 from ..data import (
     AddMeasurementReferencesEventBuilder,
     AddMeasurementsEventBuilder,
@@ -27,6 +28,7 @@ log = logging.getLogger(__name__)
 class LocalFlowWorker(FlowWorker):
     def __init__(
         self,
+        param_names: ParameterNames,
         provider: pyda_japc.JapcProvider,
         buffer_size: int = 60000,
         parent: QtCore.QObject | None = None,
@@ -36,9 +38,11 @@ class LocalFlowWorker(FlowWorker):
 
         self._provider = provider
         self._buffer_size = buffer_size
+        self._param_names = param_names
 
     def _init_data_flow_impl(self) -> None:
         self._data_flow = LocalDataFlow(
+            param_names=self._param_names,
             provider=self._provider,
             buffer_size=self._buffer_size,
             parent=self.parent(),
@@ -57,29 +61,58 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
 
     def __init__(
         self,
+        param_names: ParameterNames,
         provider: pyda_japc.JapcProvider,
         buffer_size: int = 60000,
         parent: QtCore.QObject | None = None,
     ) -> None:
         QObject.__init__(self, parent=parent)
-        self._create_cycle = CreateCycleEventBuilder(provider=provider, parent=parent)
+        self._create_cycle = CreateCycleEventBuilder(
+            cycle_warning=param_names.TRIGGER,
+            param_b_prog=param_names.B_PROG,
+            param_i_prog=param_names.I_PROG,
+            param_b_correction=param_names.B_CORRECTION,
+            provider=provider,
+            parent=parent,
+        )
         self._add_measurements_pre = AddMeasurementsEventBuilder(
-            provider=provider, parent=parent
+            param_i_meas=param_names.I_MEAS,
+            param_b_meas=param_names.B_MEAS,
+            provider=provider,
+            parent=parent,
         )
         self._buffer = BufferEventbuilder(buffer_size=buffer_size, parent=parent)
         self._predict = Inference(parent=parent)
         self._correction = CalculateCorrection(parent=parent)
-        self._start_cycle = StartCycleEventBuilder(provider=provider, parent=parent)
+        self._start_cycle = StartCycleEventBuilder(
+            trigger=param_names.CYCLE_START, provider=provider, parent=parent
+        )
         self._add_programmed = AddProgrammedEventBuilder(
-            provider=provider, parent=parent
+            param_i_prog=param_names.I_PROG,
+            param_b_prog=param_names.B_PROG,
+            trigger=param_names.ADD_PROG_TRIGGER,
+            provider=provider,
+            parent=parent,
         )
         self._add_measurement_post = CycleStampedAddMeasurementsEventBuilder(
-            provider=provider, parent=parent
+            param_i_meas=param_names.I_MEAS,
+            param_b_meas=param_names.B_MEAS,
+            provider=provider,
+            parent=parent,
         )
         self._add_measurement_ref = AddMeasurementReferencesEventBuilder(parent=parent)
 
-        self._track_dyneco = TrackDynEcoEventBuilder(provider=provider, parent=parent)
-        self._track_fulleco = TrackFullEcoEventBuilder(provider=provider, parent=parent)
+        self._track_dyneco = TrackDynEcoEventBuilder(
+            param_dyneco_iref=param_names.I_PROG_DYNECO,
+            provider=provider,
+            parent=parent,
+        )
+        self._track_fulleco = TrackFullEcoEventBuilder(
+            param_fulleco_iref=param_names.I_PROG_FULLECO,
+            param_fulleco_trigger=param_names.FULLECO_TRIGGER,
+            provider=provider,
+            parent=parent,
+        )
         self._track_precycle = TrackPrecycleEventBuilder(
             precycle_sequence=["SPS.USER.LHCPILOT", "SPS.USER.MD1"], parent=parent
         )
