@@ -48,6 +48,17 @@ class LocalTrimSettingsContainer(typing.MutableMapping[str, bool | float]):
         self.key = key
 
     def __getitem__(self, cycle_name: str) -> bool | float:
+        if self.key.endswith("initial_trim_enabled"):
+            """ Default value is always False """
+            if not self.settings.contains(self.key):
+                self.settings.setValue(self.key, {})
+            elif not self.settings.value(self.key).get(cycle_name, None):
+                settings = self.settings.value(self.key)
+                settings[cycle_name] = False
+                self.settings.setValue(self.key, settings)
+
+            return False
+
         value = self.settings.value(self.key, {}).get(cycle_name, None)
         if value is None:
             raise KeyError(cycle_name)
@@ -55,6 +66,10 @@ class LocalTrimSettingsContainer(typing.MutableMapping[str, bool | float]):
         return value
 
     def __setitem__(self, cycle_name: str, value: bool | float) -> None:
+        if self.key.endswith("initial_trim_enabled"):
+            msg = "Cannot set initial trim enabled value locally"
+            raise NotImplementedError(msg)
+
         settings = self.settings.value(self.key, {})
         settings[cycle_name] = value
         self.settings.setValue(self.key, settings)
@@ -86,6 +101,11 @@ class LocalTrimSettings(TrimSettings):
     def trim_enabled(self) -> typing.MutableMapping[str, bool]:
         return LocalTrimSettingsContainer(  # type: ignore[return-value]
             self.settings, key=f"{self.prefix}/trim_enabled"
+        )
+
+    def initial_trim_enabled(self) -> typing.MutableMapping[str, bool]:
+        return LocalTrimSettingsContainer(  # type: ignore[return-value]
+            self.settings, key=f"{self.prefix}/initial_trim_enabled"
         )
 
     def dry_run(self) -> typing.MutableMapping[str, bool]:
@@ -145,6 +165,14 @@ class OnlineTrimSettings(TrimSettings):
             device_name="SPS.TRIM",
             property_name="Enabled",
             field_name="enabled",
+        )
+
+    def initial_trim_enabled(self) -> typing.MutableMapping[str, bool]:
+        return OnlineTrimSettingsContainer(  # type: ignore[return-value]
+            self._da,
+            device_name="SPS.TRIM",
+            property_name="initial_enabled",
+            field_name="cycle",
         )
 
     def dry_run(self) -> typing.MutableMapping[str, bool]:
