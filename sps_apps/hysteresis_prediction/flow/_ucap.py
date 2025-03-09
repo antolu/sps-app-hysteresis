@@ -8,11 +8,13 @@ import hystcomp_utils.cycle_data
 import pyda._metadata
 import pyda.access
 import pyda.clients
+import pyda.data
 import pyda.metadata
 import pyda.providers
 import pyda_japc
 from qtpy import QtCore
 
+from ..contexts import UcapParameterNames
 from ..data import JapcEndpoint, StartCycleEventBuilder
 from ._data_flow import DataFlow, FlowWorker
 
@@ -37,14 +39,22 @@ SET_GAIN = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.ECO/Gain"
 
 class UcapFlowWorker(FlowWorker):
     def __init__(
-        self, provider: pyda_japc.JapcProvider, parent: QtCore.QObject | None = None
+        self,
+        ucap_params: UcapParameterNames,
+        *,
+        provider: pyda_japc.JapcProvider,
+        parent: QtCore.QObject | None = None,
     ) -> None:
         super().__init__(parent=parent)
 
+        self._ucap_params = ucap_params
         self._provider = provider
 
     def _init_data_flow_impl(self) -> None:
-        self._data_flow = UcapDataFlow(provider=self._provider)
+        self._data_flow = UcapDataFlow(
+            ucap_params=self._ucap_params,
+            provider=self._provider,
+        )
 
 
 class UcapDataFlow(DataFlow, QtCore.QObject):
@@ -55,7 +65,11 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
     _dummy = QtCore.Signal()
 
     def __init__(
-        self, provider: pyda_japc.JapcProvider, parent: QtCore.QObject | None = None
+        self,
+        ucap_params: UcapParameterNames,
+        *,
+        provider: pyda_japc.JapcProvider,
+        parent: QtCore.QObject | None = None,
     ) -> None:
         super().__init__(parent=parent)
         self._provider = provider
@@ -71,14 +85,16 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
             provider=self._provider,
         )
 
+        self._ucap_params = ucap_params
+
         self._should_stop = False
         self._handles: list[pyda.clients.asyncio.AsyncIOSubscription] = []
 
     def _setup_subscriptions(self) -> list[pyda.clients.asyncio.AsyncIOSubscription]:
         matches = [
-            ENDPOINT_RE.match(CYCLE_WARNING),
-            ENDPOINT_RE.match(CYCLE_CORRECTION),
-            ENDPOINT_RE.match(CYCLE_MEASURED),
+            ENDPOINT_RE.match(self._ucap_params.CYCLE_WARNING),
+            ENDPOINT_RE.match(self._ucap_params.CYCLE_CORRECTION),
+            ENDPOINT_RE.match(self._ucap_params.CYCLE_MEASURED),
         ]
         return [
             self._da.subscribe(
@@ -86,7 +102,13 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
                 context="SPS.USER.ALL",
             )
             for match, endpoint in zip(
-                matches, [CYCLE_WARNING, CYCLE_CORRECTION, CYCLE_MEASURED], strict=False
+                matches,
+                [
+                    self._ucap_params.CYCLE_WARNING,
+                    self._ucap_params.CYCLE_CORRECTION,
+                    self._ucap_params.CYCLE_MEASURED,
+                ],
+                strict=False,
             )
             if match is not None
         ]
@@ -107,11 +129,11 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
                 log.error(f"Error in subscription: {response.exception}")
                 continue
 
-            if str(response.query.endpoint) == CYCLE_WARNING:
+            if str(response.query.endpoint) == self._ucap_params.CYCLE_WARNING:
                 await self.handle_cycle_forewarning(response)
-            elif str(response.query.endpoint) == CYCLE_CORRECTION:
+            elif str(response.query.endpoint) == self._ucap_params.CYCLE_CORRECTION:
                 await self.handle_cycle_correction_calculated(response)
-            elif str(response.query.endpoint) == CYCLE_MEASURED:
+            elif str(response.query.endpoint) == self._ucap_params.CYCLE_MEASURED:
                 await self.handle_cycle_measured(response)
             else:
                 log.warning(f"Received unknown endpoint: {response.query.endpoint}")
@@ -149,7 +171,7 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
             pyda.access.PropertyAccessQuery
         ],
     ) -> None:
-        cycle_data = extract_cycle_data(response.value)
+        cycle_data = extract_cycle_data(response.data)
         self._onCycleForewarning.emit(cycle_data)
 
     async def handle_cycle_correction_calculated(
@@ -158,7 +180,7 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
             pyda.access.PropertyAccessQuery
         ],
     ) -> None:
-        cycle_data = extract_cycle_data(response.value)
+        cycle_data = extract_cycle_data(response.data)
         self._onCorrectionCalculated.emit(cycle_data)
 
     async def handle_cycle_measured(
@@ -167,7 +189,7 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
             pyda.access.PropertyAccessQuery
         ],
     ) -> None:
-        cycle_data = extract_cycle_data(response.value)
+        cycle_data = extract_cycle_data(response.data)
         self._onCycleMeasured.emit(cycle_data)
 
     async def handle_set_gain(
@@ -177,6 +199,6 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
 
 
 def extract_cycle_data(
-    apv: pyda.access.AcquiredPropertyData,
+    apv: pyda.data.ImmutableLazyMapping,
 ) -> hystcomp_utils.cycle_data.CycleData:
-    return hystcomp_utils.cycle_data.CycleData.from_dict(apv.mutable_copy())
+    return hystcomp_utils.cycle_data.CycleData.from_dict(apv.copy())

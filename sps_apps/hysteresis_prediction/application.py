@@ -118,7 +118,12 @@ def main() -> None:
             provider=context.japc_provider,
         )
     elif args.data_source == "ucap":
+        ucap_params = app_context().UCAP_PARAMS
+        if ucap_params is None:
+            msg = "UCAP parameters not available for this device."
+            raise ValueError(msg)
         flow_worker = UcapFlowWorker(
+            ucap_params=ucap_params,
             provider=context.japc_provider,
         )
     else:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ._base_context import ParameterNames
+from ._base_context import ParameterNames, UcapParameterNames
 
 MBI_PARAMS = ParameterNames(
     TRIGGER="SX.CZERO-CTML/CycleWarning",
@@ -14,4 +14,19 @@ MBI_PARAMS = ParameterNames(
     FULLECO_TRIGGER="XTIM.SX.FCY-MMODE-CT/Acquisition",
     I_MEAS="MBI/LOG.I.MEAS",
     B_MEAS="SR.BMEAS-SP-B-SD/CycleSamples#samples",
+)
+
+
+MBI_UCAP_PARAMS = UcapParameterNames(
+    CYCLE_WARNING="rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.ECO/CycleDataFCY",
+    CYCLE_CORRECTION=(
+        "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.ECO/CycleDataCorrection"
+    ),
+    CYCLE_MEASURED=(
+        "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.ECO/CycleDataMeasRef"
+    ),
+    RESET_REFERENCE=(
+        "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.ECO/ResetReference"
+    ),
+    SET_GAIN="rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.ECO/Gain",
 )

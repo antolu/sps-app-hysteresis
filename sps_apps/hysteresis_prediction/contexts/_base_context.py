@@ -32,6 +32,15 @@ class ParameterNames:
     TRIM_SETTINGS: str | None = None
 
 
+@dataclasses.dataclass
+class UcapParameterNames:
+    CYCLE_WARNING: str
+    CYCLE_CORRECTION: str
+    CYCLE_MEASURED: str
+    RESET_REFERENCE: str
+    SET_GAIN: str
+
+
 class ApplicationContext:
     """Base context class that all other contexts should inherit from."""
 
@@ -39,6 +48,7 @@ class ApplicationContext:
     B_MEAS_AVAIL: typing.Final[bool]
 
     PARAMS: typing.Final[ParameterNames]
+    UCAP_PARAMS: typing.Final[UcapParameterNames | None]
 
     TRIM_SETTINGS: TrimSettings
 
@@ -48,6 +58,7 @@ class ApplicationContext:
         param_names: ParameterNames,
         trim_settings: TrimSettings,
         *,
+        ucap_params: UcapParameterNames | None = None,
         b_meas_avail: bool | None = None,
         online: bool = False,
     ):
@@ -57,6 +68,7 @@ class ApplicationContext:
         self.B_MEAS_AVAIL = (
             self.PARAMS.B_MEAS is not None if b_meas_avail is None else b_meas_avail
         )
+        self.UCAP_PARAMS = ucap_params
 
         self._online = online
 
