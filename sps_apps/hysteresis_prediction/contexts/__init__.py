@@ -1,0 +1,76 @@
+import typing
+
+from .._mod_replace import replace_modname
+from ..trim import LocalTrimSettings, OnlineTrimSettings
+from ._base_context import ApplicationContext, NotSetContext, ParameterNames
+from ._params import MBI_PARAMS
+
+for _mod in [ApplicationContext, ParameterNames, MBI_PARAMS]:
+    replace_modname(_mod, __name__)
+
+
+class ContextRecipe(typing.TypedDict):
+    device: typing.Literal["MBI", "QF", "QD"]
+    param_names: ParameterNames
+    trim_settings: type[LocalTrimSettings | OnlineTrimSettings]
+
+
+_context_recipes: dict[str, ContextRecipe] = {
+    "MBI_local": {
+        "device": "MBI",
+        "param_names": MBI_PARAMS,
+        "trim_settings": LocalTrimSettings,
+    },
+    "MBI_online": {
+        "device": "MBI",
+        "param_names": MBI_PARAMS,
+        "trim_settings": OnlineTrimSettings,
+    },
+    # "QF": {
+    #     "device": "QF",
+    #     "param_names": MBI_PARAMS,
+    #     "trim_settings": LocalTrimSettings,
+    # },
+    # "QD": {
+    #     "device": "QD",
+    #     "param_names": MBI_PARAMS,
+    #     "trim_settings": OnlineTrimSettings,
+    # },
+}
+
+
+def set_context(
+    device: typing.Literal["MBI", "QF", "QD"],
+    *,
+    online: bool = False,
+) -> ApplicationContext:
+    recipe = _context_recipes[f"{device}_{'online' if online else 'local'}"]
+
+    trim_settings_cls = recipe["trim_settings"]
+    if online:
+        if trim_settings_cls != OnlineTrimSettings:
+            msg = "Online context requested, but recipe is not for online context"
+            raise ValueError(msg)
+        trim_settings_cls = typing.cast(type[OnlineTrimSettings], trim_settings_cls)
+        trim_settings = trim_settings_cls(
+            device=recipe["param_names"].TRIM_SETTINGS or ""
+        )
+    else:
+        if trim_settings_cls != LocalTrimSettings:
+            msg = "Local context requested, but recipe is not for local context"
+            raise ValueError(msg)
+        trim_settings_cls = typing.cast(type[LocalTrimSettings], trim_settings_cls)
+        trim_settings = trim_settings_cls(prefix=device)
+
+    context = ApplicationContext(
+        device=device,
+        param_names=recipe["param_names"],
+        trim_settings=trim_settings,
+    )
+    global app_context  # noqa: PLW0603
+    app_context = context
+
+    return context
+
+
+app_context: ApplicationContext | NotSetContext = NotSetContext()

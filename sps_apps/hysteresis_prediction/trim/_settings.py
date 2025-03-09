@@ -152,7 +152,7 @@ class OnlineTrimSettings(TrimSettings):
         self,
         parent: QtCore.QObject | None = None,
         *,
-        device: typing.Literal["MBI", "QF", "QD"],
+        device: str,
     ):
         super().__init__(parent)
 
