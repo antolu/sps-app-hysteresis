@@ -24,18 +24,17 @@ class TrimSettings(QtCore.QObject):
     def __init__(self, parent: QtCore.QObject | None = None):
         super().__init__(parent)
 
+    @property
     def trim_enabled(self) -> typing.Mapping[str, bool]:
         """Whether the trim is enabled or not."""
         raise NotImplementedError
 
-    def dry_run(self) -> typing.Mapping[str, bool]:
-        """Whether the trim is a dry run or not."""
-        raise NotImplementedError
-
+    @property
     def trim_start(self) -> typing.Mapping[str, float]:
         """CTime of the start of the trim. Normally should not exceed beam injection time."""
         raise NotImplementedError
 
+    @property
     def trim_end(self) -> typing.Mapping[str, float]:
         """CTime of the end of the trim. Normally should not exceed beam injection time."""
         raise NotImplementedError
@@ -91,22 +90,23 @@ class LocalTrimSettings(TrimSettings):
 
         self.prefix = prefix
 
+    @property
     def trim_enabled(self) -> typing.MutableMapping[str, bool]:
         return LocalTrimSettingsContainer(  # type: ignore[return-value]
             app_settings, key=f"{self.prefix}/trim_enabled"
         )
 
+    @property
     def initial_trim_enabled(self) -> typing.MutableMapping[str, bool]:
         return LocalTrimSettingsContainer(  # type: ignore[return-value]
             app_settings, key=f"{self.prefix}/initial_trim_enabled"
         )
 
-    def dry_run(self) -> typing.MutableMapping[str, bool]:
-        return LocalTrimSettingsContainer(self.settings, key=f"{self.prefix}/dry_run")  # type: ignore[return-value]
-
+    @property
     def trim_start(self) -> typing.MutableMapping[str, float]:
         return LocalTrimSettingsContainer(app_settings, key=f"{self.prefix}/trim_start")
 
+    @property
     def trim_end(self) -> typing.MutableMapping[str, float]:
         return LocalTrimSettingsContainer(app_settings, key=f"{self.prefix}/trim_end")
 
@@ -150,6 +150,7 @@ class OnlineTrimSettings(TrimSettings):
         self._da = pyda.SimpleClient(provider=context.japc_provider)
         self.device = device
 
+    @property
     def trim_enabled(self) -> typing.MutableMapping[str, bool]:
         return OnlineTrimSettingsContainer(  # type: ignore[return-value]
             self._da,
@@ -158,6 +159,7 @@ class OnlineTrimSettings(TrimSettings):
             field_name="enabled",
         )
 
+    @property
     def initial_trim_enabled(self) -> typing.MutableMapping[str, bool]:
         return OnlineTrimSettingsContainer(  # type: ignore[return-value]
             self._da,
@@ -166,14 +168,7 @@ class OnlineTrimSettings(TrimSettings):
             field_name="cycle",
         )
 
-    def dry_run(self) -> typing.MutableMapping[str, bool]:
-        return OnlineTrimSettingsContainer(  # type: ignore[return-value]
-            self._da,
-            device_name="SPS.TRIM",
-            property_name="dry_run",
-            field_name="cycle",
-        )
-
+    @property
     def trim_start(self) -> typing.MutableMapping[str, float]:
         return OnlineTrimSettingsContainer(
             self._da,
@@ -182,6 +177,7 @@ class OnlineTrimSettings(TrimSettings):
             field_name="cycle",
         )
 
+    @property
     def trim_end(self) -> typing.MutableMapping[str, float]:
         return OnlineTrimSettingsContainer(
             self._da,
