@@ -39,6 +39,7 @@ class TrackDynEcoEventBuilder(EventBuilderAbc):
         )
 
         self._cycle_data_buffer: dict[str, hystcomp_utils.cycle_data.CycleData] = {}
+        self.param_dyneco_iref = param_dyneco_iref
 
     def _handle_acquisition_impl(
         self, fspv: pyda.access.PropertyRetrievalResponse
@@ -50,7 +51,7 @@ class TrackDynEcoEventBuilder(EventBuilderAbc):
         selector = str(header.selector)
         id_ = f"[{selector}@{cycle_time_s}]"
 
-        if parameter != PARAM_DYNECO_IREF:
+        if parameter != self.param_dyneco_iref:
             msg = f"Received unknown acquisition for {parameter}@{context}."
             raise ValueError(msg)
 
@@ -60,7 +61,7 @@ class TrackDynEcoEventBuilder(EventBuilderAbc):
 
         cycle_data = self._cycle_data_buffer[selector]
 
-        i_prog_df = fspv.value.get("value")
+        i_prog_df = fspv.data["value"]
         iref = np.vstack((i_prog_df.xs, i_prog_df.ys))
 
         if not np.allclose(cycle_data.cycle_timestamp, header.cycle_timestamp):

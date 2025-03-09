@@ -46,6 +46,9 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
             no_metadata_source=True,
         )
 
+        self.param_i_prog = param_i_prog
+        self.param_b_prog = param_b_prog
+
         self._cycle_data_buffer: dict[str, hystcomp_utils.cycle_data.CycleData] = {}
 
     def _handle_acquisition_impl(
@@ -74,8 +77,8 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
             self.cycleDataAvailable.emit(cycle_data)
             return
 
-        prog_i_df = self._get_buffered_data(PARAM_I_PROG, selector).value.get("value")
-        prog_b_df = self._get_buffered_data(PARAM_B_PROG, selector).value.get("value")
+        prog_i_df = self._get_buffered_data(self.param_i_prog, selector).data["value"]
+        prog_b_df = self._get_buffered_data(self.param_b_prog, selector).data["value"]
 
         cycle_data.current_prog = np.vstack((prog_i_df.xs, prog_i_df.ys))
         cycle_data.field_prog = np.vstack((prog_b_df.xs, prog_b_df.ys))

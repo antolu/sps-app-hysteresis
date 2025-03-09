@@ -31,16 +31,20 @@ class CycleStampedAddMeasurementsEventBuilder(CycleStampGroupedTriggeredEventBui
         parent: QtCore.QObject | None = None,
     ):
         assert param_b_meas is not None, "B_MEAS parameter must be provided."
+        buffered_subscriptions = [BufferedSubscription("I_MEAS", param_i_meas)]
+
+        if param_b_meas is not None:
+            buffered_subscriptions.append(BufferedSubscription("B_MEAS", param_b_meas))
+
         super().__init__(
-            buffered_subscriptions=[
-                BufferedSubscription("I_MEAS", param_i_meas, ignore_first_updates=True),
-                BufferedSubscription("B_MEAS", param_b_meas, ignore_first_updates=True),
-            ],
+            buffered_subscriptions=buffered_subscriptions,
             track_cycle_data=track_cycle_data,
             buffer_size=buffer_size,
             provider=provider,
             parent=parent,
         )
+        self.param_i_meas = param_i_meas
+        self.param_b_meas = param_b_meas
 
     def onCycleStampGroupTriggered(self, cycle_stamp: float, selector: str) -> None:
         cycle_data = typing.cast(
@@ -48,14 +52,18 @@ class CycleStampedAddMeasurementsEventBuilder(CycleStampGroupedTriggeredEventBui
             self._cycle_data_buffer[selector][cycle_stamp],
         )
 
-        i_meas_fspv = self._cycle_stamp_buffers[PARAM_I_MEAS][selector][cycle_stamp]
-        b_meas_fspv = self._cycle_stamp_buffers[PARAM_B_MEAS][selector][cycle_stamp]
-
+        i_meas_fspv = self._cycle_stamp_buffers[self.param_i_meas][selector][
+            cycle_stamp
+        ]
         i_meas = i_meas_fspv.value.get("value")
-        b_meas = b_meas_fspv.value.get("value") / 1e4
-
         cycle_data.current_meas = i_meas
-        cycle_data.field_meas = b_meas
+
+        if self.param_b_meas is not None:
+            b_meas_fspv = self._cycle_stamp_buffers[self.param_b_meas][selector][
+                cycle_stamp
+            ]
+            b_meas = b_meas_fspv.value.get("value") / 1e4
+            cycle_data.field_meas = b_meas
 
         msg = f"[{cycle_data}] Added measurements to cycle data"
         log.debug(msg)

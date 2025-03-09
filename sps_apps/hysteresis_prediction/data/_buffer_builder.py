@@ -15,11 +15,6 @@ from ._event_builder_abc import EventBuilderAbc
 log = logging.getLogger(__name__)
 
 
-PARAM_I_PROG = "rmi://virtual_sps/MBI/IREF"
-PARAM_B_PROG = "rmi://virtual_sps/SPSBEAM/B"
-PARAM_BHYS_CORRECTION = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/BHYS-CORRECTION/Acquisition"
-
-
 class BufferEventbuilder(EventBuilderAbc):
     newBufferAvailable = QtCore.Signal(
         list

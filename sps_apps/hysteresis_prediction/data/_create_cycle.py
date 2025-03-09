@@ -41,9 +41,9 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
                 Subscription("CycleWarning", cycle_warning, ignore_first_updates=True),
             ],
             buffered_subscriptions=[
-                BufferedSubscription("IREF", PARAM_I_PROG),
-                BufferedSubscription("B", PARAM_B_PROG),
-                BufferedSubscription("BHYS-CORRECTION", PARAM_BHYS_CORRECTION),
+                BufferedSubscription("IREF", param_i_prog),
+                BufferedSubscription("B", param_b_prog),
+                BufferedSubscription("BHYS-CORRECTION", param_b_correction),
             ],
             provider=provider,
             parent=parent,
@@ -51,43 +51,46 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
         )
 
         self._trigger = cycle_warning
+        self.param_i_prog = param_i_prog
+        self.param_b_prog = param_b_prog
+        self.param_b_correction = param_b_correction
 
     def _handle_acquisition_impl(
         self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
         selector = str(fspv.header.selector)
-        msg = f"Received {fspv.query.endpoint} with {fspv.value.get('value')}"
+        msg = f"Received {fspv.query.endpoint} with {fspv.data.get('value')}"
         log.debug(msg)
 
         if str(fspv.query.endpoint) == self._trigger:
             if (
-                not self._buffer_has_data(PARAM_I_PROG, selector)
-                or not self._buffer_has_data(PARAM_B_PROG, selector)
-                or not self._buffer_has_data(PARAM_BHYS_CORRECTION, selector)
+                not self._buffer_has_data(self.param_i_prog, selector)
+                or not self._buffer_has_data(self.param_b_prog, selector)
+                or not self._buffer_has_data(self.param_b_correction, selector)
             ):
                 msg = f"Missing data for {selector}. Skipping cycle creation."
                 log.error(msg)
                 return
 
-            current_prog_fspv = self._get_buffered_data(PARAM_I_PROG, selector)
-            field_prog_fspv = self._get_buffered_data(PARAM_B_PROG, selector)
-            bhys_corr_fspv = self._get_buffered_data(PARAM_BHYS_CORRECTION, selector)
+            current_prog_fspv = self._get_buffered_data(self.param_i_prog, selector)
+            field_prog_fspv = self._get_buffered_data(self.param_b_prog, selector)
+            bhys_corr_fspv = self._get_buffered_data(self.param_b_correction, selector)
 
             current_prog = np.vstack((
-                current_prog_fspv.value.get("value").xs,
-                current_prog_fspv.value.get("value").ys,
+                current_prog_fspv.data["value"].xs,
+                current_prog_fspv.data["value"].ys,
             ))
             field_prog = np.vstack((
-                field_prog_fspv.value.get("value").xs,
-                field_prog_fspv.value.get("value").ys,
+                field_prog_fspv.data["value"].xs,
+                field_prog_fspv.data["value"].ys,
             ))
             bhys_corr = np.vstack((
-                bhys_corr_fspv.value.get("value").xs,
-                bhys_corr_fspv.value.get("value").ys,
+                bhys_corr_fspv.data["value"].xs,
+                bhys_corr_fspv.data["value"].ys,
             ))
 
             cycle_data = hystcomp_utils.cycle_data.CycleData(
-                cycle=str(fspv.value.get("lsaCycleName")),
+                cycle=str(fspv.data["lsaCycleName"]),
                 user=selector,
                 cycle_timestamp=fspv.header.cycle_timestamp,
                 current_prog=current_prog,

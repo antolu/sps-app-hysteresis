@@ -30,7 +30,9 @@ class LocalFlowWorker(FlowWorker):
         self,
         param_names: ParameterNames,
         provider: pyda_japc.JapcProvider,
+        *,
         buffer_size: int = 60000,
+        meas_b_avail: bool = True,
         parent: QtCore.QObject | None = None,
     ) -> None:
         super().__init__(parent=parent)
@@ -39,9 +41,11 @@ class LocalFlowWorker(FlowWorker):
         self._provider = provider
         self._buffer_size = buffer_size
         self._param_names = param_names
+        self._meas_b_avail = meas_b_avail
 
     def _init_data_flow_impl(self) -> None:
         self._data_flow = LocalDataFlow(
+            meas_b_avail=self._meas_b_avail,
             param_names=self._param_names,
             provider=self._provider,
             buffer_size=self._buffer_size,
@@ -63,10 +67,15 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         self,
         param_names: ParameterNames,
         provider: pyda_japc.JapcProvider,
+        *,
         buffer_size: int = 60000,
+        meas_b_avail: bool = True,
         parent: QtCore.QObject | None = None,
     ) -> None:
         QObject.__init__(self, parent=parent)
+
+        self.meas_b_avail = meas_b_avail
+
         self._create_cycle = CreateCycleEventBuilder(
             cycle_warning=param_names.TRIGGER,
             param_b_prog=param_names.B_PROG,
@@ -100,7 +109,10 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
             provider=provider,
             parent=parent,
         )
-        self._add_measurement_ref = AddMeasurementReferencesEventBuilder(parent=parent)
+        if meas_b_avail:
+            self._add_measurement_ref = AddMeasurementReferencesEventBuilder(
+                parent=parent
+            )
 
         self._track_dyneco = TrackDynEcoEventBuilder(
             param_dyneco_iref=param_names.I_PROG_DYNECO,
@@ -128,7 +140,10 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         self._start_cycle.start()
         self._add_programmed.start()
         self._add_measurement_post.start()
-        self._add_measurement_ref.start()
+        if self.meas_b_avail:
+            assert hasattr(self, "_add_measurement_ref")
+            assert not hasattr(self, "_add_measurement_ref")
+            self._add_measurement_ref.start()
         self._track_dyneco.start()
         self._track_fulleco.start()
 
@@ -141,13 +156,19 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         self._start_cycle.stop()
         self._add_programmed.stop()
         self._add_measurement_post.stop()
-        self._add_measurement_ref.stop()
+        if self.meas_b_avail:
+            assert hasattr(self, "_add_measurement_ref")
+            assert not hasattr(self, "_add_measurement_ref")
+            self._add_measurement_ref.stop()
         self._track_dyneco.stop()
         self._track_fulleco.stop()
 
     def resetReference(self) -> None:
         try:
-            self._add_measurement_ref.resetReference()
+            if self.meas_b_avail:
+                assert hasattr(self, "_add_measurement_ref")
+                assert not hasattr(self, "_add_measurement_ref")
+                self._add_measurement_ref.resetReference()
             self._correction.resetReference()
         except Exception:
             log.exception("Error resetting reference.")
@@ -172,9 +193,12 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         self._add_programmed.cycleDataAvailable.connect(
             self._add_measurement_post.onNewCycleData
         )
-        self._add_measurement_post.cycleDataAvailable.connect(
-            self._add_measurement_ref.onNewCycleData
-        )
+        if self.meas_b_avail:
+            assert hasattr(self, "_add_measurement_ref")
+            assert not hasattr(self, "_add_measurement_ref")
+            self._add_measurement_post.cycleDataAvailable.connect(
+                self._add_measurement_ref.onNewCycleData
+            )
 
         self._add_measurement_post.cycleDataAvailable.connect(
             self._buffer.onNewMeasCycleData

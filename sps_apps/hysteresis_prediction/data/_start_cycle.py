@@ -28,12 +28,13 @@ class StartCycleEventBuilder(EventBuilderAbc):
         parent: QtCore.QObject | None = None,
     ):
         super().__init__(
-            subscriptions=[Subscription("SCY", TRIGGER, ignore_first_updates=True)],
+            subscriptions=[Subscription("SCY", trigger, ignore_first_updates=True)],
             provider=provider,
             parent=parent,
         )
 
         self._cycle_data_buffer: dict[str, hystcomp_utils.cycle_data.CycleData] = {}
+        self.trigger = trigger
 
     def _handle_acquisition_impl(
         self, fspv: pyda.access.PropertyRetrievalResponse
@@ -41,7 +42,7 @@ class StartCycleEventBuilder(EventBuilderAbc):
         parameter = str(fspv.query.endpoint)
         context = str(fspv.query.context)
 
-        if parameter != TRIGGER:
+        if parameter != self.trigger:
             msg = f"Received unknown acquisition for {parameter}@{context}."
             raise ValueError(msg)
 

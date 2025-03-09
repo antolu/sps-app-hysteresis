@@ -26,15 +26,18 @@ class AddMeasurementsEventBuilder(BufferedSubscriptionEventBuilder):
         *,
         parent: QtCore.QObject | None = None,
     ):
-        assert param_b_meas is not None, "B_MEAS parameter must be provided."
+        buffered_subscriptions = [BufferedSubscription("I_MEAS", param_i_meas)]
+        if param_b_meas is not None:
+            buffered_subscriptions.append(BufferedSubscription("B_MEAS", param_b_meas))
+
         super().__init__(
-            buffered_subscriptions=[
-                BufferedSubscription("I_MEAS", param_i_meas),
-                BufferedSubscription("B_MEAS", param_b_meas),
-            ],
+            buffered_subscriptions=buffered_subscriptions,
             provider=provider,
             parent=parent,
         )
+
+        self.param_i_meas = param_i_meas
+        self.param_b_meas = param_b_meas
 
     def _handle_acquisition_impl(
         self, fspv: pyda.access.PropertyRetrievalResponse
@@ -48,22 +51,24 @@ class AddMeasurementsEventBuilder(BufferedSubscriptionEventBuilder):
         msg = f"Received cycle data for {selector}"
         log.debug(msg)
 
-        if not self._buffer_has_data(
-            PARAM_I_MEAS, selector
-        ) or not self._buffer_has_data(PARAM_B_MEAS, selector):
+        if not self._buffer_has_data(self.param_i_meas, selector) or (
+            self.param_b_meas is not None
+            and not self._buffer_has_data(self.param_b_meas, selector)
+        ):
             msg = f"Missing measurements for {selector}"
             log.error(msg)
             return
 
-        i_meas = self._get_buffered_data(PARAM_I_MEAS, selector).value.get("value")
-        b_meas = (
-            self._get_buffered_data(PARAM_B_MEAS, selector).value.get("value") / 1e4
-        )  # G to T
-
+        i_meas = self._get_buffered_data(self.param_i_meas, selector).data.get("value")
         cycle_data.current_meas = i_meas
-        cycle_data.field_meas = b_meas
 
-        msg = f"Added measurements to cycle data for {selector}: I_MEAS={i_meas}, B_MEAS={b_meas}"
+        if self.param_b_meas is not None:
+            b_meas = (
+                self._get_buffered_data(self.param_b_meas, selector).data["value"] / 1e4
+            )  # G to T
+            cycle_data.field_meas = b_meas
+
+        msg = f"Added measurements to cycle data for {selector}: I_MEAS={True}, B_MEAS={self.param_b_meas is not None}"
         log.debug(msg)
 
         self.cycleDataAvailable.emit(cycle_data)

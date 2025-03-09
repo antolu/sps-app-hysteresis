@@ -44,6 +44,8 @@ class TrackFullEcoEventBuilder(BufferedSubscriptionEventBuilder):
         )
 
         self._cycle_data_buffer: dict[str, hystcomp_utils.cycle_data.CycleData] = {}
+        self.param_fulleco_iref = param_fulleco_iref
+        self.param_fulleco_trigger = param_fulleco_trigger
 
     def _handle_acquisition_impl(
         self, fspv: pyda.access.PropertyRetrievalResponse
@@ -51,10 +53,10 @@ class TrackFullEcoEventBuilder(BufferedSubscriptionEventBuilder):
         parameter = str(fspv.query.endpoint)
         selector = str(fspv.header.selector)
         cycle_time = fspv.header.cycle_time()
-        cycle = fspv.value.get("lsaCycleName")
+        cycle = fspv.data["lsaCycleName"]
 
-        if parameter == TRIGGER:
-            mmode = fspv.value.get("MACHINE_MODE")
+        if parameter == self.param_fulleco_trigger:
+            mmode = fspv.data["MACHINE_MODE"]
 
             if mmode != "FULLECO":
                 log.debug(f"{cycle}@{cycle_time} is not in FULLECO mode: {mmode}")
@@ -79,9 +81,9 @@ class TrackFullEcoEventBuilder(BufferedSubscriptionEventBuilder):
             msg = f"[{cycle_data}]: Adding FULLECO programmed current."
             log.debug(msg)
 
-            i_prog_df = self._get_buffered_data(PARAM_FULLECO_IREF, selector).value.get(
+            i_prog_df = self._get_buffered_data(self.param_fulleco_iref, selector).data[
                 "value"
-            )
+            ]
             i_prog = np.vstack((i_prog_df.xs, i_prog_df.ys))
 
             if i_prog[1, 0] != i_prog[1, -1]:
