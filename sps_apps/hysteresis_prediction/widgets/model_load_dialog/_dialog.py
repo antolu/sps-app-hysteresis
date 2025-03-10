@@ -53,12 +53,12 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QtWidgets.QDialog):
         else:
             self.last_selected_model = self.comboBoxModel.currentText()
 
-        self.buttonBrowse.clicked.connect(self.on_browse_clicked)
-        self.buttonBox.accepted.connect(self.on_ok_clicked)
+        self.buttonBrowse.clicked.connect(self.onBrowseClicked)
+        self.buttonBox.accepted.connect(self.onOkClicked)
         self.buttonBox.rejected.connect(self.reject)
 
     @QtCore.Slot()
-    def on_browse_clicked(self) -> None:
+    def onBrowseClicked(self) -> None:
         log.debug("Opening up model load file dialog.")
 
         file_path, ok = QtWidgets.QFileDialog.getOpenFileName(
@@ -79,10 +79,12 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QtWidgets.QDialog):
         settings["checkpoint_file"] = file_path
 
     @QtCore.Slot()
-    def on_ok_clicked(self) -> None:
-        ckpt_path = self.textCkptPath.text()
+    def onOkClicked(self) -> None:
+        ckpt_path = self.ckpt_path
 
-        if ckpt_path:
+        log.debug(f"Attempting to load model checkpoint at {ckpt_path}.")
+
+        if not ckpt_path:
             QtWidgets.QMessageBox.warning(
                 self, "Model load error", "No checkpoint path specified."
             )
