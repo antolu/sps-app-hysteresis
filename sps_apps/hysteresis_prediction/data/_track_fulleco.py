@@ -52,11 +52,11 @@ class TrackFullEcoEventBuilder(BufferedSubscriptionEventBuilder):
     ) -> None:
         parameter = str(fspv.query.endpoint)
         selector = str(fspv.header.selector)
-        cycle_time = fspv.header.cycle_time()
-        cycle = fspv.data["lsaCycleName"]
 
         if parameter == self.param_fulleco_trigger:
             mmode = fspv.data["MACHINE_MODE"]
+            cycle_time = fspv.header.cycle_time()
+            cycle = fspv.data["lsaCycleName"]
 
             if mmode != "FULLECO":
                 log.debug(f"{cycle}@{cycle_time} is not in FULLECO mode: {mmode}")
