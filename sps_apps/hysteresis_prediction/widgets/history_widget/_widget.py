@@ -77,6 +77,7 @@ class HistoryWidget(QtWidgets.QWidget):
 
         # set floating
         self.setWindowFlags(QtCore.Qt.Window)
+        self.setWindowTitle("SPS Hysteresis Prediction History")
 
     def _setup_lsa_selector(self) -> lsa_selector.LsaSelector:
         selector_model = lsa_selector.LsaSelectorModel(

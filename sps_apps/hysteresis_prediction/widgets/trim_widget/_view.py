@@ -229,6 +229,8 @@ class TrimWidgetView(QtWidgets.QWidget):
         self.layout().addWidget(self.plotWidget)
         self.layout().setMenuBar(self.menu_bar)
 
+        self.setWindowTitle("SPS Hysteresis Prediction Trims")
+
         self.setMinimumSize(800, 400)
 
         self.LsaSelector.contextSelectionChanged.connect(self.onUserSelectionChanged)
