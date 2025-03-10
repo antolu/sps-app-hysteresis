@@ -26,25 +26,25 @@ class CycleMetadata:
 
     def beam_in(self, cycle: str) -> int:
         if cycle not in self._beam_in_cache:
-            self._beam_in_cache[cycle] = self._get(cycle, BEAM_IN, "value")
+            self._beam_in_cache[cycle] = self._get(cycle, BEAM_IN, "controlValue")
 
         return self._beam_in_cache[cycle]
 
     def beam_out(self, cycle: str) -> int:
         if cycle not in self._beam_out_cache:
-            self._beam_out_cache[cycle] = self._get(cycle, BEAM_OUT, "value")
+            self._beam_out_cache[cycle] = self._get(cycle, BEAM_OUT, "controlValue")
 
         return self._beam_out_cache[cycle]
 
     def ramp_start(self, cycle: str) -> int:
         if cycle not in self._ramp_start_cache:
-            self._ramp_start_cache[cycle] = self._get(cycle, RAMP_START, "value")
+            self._ramp_start_cache[cycle] = self._get(cycle, RAMP_START, "acqC")
 
         return self._ramp_start_cache[cycle]
 
     def flattop_start(self, cycle: str) -> int:
         if cycle not in self._flattop_start_cache:
-            self._flattop_start_cache[cycle] = self._get(cycle, FT_START, "value")
+            self._flattop_start_cache[cycle] = self._get(cycle, FT_START, "acqQ")
 
         return self._flattop_start_cache[cycle]
 
