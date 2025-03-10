@@ -104,14 +104,16 @@ def main() -> None:
         rbac_token = pyrbac.AuthenticationClient().login_location()
         context.set_rbac_token(rbac_token)
 
-        logging.getLogger(__name__).info(f"Logged in as {rbac_token.username}")
+        logging.getLogger(__name__).info(f"Logged in as {rbac_token.user_name}")
     except:  # noqa: E722
+        logging.getLogger(__name__).exception("Failed to login with RBAC.")
         logging.getLogger(__name__).warning(
             "No RBAC by location, you will have to login manually."
         )
 
     data_thread = QtCore.QThread()
     if not args.online:
+        assert not app_context().ONLINE
         flow_worker = LocalFlowWorker(
             buffer_size=args.buffer_size,
             provider=context.japc_provider,
