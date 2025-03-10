@@ -119,11 +119,11 @@ class PredictionPlotModel(QtCore.QObject):
 
         self._plotted_items.add(item)
 
+        item.is_shown = True
         if not item.is_shown and len(self._plotted_items) == 1:
             # first item, set axes
             self.setReference(item)
             self.resetAxes()
-        item.is_shown = True
 
     def updateCycle(self, item: PlotItem) -> None:
         if not item.is_shown:
