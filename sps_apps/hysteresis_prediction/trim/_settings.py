@@ -119,13 +119,19 @@ class LocalTrimSettings(TrimSettings):
     @property
     def trim_enabled(self) -> typing.MutableMapping[str, bool]:
         return LocalTrimSettingsContainer(  # type: ignore[return-value]
-            self, app_settings, key=f"{self.prefix}/trim_enabled", default=False
+            self,
+            app_settings.settings,
+            key=f"{self.prefix}/trim_enabled",
+            default=False,
         )
 
     @property
     def initial_trim_enabled(self) -> typing.MutableMapping[str, bool]:
         return LocalTrimSettingsContainer(  # type: ignore[return-value]
-            self, app_settings, key=f"{self.prefix}/initial_trim_enabled", default=False
+            self,
+            app_settings.settings,
+            key=f"{self.prefix}/initial_trim_enabled",
+            default=False,
         )
 
     @property
