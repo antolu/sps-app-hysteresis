@@ -53,7 +53,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         self._io = IO()
         self._history = PredictionHistory(self)
-        self._history_widget = HistoryWidget(self._history, parent=None)
+        self._history_widget = HistoryWidget(
+            self._history, parent=None, measured_available=app_context().B_MEAS_AVAIL
+        )
 
         self._trim_model = TrimModel(trim_settings=app_context().TRIM_SETTINGS)
         self._trim_widget = TrimWidgetView(model=self._trim_model, parent=None)
