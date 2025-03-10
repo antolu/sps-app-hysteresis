@@ -90,7 +90,6 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self._data.onCycleMeasured.connect(self._history.update_cycle)
 
         # trim
-        self._data.onCycleCorrectionCalculated.connect(self._trim.onNewPrediction)
         self._data.onTrimApplied.connect(self._trim_widget.onTrimApplied)
 
         self._data.onModelLoaded.connect(

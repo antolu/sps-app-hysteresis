@@ -111,12 +111,12 @@ def main() -> None:
         )
 
     data_thread = QtCore.QThread()
-    if args.data_source == "local":
+    if not args.online:
         flow_worker = LocalFlowWorker(
             buffer_size=args.buffer_size,
             provider=context.japc_provider,
         )
-    elif args.data_source == "ucap":
+    else:
         ucap_params = app_context().UCAP_PARAMS
         if ucap_params is None:
             msg = "UCAP parameters not available for this device."
@@ -124,9 +124,6 @@ def main() -> None:
         flow_worker = UcapFlowWorker(
             provider=context.japc_provider,
         )
-    else:
-        msg = f"Invalid data source: {args.data_source}"
-        raise ValueError(msg)
 
     flow_worker.moveToThread(data_thread)
     flow_worker.init_data_flow()
