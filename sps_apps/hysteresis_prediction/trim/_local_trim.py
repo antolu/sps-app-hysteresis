@@ -13,6 +13,7 @@ from pyda_lsa import LsaCycleContext, LsaEndpoint
 from qtpy import QtCore
 
 from ..utils import ThreadWorker, time_execution
+from ._cycle_metadata import cycle_metadata
 from ._settings import LocalTrimSettings
 
 log = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ class LocalTrim(QtCore.QObject):
         self,
         param_b_corr: str,
         settings: LocalTrimSettings,
+        *,
         trim_threshold: float = TRIM_THRESHOLD,
         parent: QtCore.QObject | None = None,
     ):
@@ -96,7 +98,11 @@ class LocalTrim(QtCore.QObject):
             )
 
             start = self._settings.trim_start[cycle_data.cycle]
+            start = max(start, cycle_metadata.beam_in(cycle_data.cycle))
+
             end = self._settings.trim_end[cycle_data.cycle]
+            end = min(end, cycle_metadata.beam_out(cycle_data.cycle))
+
             correction_t, correction_v = self.cut_trim_beyond_time(
                 correction_t, correction_v, start, end
             )
