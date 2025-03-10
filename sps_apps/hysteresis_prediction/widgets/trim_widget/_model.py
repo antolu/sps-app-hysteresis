@@ -16,7 +16,7 @@ log = logging.getLogger()
 class TrimModel(QtCore.QObject):
     """Model for the TrimWidget."""
 
-    contextChanged = QtCore.Signal()
+    contextChanged = QtCore.Signal(str)
 
     def __init__(
         self, trim_settings: TrimSettings, parent: QtCore.QObject | None = None
@@ -30,7 +30,7 @@ class TrimModel(QtCore.QObject):
     def setCycle(self, cycle: str) -> None:
         self._cycle = cycle
 
-        self.contextChanged.emit()
+        self.contextChanged.emit(cycle)
 
     @property
     def cycle(self) -> str:

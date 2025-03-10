@@ -86,9 +86,6 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         self.GainSpinBox.setValue(1.0)
         self.GainSpinBox.setMaximumWidth(50)
 
-        self.DryRunLabel = QtWidgets.QLabel("Dry Run", parent=self)
-        self.DryRunCheckBox = QtWidgets.QCheckBox(parent=self)
-
         self.TrimTMinLabel = QtWidgets.QLabel("Trim T Min", parent=self)
         self.TrimTMinSpinBox = QtWidgets.QSpinBox(parent=self)
         self.TrimTMinSpinBox.setEnabled(False)
@@ -99,8 +96,8 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         self.TrimTMaxSpinBox.setEnabled(False)
         self.TrimTMaxSpinBox.setMaximumWidth(80)
 
-        self.toggle_button = ToggleButton(parent=self)
-        self.toggle_button.initializeState(
+        self.ToggleButton = ToggleButton(parent=self)
+        self.ToggleButton.initializeState(
             label_s2="Enable Trim",
             label_s1="Disable Trim",
             initial_state=ToggleButton.State.STATE2,
@@ -113,34 +110,28 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         layout.addWidget(self.TrimTMinSpinBox, 1, 1)
         layout.addWidget(self.TrimTMaxLabel, 2, 0)
         layout.addWidget(self.TrimTMaxSpinBox, 2, 1)
-        layout.addWidget(self.toggle_button, 3, 0, 1, 2)
+        layout.addWidget(self.ToggleButton, 3, 0, 1, 2)
         self.setLayout(layout)
 
-        self.DryRunCheckBox.stateChanged.connect(self.onDryRunChanged)
         self.GainSpinBox.valueChanged.connect(self.onGainChanged)
         self.TrimTMinSpinBox.valueChanged.connect(self.onMinValueChanged)
         self.TrimTMaxSpinBox.valueChanged.connect(self.onMaxValueChanged)
-        self.toggle_button.stateChanged.connect(self.onEnableTrim)
+        self.ToggleButton.stateChanged.connect(self.onEnableTrim)
 
         # disable the trim settings until a context has been set
         self.GainSpinBox.setEnabled(False)
-        self.DryRunCheckBox.setEnabled(False)
         self.TrimTMinSpinBox.setEnabled(False)
         self.TrimTMaxSpinBox.setEnabled(False)
+        self.ToggleButton.setEnabled(False)
 
-        self.model.contextChanged.connect(self.on_context_changed)
+        self.model.contextChanged.connect(self.onContextChanged)
 
     @QtCore.Slot(str)
-    def onContextChanged(self) -> None:
-        try:
-            cycle = self.model.cycle
-        except ValueError:
-            return
-
+    def onContextChanged(self, cycle: str) -> None:
         self.GainSpinBox.setEnabled(True)
         self.TrimTMinSpinBox.setEnabled(True)
         self.TrimTMaxSpinBox.setEnabled(True)
-        self.toggle_button.setEnabled(True)
+        self.ToggleButton.setEnabled(True)
 
         self.TrimTMinSpinBox.setMinimum(cycle_metadata.beam_in(cycle))
         self.TrimTMaxSpinBox.setMaximum(cycle_metadata.beam_out(cycle))
@@ -150,9 +141,9 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         self.TrimTMaxSpinBox.setValue(self.model.settings.trim_end[cycle])
 
         if self.model.settings.trim_enabled[cycle]:
-            self.toggle_button.setState(ToggleButton.State.STATE2)
+            self.ToggleButton.setState(ToggleButton.State.STATE2)
         else:
-            self.toggle_button.setState(ToggleButton.State.STATE1)
+            self.ToggleButton.setState(ToggleButton.State.STATE1)
 
     def onGainChanged(self, value: float) -> None:
         if value <= 1.0:
@@ -182,7 +173,7 @@ class TrimSettingsWidget(QtWidgets.QWidget):
 
         self.model.settings.trim_end[self.model.cycle] = value
 
-    @QtCore.Slot(bool)
+    @QtCore.Slot(ToggleButton.State)
     def onEnableTrim(self, state: ToggleButton.State) -> None:
         self.model.settings.trim_enabled[self.model.cycle] = (
             state == ToggleButton.State.STATE2
@@ -209,6 +200,7 @@ class TrimWidgetView(QtWidgets.QWidget):
         )
         self.file_menu.addAction(self.actionRefreshLsaSelector)
         self.actionRefreshLsaSelector.triggered.connect(self.LsaSelector.model.refetch)
+        self.menu_bar.addMenu(self.file_menu)
 
         self.TrimInfoWidget = TrimInfoWidget(parent=self)
         model.contextChanged.connect(self.TrimInfoWidget.onContextChanged)
@@ -221,7 +213,6 @@ class TrimWidgetView(QtWidgets.QWidget):
         layout.addWidget(self.LsaSelector)
         layout.addWidget(self.TrimInfoWidget)
         layout.addWidget(self.TrimSettingsWidget)
-        layout.addWidget(self.toggle_button)
         self.left_frame.setLayout(layout)
         self.left_frame.setMaximumSize(300, 16777215)
         self.left_frame.setSizePolicy(
