@@ -4,7 +4,6 @@ from .._mod_replace import replace_modname
 from ..trim import LocalTrimSettings, OnlineTrimSettings
 from ._base_context import (
     ApplicationContext,
-    NotSetContext,
     ParameterNames,
     UcapParameterNames,
 )
@@ -89,7 +88,7 @@ def set_context(
 
 
 def app_context() -> ApplicationContext:
-    if isinstance(_app_context, NotSetContext) or _app_context is None:
+    if _app_context is None:
         msg = "Context not set, call set_context before accessing app_context"
         raise AttributeError(msg)
 

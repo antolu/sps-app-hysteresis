@@ -62,7 +62,6 @@ class ApplicationContext:
         *,
         ucap_params: UcapParameterNames | None = None,
         b_meas_avail: bool | None = None,
-        online: bool = False,
     ):
         self.DEVICE = device
         self.PARAMS = param_names
@@ -72,20 +71,4 @@ class ApplicationContext:
         )
         self.UCAP_PARAMS = ucap_params
 
-        self.ONLINE = online
-
-
-class NotSetContext(ApplicationContext):
-    def __init__(self) -> None: ...
-
-    def __getattr__(self, name: str) -> typing.Any:
-        msg = f"Context not set, cannot access attribute {name}"
-        raise AttributeError(msg)
-
-    def __setattr__(self, name: str, value: typing.Any) -> None:
-        msg = f"Context not set, cannot set attribute {name}"
-        raise AttributeError(msg)
-
-    def __delattr__(self, name: str) -> None:
-        msg = f"Context not set, cannot delete attribute {name}"
-        raise AttributeError(msg)
+        self.ONLINE = ucap_params is not None
