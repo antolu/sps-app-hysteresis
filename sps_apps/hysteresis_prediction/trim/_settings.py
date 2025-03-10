@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import typing
 
 import pyda
@@ -8,6 +9,8 @@ from op_app_context import settings as app_settings
 from qtpy import QtCore
 
 from ._cycle_metadata import cycle_metadata
+
+log = logging.getLogger(__name__)
 
 
 class TrimSettings(QtCore.QObject):
@@ -66,28 +69,34 @@ class LocalTrimSettingsContainer(typing.MutableMapping[str, bool | float]):
         self.default = default
 
     def __getitem__(self, cycle_name: str) -> bool | float:
+        key = f"{self.key}/{cycle_name}"
         if self.key.endswith("initial_trim_enabled"):
             """ Default value is always False """
-            if not self.settings.contains(self.key):
-                self.settings.setValue(self.key, {})
-            elif not self.settings.value(self.key).get(cycle_name, None):
-                settings = self.settings.value(self.key)
-                settings[cycle_name] = False
-                self.settings.setValue(self.key, settings)
+            if not self.settings.contains(key) or self.settings.value(key) is not None:
+                self.settings.setValue(key, False)  # noqa: FBT003
 
             return False
 
-        value = self.settings.value(self.key, {}).get(cycle_name, None)
-        return value or self.default  # type: ignore[return-value]
+        value = self.settings.value(key)
+        if value is None:
+            if callable(self.default):
+                return self.default(cycle_name)
+            return self.default
+
+        log.info(f"Getting {key} with value {value}")
+
+        return value
 
     def __setitem__(self, cycle_name: str, value: bool | float) -> None:
         if self.key.endswith("initial_trim_enabled"):
             msg = "Cannot set initial trim enabled value locally"
             raise NotImplementedError(msg)
 
-        settings = self.settings.value(self.key, {})
-        settings[cycle_name] = value
-        self.settings.setValue(self.key, settings)
+        key = f"{self.key}/{cycle_name}"
+
+        self.settings.setValue(key, value)
+
+        log.info(f"Setting {key} to {value}")
 
         if self.key.endswith("trim_enabled"):
             self.parent.trimEnabledChanged.emit(cycle_name, value)
@@ -99,15 +108,13 @@ class LocalTrimSettingsContainer(typing.MutableMapping[str, bool | float]):
             self.parent.trimGainChanged.emit(cycle_name, value)
 
     def __delitem__(self, cycle_name: str) -> None:
-        settings = self.settings.value(self.key, {})
-        del settings[cycle_name]
-        self.settings.setValue(self.key, settings)
+        self.settings.remove(f"{self.key}/{cycle_name}")
 
     def __iter__(self) -> typing.Iterator[str]:
-        return iter(self.settings.value(self.key, {}))
+        return iter([])
 
     def __len__(self) -> int:
-        return len(self.settings.value(self.key, {}))
+        return 0
 
 
 class LocalTrimSettings(TrimSettings):
@@ -138,7 +145,7 @@ class LocalTrimSettings(TrimSettings):
     def trim_start(self) -> typing.MutableMapping[str, float]:
         return LocalTrimSettingsContainer(
             self,
-            app_settings,
+            app_settings.settings,
             key=f"{self.prefix}/trim_start",
             default=cycle_metadata.beam_in,
         )
@@ -147,7 +154,7 @@ class LocalTrimSettings(TrimSettings):
     def trim_end(self) -> typing.MutableMapping[str, float]:
         return LocalTrimSettingsContainer(
             self,
-            app_settings,
+            app_settings.settings,
             key=f"{self.prefix}/trim_end",
             default=cycle_metadata.beam_out,
         )
@@ -155,7 +162,7 @@ class LocalTrimSettings(TrimSettings):
     @property
     def gain(self) -> typing.MutableMapping[str, float]:
         return LocalTrimSettingsContainer(
-            self, app_settings, key=f"{self.prefix}/gain", default=1.0
+            self, app_settings.settings, key=f"{self.prefix}/gain", default=1.0
         )
 
 

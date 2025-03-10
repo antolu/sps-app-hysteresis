@@ -19,6 +19,7 @@ from op_app_context import context
 from qtpy import QtCore, QtWidgets
 
 from ...trim import cycle_metadata
+from ...utils import mute_signals
 from .._widgets import ToggleButton
 from ._model import TrimModel
 
@@ -133,18 +134,20 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         self.TrimTMaxSpinBox.setEnabled(True)
         self.ToggleButton.setEnabled(True)
 
-        self.TrimTMinSpinBox.setMinimum(cycle_metadata.beam_in(cycle))
-        self.TrimTMaxSpinBox.setMaximum(cycle_metadata.beam_out(cycle))
+        with mute_signals(self.GainSpinBox, self.TrimTMinSpinBox, self.TrimTMaxSpinBox):
+            self.TrimTMinSpinBox.setMinimum(cycle_metadata.beam_in(cycle))
+            self.TrimTMaxSpinBox.setMaximum(cycle_metadata.beam_out(cycle))
 
-        self.GainSpinBox.setValue(self.model.settings.gain[cycle])
-        self.TrimTMinSpinBox.setValue(self.model.settings.trim_start[cycle])
-        self.TrimTMaxSpinBox.setValue(self.model.settings.trim_end[cycle])
+            self.GainSpinBox.setValue(self.model.settings.gain[cycle])
+            self.TrimTMinSpinBox.setValue(self.model.settings.trim_start[cycle])
+            self.TrimTMaxSpinBox.setValue(self.model.settings.trim_end[cycle])
 
         if self.model.settings.trim_enabled[cycle]:
             self.ToggleButton.setState(ToggleButton.State.STATE2)
         else:
             self.ToggleButton.setState(ToggleButton.State.STATE1)
 
+    @QtCore.Slot(float)
     def onGainChanged(self, value: float) -> None:
         if value <= 1.0:
             self.GainSpinBox.setSingleStep(0.02)
