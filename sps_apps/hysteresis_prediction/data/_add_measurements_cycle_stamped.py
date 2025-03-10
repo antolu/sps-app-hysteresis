@@ -4,6 +4,7 @@ import logging
 import typing
 
 import hystcomp_utils.cycle_data
+import numpy as np
 import pyda_japc
 from qtpy import QtCore
 
@@ -55,14 +56,14 @@ class CycleStampedAddMeasurementsEventBuilder(CycleStampGroupedTriggeredEventBui
         i_meas_fspv = self._cycle_stamp_buffers[self.param_i_meas][selector][
             cycle_stamp
         ]
-        i_meas = i_meas_fspv.data["value"].copy()
+        i_meas = np.array(i_meas_fspv.data["value"])
         cycle_data.current_meas = i_meas
 
         if self.param_b_meas is not None:
             b_meas_fspv = self._cycle_stamp_buffers[self.param_b_meas][selector][
                 cycle_stamp
             ]
-            b_meas = b_meas_fspv.data["value"].copy() / 1e4
+            b_meas = np.array(b_meas_fspv.data["value"]) / 1e4
             cycle_data.field_meas = b_meas
 
         msg = f"[{cycle_data}] Added measurements to cycle data"

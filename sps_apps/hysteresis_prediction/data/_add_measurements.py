@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 import hystcomp_utils.cycle_data
+import numpy as np
 import pyda
 import pyda.access
 import pyda_japc
@@ -59,16 +60,16 @@ class AddMeasurementsEventBuilder(BufferedSubscriptionEventBuilder):
             log.error(msg)
             return
 
-        i_meas = (
-            self._get_buffered_data(self.param_i_meas, selector).data["value"].copy()
+        i_meas = np.array(
+            self._get_buffered_data(self.param_i_meas, selector).data["value"]
         )
         cycle_data.current_meas = i_meas
 
         if self.param_b_meas is not None:
             b_meas = (
-                self._get_buffered_data(self.param_b_meas, selector)
-                .data["value"]
-                .copy()
+                np.array(
+                    self._get_buffered_data(self.param_b_meas, selector).data["value"]
+                )
                 / 1e4
             )  # G to T
             cycle_data.field_meas = b_meas
