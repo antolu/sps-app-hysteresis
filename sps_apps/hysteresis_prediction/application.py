@@ -113,7 +113,6 @@ def main() -> None:
     data_thread = QtCore.QThread()
     if args.data_source == "local":
         flow_worker = LocalFlowWorker(
-            param_names=app_context().PARAMS,
             buffer_size=args.buffer_size,
             provider=context.japc_provider,
         )
@@ -123,7 +122,6 @@ def main() -> None:
             msg = "UCAP parameters not available for this device."
             raise ValueError(msg)
         flow_worker = UcapFlowWorker(
-            ucap_params=ucap_params,
             provider=context.japc_provider,
         )
     else:

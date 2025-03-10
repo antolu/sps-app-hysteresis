@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import typing
 
 import hystcomp_utils.cycle_data
 import pyda._metadata
@@ -14,7 +15,7 @@ import pyda.providers
 import pyda_japc
 from qtpy import QtCore
 
-from ..contexts import UcapParameterNames
+from ..contexts import UcapParameterNames, app_context
 from ..data import JapcEndpoint, StartCycleEventBuilder
 from ._data_flow import DataFlow, FlowWorker
 
@@ -40,19 +41,16 @@ SET_GAIN = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.ECO/Gain"
 class UcapFlowWorker(FlowWorker):
     def __init__(
         self,
-        ucap_params: UcapParameterNames,
         *,
         provider: pyda_japc.JapcProvider,
         parent: QtCore.QObject | None = None,
     ) -> None:
         super().__init__(parent=parent)
 
-        self._ucap_params = ucap_params
         self._provider = provider
 
     def _init_data_flow_impl(self) -> None:
         self._data_flow = UcapDataFlow(
-            ucap_params=self._ucap_params,
             provider=self._provider,
         )
 
@@ -66,7 +64,6 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
 
     def __init__(
         self,
-        ucap_params: UcapParameterNames,
         *,
         provider: pyda_japc.JapcProvider,
         parent: QtCore.QObject | None = None,
@@ -85,7 +82,12 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
             provider=self._provider,
         )
 
-        self._ucap_params = ucap_params
+        ucap_params = app_context().UCAP_PARAMS
+        if ucap_params is None:
+            msg = "UCAP_PARAMS not defined in app_context."
+            raise ValueError(msg)
+
+        self._ucap_params = typing.cast(UcapParameterNames, ucap_params)
 
         self._should_stop = False
         self._handles: list[pyda.clients.asyncio.AsyncIOSubscription] = []

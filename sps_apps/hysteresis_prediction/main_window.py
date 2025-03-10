@@ -55,14 +55,19 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self._history = PredictionHistory(self)
         self._history_widget = HistoryWidget(self._history, parent=None)
 
-        trim_model = TrimModel(trim_settings=app_context().TRIM_SETTINGS)
-        self._trim_widget = TrimWidgetView(model=trim_model, parent=None)
+        self._trim_model = TrimModel(trim_settings=app_context().TRIM_SETTINGS)
+        self._trim_widget = TrimWidgetView(model=self._trim_model, parent=None)
 
         self._connect_signals()
         self._connect_actions()
 
         self._trim_widget.show()
         self._history_widget.show()
+
+        if not app_context().ONLINE:
+            self.action_Load_Model.setEnabled(False)
+            self.actionProgrammed_current.setEnabled(False)
+            self.actionAutoregressive.setEnabled(False)
 
     def _connect_signals(self) -> None:
         self.widgetSettings.timespan_changed.connect(self.widgetPlot.set_time_span)
@@ -84,6 +89,10 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self._data.onCycleStart.connect(self._history.add_cycle)
         self._data.onCycleMeasured.connect(self._history.update_cycle)
 
+        # trim
+        self._data.onCycleCorrectionCalculated.connect(self._trim.onNewPrediction)
+        self._data.onTrimApplied.connect(self._trim_widget.onTrimApplied)
+
         self._data.onModelLoaded.connect(
             lambda: QtWidgets.QMessageBox.information(
                 self,
@@ -103,18 +112,19 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self.actionContinuous_Data_Export.toggled.connect(self._io.set_enabled)
         self.action_Clear_Reference.triggered.connect(self._data.resetReference)
 
-        self.action_Load_Model.triggered.connect(self.on_load_model_triggered)
-        self.actionProgrammed_current.triggered.connect(
-            lambda x: self._data._predict.set_use_programmed_current(  # noqa: SLF001
-                state=self.actionProgrammed_current.isChecked()
+        if not app_context().ONLINE:
+            self.action_Load_Model.triggered.connect(self.on_load_model_triggered)
+            self.actionProgrammed_current.triggered.connect(
+                lambda x: self._data._predict.set_use_programmed_current(  # noqa: SLF001
+                    state=self.actionProgrammed_current.isChecked()
+                )
             )
-        )
-        self.actionAutoregressive.triggered.connect(
-            lambda x: self._data._predict.set_autoregressive(  # noqa: SLF001
-                self.actionAutoregressive.isChecked()
+            self.actionAutoregressive.triggered.connect(
+                lambda x: self._data._predict.set_autoregressive(  # noqa: SLF001
+                    self.actionAutoregressive.isChecked()
+                )
             )
-        )
-        self.actionReset_state.triggered.connect(self._data.resetState.emit)
+            self.actionReset_state.triggered.connect(self._data.resetState.emit)
 
         self.actionPrediction_Analysis.triggered.connect(self._history_widget.show)
         self.action_Trim_View.triggered.connect(self._trim_widget.show)

@@ -38,6 +38,10 @@ class DataFlow:
         raise NotImplementedError
 
     @property
+    def onTrimApplied(self) -> QtCore.Signal:
+        raise NotImplementedError
+
+    @property
     def onCycleMeasured(self) -> QtCore.Signal:
         raise NotImplementedError
 

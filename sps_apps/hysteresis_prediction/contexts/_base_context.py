@@ -52,6 +52,8 @@ class ApplicationContext:
 
     TRIM_SETTINGS: TrimSettings
 
+    ONLINE: typing.Final[bool]
+
     def __init__(
         self,
         device: typing.Literal["MBI", "QF", "QD"],
@@ -70,7 +72,7 @@ class ApplicationContext:
         )
         self.UCAP_PARAMS = ucap_params
 
-        self._online = online
+        self.ONLINE = online
 
 
 class NotSetContext(ApplicationContext):

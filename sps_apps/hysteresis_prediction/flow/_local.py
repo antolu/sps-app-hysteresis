@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import datetime.datetime
 import logging
 
+import numpy as np
 import pyda_japc
+from hystcomp_utils.cycle_data import CycleData
 from PyQt5.QtCore import QObject
 from qtpy import QtCore
 
-from ..contexts import ParameterNames
+from ..contexts import app_context
 from ..data import (
     AddMeasurementReferencesEventBuilder,
     AddMeasurementsEventBuilder,
@@ -20,6 +23,7 @@ from ..data import (
 )
 from ..inference import CalculateCorrection, Inference
 from ..signals import TrackPrecycleEventBuilder
+from ..trim import LocalTrim
 from ._data_flow import DataFlow, FlowWorker
 
 log = logging.getLogger(__name__)
@@ -28,7 +32,6 @@ log = logging.getLogger(__name__)
 class LocalFlowWorker(FlowWorker):
     def __init__(
         self,
-        param_names: ParameterNames,
         provider: pyda_japc.JapcProvider,
         *,
         buffer_size: int = 60000,
@@ -40,13 +43,11 @@ class LocalFlowWorker(FlowWorker):
 
         self._provider = provider
         self._buffer_size = buffer_size
-        self._param_names = param_names
         self._meas_b_avail = meas_b_avail
 
     def _init_data_flow_impl(self) -> None:
         self._data_flow = LocalDataFlow(
             meas_b_avail=self._meas_b_avail,
-            param_names=self._param_names,
             provider=self._provider,
             buffer_size=self._buffer_size,
             parent=self.parent(),
@@ -62,10 +63,10 @@ class LocalFlowWorker(FlowWorker):
 
 class LocalDataFlow(DataFlow, QtCore.QObject):
     _resetState = QtCore.Signal()
+    _trimApplied = QtCore.Signal(CycleData, np.ndarray, datetime.datetime, str)
 
     def __init__(
         self,
-        param_names: ParameterNames,
         provider: pyda_japc.JapcProvider,
         *,
         buffer_size: int = 60000,
@@ -73,6 +74,7 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         parent: QtCore.QObject | None = None,
     ) -> None:
         QObject.__init__(self, parent=parent)
+        param_names = app_context().PARAMS
 
         self.meas_b_avail = meas_b_avail
 
@@ -127,6 +129,12 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         )
         self._track_precycle = TrackPrecycleEventBuilder(
             precycle_sequence=["SPS.USER.LHCPILOT", "SPS.USER.MD1"], parent=parent
+        )
+
+        self._trim = LocalTrim(
+            param_b_corr="SPSBEAM/BHYS",
+            settings=app_context().TRIM_SETTINGS,
+            parent=parent,
         )
 
         self._connect_signals()
@@ -206,6 +214,8 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
 
         self._correction.cycleDataAvailable.connect(self._track_dyneco.onNewCycleData)
         self._correction.cycleDataAvailable.connect(self._track_fulleco.onNewCycleData)
+        self._correction.cycleDataAvailable.connect(self._trim.onNewPrediction)
+        self._trim.trimApplied.connect(self._trimApplied.emit)
         self._track_dyneco.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)
         self._track_fulleco.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)
 
@@ -230,6 +240,10 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
     @property
     def onCycleCorrectionCalculated(self) -> QtCore.Signal:
         return self._correction.cycleDataAvailable
+
+    @property
+    def onTrimApplied(self) -> QtCore.Signal:
+        return self._trimApplied
 
     @property
     def onCycleMeasured(self) -> QtCore.Signal:
