@@ -57,6 +57,15 @@ class ToggleButton(QtWidgets.QPushButton):
 
         self.stateChanged.emit(self._state)
 
+    @QtCore.Slot(State)
+    def setState(self, state: State) -> None:
+        if state == self.State.STATE1:
+            self._state = self.State.STATE1
+            self.setText(self._label_s1)
+        else:
+            self._state = self.State.STATE2
+            self.setText(self._label_s2)
+
     @property
     def state(self) -> State:
         return self._state

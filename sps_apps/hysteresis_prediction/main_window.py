@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import logging
-import types
-from uuid import uuid4
 
 from accwidgets.app_frame import ApplicationFrame
 from accwidgets.log_console import LogConsole
@@ -11,11 +9,11 @@ from accwidgets.timing_bar import TimingBar, TimingBarDomain, TimingBarModel
 from op_app_context import context
 from qtpy import QtGui, QtWidgets
 
+from .contexts import app_context
 from .flow import LocalDataFlow
 from .generated.main_window_ui import Ui_main_window
 from .history import PredictionHistory
 from .io import IO
-from .utils import load_cursor
 from .widgets import ModelLoadDialog, PlotModel
 from .widgets.history_widget import HistoryWidget
 from .widgets.trim_widget import TrimModel, TrimWidgetView
@@ -35,8 +33,6 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         Ui_main_window.__init__(self)
 
         self.setupUi(self)
-
-        self._trim_widgets: dict[str, TrimWidgetView] = {}
 
         log_console = LogConsole(self)
         self.log_console = log_console
@@ -59,10 +55,13 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self._history = PredictionHistory(self)
         self._history_widget = HistoryWidget(self._history, parent=None)
 
+        trim_model = TrimModel(trim_settings=app_context().TRIM_SETTINGS)
+        self._trim_widget = TrimWidgetView(model=trim_model, parent=None)
+
         self._connect_signals()
         self._connect_actions()
 
-        self.show_trim_widget()
+        self._trim_widget.show()
         self._history_widget.show()
 
     def _connect_signals(self) -> None:
@@ -118,7 +117,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self.actionReset_state.triggered.connect(self._data.resetState.emit)
 
         self.actionPrediction_Analysis.triggered.connect(self._history_widget.show)
-        self.action_Trim_View.triggered.connect(self.show_trim_widget)
+        self.action_Trim_View.triggered.connect(self._trim_widget.show)
 
     def on_load_model_triggered(self) -> None:
         dialog = ModelLoadDialog(parent=self)
@@ -135,39 +134,6 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         else:
             self.widgetSettings.hide()
 
-    def show_trim_widget(self) -> None:
-        if len(self._trim_widgets) > 0:
-            uuid = next(iter(self._trim_widgets.keys()))
-            widget = self._trim_widgets[uuid]
-            widget.show()
-            widget.raise_()
-            return
-
-        with load_cursor():
-            model = TrimModel()
-            widget = TrimWidgetView(model=model, parent=None)
-
-            self._data.onCycleCorrectionCalculated.connect(model.onNewPrediction)
-            model.GainChanged.connect(self._data.setGain)
-
-            uuid = str(uuid4())
-            self._trim_widgets[uuid] = widget
-
-            def closeEvent(self: TrimWidgetView, event: QtGui.QCloseEvent) -> None:
-                event.ignore()
-                self.hide()
-
-                if self.toggle_button.state2Activated:
-                    self.toggle_button.click()
-
-            widget.closeEvent = types.MethodType(closeEvent, widget)
-
-        widget.show()
-
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
-        for widget in self._analysis_widgets.values():
-            widget.close()
-        for widget in self._trim_widgets.values():
-            widget.close()
         self._data.stop()
         super().closeEvent(event)

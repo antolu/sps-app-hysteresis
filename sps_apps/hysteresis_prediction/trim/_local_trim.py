@@ -23,7 +23,7 @@ TRIM_THRESHOLD = 5e-6
 
 
 class LocalTrim(QtCore.QObject):
-    trimApplied = QtCore.Signal(np.ndarray, datetime, str)
+    trimApplied = QtCore.Signal(CycleData, np.ndarray, datetime, str)
 
     def __init__(
         self,
@@ -115,6 +115,8 @@ class LocalTrim(QtCore.QObject):
                 upper=end,
             )
 
+            delta_v = self._settings.gain[cycle_data.cycle] * delta_v
+
             log.debug(
                 f"[{cycle_data}] Sending trims to LSA with {correction_t.size} points."
             )
@@ -127,7 +129,9 @@ class LocalTrim(QtCore.QObject):
             trim_time_diff = trim_time.duration
             log.debug(f"Trim applied in {trim_time_diff:.02f}s.")
 
-            self.trimApplied.emit(np.vstack((delta_t, delta_v)), trim_time_d, comment)
+            self.trimApplied.emit(
+                cycle_data, np.vstack((delta_t, delta_v)), trim_time_d, comment
+            )
         except:
             log.exception("Failed to apply trim to LSA.")
             raise
