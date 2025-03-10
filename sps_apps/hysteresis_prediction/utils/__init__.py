@@ -7,7 +7,7 @@ from ._threadutil import (
     thread,
 )
 from ._time import from_timestamp, time_execution
-from ._ui import load_cursor
+from ._ui import load_cursor, mute_signals
 
 for _mod in (
     from_timestamp,
@@ -16,6 +16,7 @@ for _mod in (
     run_in_thread,
     thread,
     load_cursor,
+    mute_signals,
     ThreadWorker,
     ColorPool,
 ):
@@ -26,6 +27,7 @@ __all__ = [
     "ThreadWorker",
     "from_timestamp",
     "load_cursor",
+    "mute_signals",
     "run_in_main_thread",
     "run_in_thread",
     "thread",
