@@ -107,7 +107,7 @@ class TrackFullEcoEventBuilder(BufferedSubscriptionEventBuilder):
             self.cycleDataAvailable.emit(cycle_data)
 
         # unknown parameter
-        msg = f"Received unknown acquisition for {parameter}@{selector}."
+        msg = f"Received unknown acquisition for {parameter}@{selector}: {fspv.query.endpoint}"
         raise ValueError(msg)
 
     def onNewCycleData(self, cycle_data: hystcomp_utils.cycle_data.CycleData) -> None:
