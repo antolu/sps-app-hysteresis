@@ -7,6 +7,8 @@ from op_app_context import context
 from op_app_context import settings as app_settings
 from qtpy import QtCore
 
+from ._cycle_metadata import cycle_metadata
+
 
 class TrimSettings(QtCore.QObject):
     trimEnabledChanged = QtCore.Signal(str, bool)
@@ -20,6 +22,9 @@ class TrimSettings(QtCore.QObject):
 
     trimEndChanged = QtCore.Signal(str, float)
     """ Emitted when the trim end time is changed for a cycle """
+
+    trimGainChanged = QtCore.Signal(str, float)
+    """ Emitted when the trim gain is changed for a cycle """
 
     def __init__(self, parent: QtCore.QObject | None = None):
         super().__init__(parent)
@@ -39,11 +44,24 @@ class TrimSettings(QtCore.QObject):
         """CTime of the end of the trim. Normally should not exceed beam injection time."""
         raise NotImplementedError
 
+    @property
+    def gain(self) -> typing.Mapping[str, float]:
+        """Gain of the trim."""
+        raise NotImplementedError
+
 
 class LocalTrimSettingsContainer(typing.MutableMapping[str, bool | float]):
-    def __init__(self, settings: QtCore.QSettings, *, key: str):
+    def __init__(
+        self,
+        settings: QtCore.QSettings,
+        *,
+        key: str,
+        default: bool | float | typing.Callable[[str], bool | float],
+    ):
         self.settings = settings
         self.key = key
+
+        self.default = default
 
     def __getitem__(self, cycle_name: str) -> bool | float:
         if self.key.endswith("initial_trim_enabled"):
@@ -58,10 +76,7 @@ class LocalTrimSettingsContainer(typing.MutableMapping[str, bool | float]):
             return False
 
         value = self.settings.value(self.key, {}).get(cycle_name, None)
-        if value is None:
-            raise KeyError(cycle_name)
-
-        return value
+        return value or self.default  # type: ignore[return-value]
 
     def __setitem__(self, cycle_name: str, value: bool | float) -> None:
         if self.key.endswith("initial_trim_enabled"):
@@ -93,22 +108,34 @@ class LocalTrimSettings(TrimSettings):
     @property
     def trim_enabled(self) -> typing.MutableMapping[str, bool]:
         return LocalTrimSettingsContainer(  # type: ignore[return-value]
-            app_settings, key=f"{self.prefix}/trim_enabled"
+            app_settings, key=f"{self.prefix}/trim_enabled", default=False
         )
 
     @property
     def initial_trim_enabled(self) -> typing.MutableMapping[str, bool]:
         return LocalTrimSettingsContainer(  # type: ignore[return-value]
-            app_settings, key=f"{self.prefix}/initial_trim_enabled"
+            app_settings, key=f"{self.prefix}/initial_trim_enabled", default=False
         )
 
     @property
     def trim_start(self) -> typing.MutableMapping[str, float]:
-        return LocalTrimSettingsContainer(app_settings, key=f"{self.prefix}/trim_start")
+        return LocalTrimSettingsContainer(
+            app_settings,
+            key=f"{self.prefix}/trim_start",
+            default=cycle_metadata.beam_in,
+        )
 
     @property
     def trim_end(self) -> typing.MutableMapping[str, float]:
-        return LocalTrimSettingsContainer(app_settings, key=f"{self.prefix}/trim_end")
+        return LocalTrimSettingsContainer(
+            app_settings, key=f"{self.prefix}/trim_end", default=cycle_metadata.beam_out
+        )
+
+    @property
+    def gain(self) -> typing.MutableMapping[str, float]:
+        return LocalTrimSettingsContainer(
+            app_settings, key=f"{self.prefix}/gain", default=1.0
+        )
 
 
 class OnlineTrimSettingsContainer(typing.MutableMapping[str, bool | float]):
@@ -183,5 +210,14 @@ class OnlineTrimSettings(TrimSettings):
             self._da,
             device_name="SPS.TRIM",
             property_name="end_time",
+            field_name="cycle",
+        )
+
+    @property
+    def gain(self) -> typing.MutableMapping[str, float]:
+        return OnlineTrimSettingsContainer(
+            self._da,
+            device_name="SPS.TRIM",
+            property_name="gain",
             field_name="cycle",
         )
