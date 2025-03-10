@@ -69,34 +69,22 @@ class LocalTrimSettingsContainer(typing.MutableMapping[str, bool | float]):
         self.default = default
 
     def __getitem__(self, cycle_name: str) -> bool | float:
-        key = f"{self.key}/{cycle_name}"
-        if self.key.endswith("initial_trim_enabled"):
-            """ Default value is always False """
-            if not self.settings.contains(key) or self.settings.value(key) is not None:
-                self.settings.setValue(key, False)  # noqa: FBT003
-
-            return False
-
-        value = self.settings.value(key)
+        value = self.settings.value(self.key, {}).get(cycle_name)
         if value is None:
             if callable(self.default):
                 return self.default(cycle_name)
             return self.default
 
-        log.info(f"Getting {key} with value {value}")
+        log.debug(f"Getting {self} with value {value}")
 
         return value
 
     def __setitem__(self, cycle_name: str, value: bool | float) -> None:
-        if self.key.endswith("initial_trim_enabled"):
-            msg = "Cannot set initial trim enabled value locally"
-            raise NotImplementedError(msg)
+        settings = self.settings.value(self.key, {})
+        settings[cycle_name] = value
+        self.settings.setValue(self.key, settings)
 
-        key = f"{self.key}/{cycle_name}"
-
-        self.settings.setValue(key, value)
-
-        log.info(f"Setting {key} to {value}")
+        log.info(f"Setting {self.key} to {value}")
 
         if self.key.endswith("trim_enabled"):
             self.parent.trimEnabledChanged.emit(cycle_name, value)
@@ -108,13 +96,15 @@ class LocalTrimSettingsContainer(typing.MutableMapping[str, bool | float]):
             self.parent.trimGainChanged.emit(cycle_name, value)
 
     def __delitem__(self, cycle_name: str) -> None:
-        self.settings.remove(f"{self.key}/{cycle_name}")
+        settings = self.settings.value(self.key, {})
+        del settings[cycle_name]
+        self.settings.setValue(self.key, settings)
 
     def __iter__(self) -> typing.Iterator[str]:
-        return iter([])
+        return iter(self.settings.value(self.key, {}).keys())
 
     def __len__(self) -> int:
-        return 0
+        return len(self.settings.value(self.key, {}))
 
 
 class LocalTrimSettings(TrimSettings):
@@ -123,21 +113,20 @@ class LocalTrimSettings(TrimSettings):
 
         self.prefix = prefix
 
+        self._set_trim_disabled()
+
+    def _set_trim_disabled(self) -> None:
+        settings = app_settings.settings.value(f"{self.prefix}/trim_enabled", {})
+        for cycle_name in settings:
+            settings[cycle_name] = False
+        app_settings.settings.setValue(f"{self.prefix}/trim_enabled", settings)
+
     @property
     def trim_enabled(self) -> typing.MutableMapping[str, bool]:
         return LocalTrimSettingsContainer(  # type: ignore[return-value]
             self,
             app_settings.settings,
             key=f"{self.prefix}/trim_enabled",
-            default=False,
-        )
-
-    @property
-    def initial_trim_enabled(self) -> typing.MutableMapping[str, bool]:
-        return LocalTrimSettingsContainer(  # type: ignore[return-value]
-            self,
-            app_settings.settings,
-            key=f"{self.prefix}/initial_trim_enabled",
             default=False,
         )
 
@@ -212,15 +201,6 @@ class OnlineTrimSettings(TrimSettings):
             device_name="SPS.TRIM",
             property_name="Enabled",
             field_name="enabled",
-        )
-
-    @property
-    def initial_trim_enabled(self) -> typing.MutableMapping[str, bool]:
-        return OnlineTrimSettingsContainer(  # type: ignore[return-value]
-            self._da,
-            device_name="SPS.TRIM",
-            property_name="initial_enabled",
-            field_name="cycle",
         )
 
     @property
