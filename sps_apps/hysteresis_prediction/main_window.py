@@ -145,4 +145,6 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         self._data.stop()
+        self._trim_widget.close()
+        self._history_widget.close()
         super().closeEvent(event)
