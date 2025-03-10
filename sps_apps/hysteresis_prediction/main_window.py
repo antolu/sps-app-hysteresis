@@ -88,7 +88,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         # connect history
         self._data.onCycleCorrectionCalculated.connect(self._history.add_cycle)
-        self._data.onCycleStart.connect(self._history.add_cycle)
+        self._data.onCycleStart.connect(self._history.update_cycle)
         self._data.onCycleMeasured.connect(self._history.update_cycle)
 
         # trim
