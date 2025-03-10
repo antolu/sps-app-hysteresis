@@ -94,7 +94,9 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         )
         self._buffer = BufferEventbuilder(buffer_size=buffer_size, parent=parent)
         self._predict = Inference(parent=parent)
-        self._correction = CalculateCorrection(parent=parent)
+        self._correction = CalculateCorrection(
+            trim_settings=app_context().TRIM_SETTINGS, parent=parent
+        )
         self._start_cycle = StartCycleEventBuilder(
             trigger=param_names.CYCLE_START, provider=provider, parent=parent
         )

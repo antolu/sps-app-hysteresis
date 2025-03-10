@@ -13,6 +13,7 @@ import scipy.signal
 from qtpy import QtCore
 
 from ..data import EventBuilderAbc
+from ..trim import TrimSettings, cycle_metadata
 
 log = logging.getLogger(__name__)
 
@@ -23,25 +24,16 @@ class CalculateCorrection(EventBuilderAbc):
     ) -> None:
         pass
 
-    def __init__(self, parent: QtCore.QObject | None = None) -> None:
+    def __init__(
+        self, trim_settings: TrimSettings, parent: QtCore.QObject | None = None
+    ) -> None:
         super().__init__(parent=parent)
 
-        self._flatten = False
-
-        self._gain: dict[str, float] = {}
+        self._trim_settings = trim_settings
 
         # map cycle name to field reference [2, n_points]
         self._field_ref: dict[str, npt.NDArray[np.float64]] = {}
         self._field_ref_timestamps: dict[str, float] = {}
-
-    @QtCore.Slot(str, float)
-    def setGain(self, selector: str, gain: float) -> None:
-        log.debug(f"Setting gain for {selector} to {gain}.")
-        self._gain[selector] = gain
-
-    @QtCore.Slot(bool)
-    def setFlatten(self, flatten: bool) -> None:  # noqa: FBT001
-        self._flatten = flatten
 
     @QtCore.Slot(hystcomp_utils.cycle_data.CycleData)
     def onNewCycleData(self, cycle: hystcomp_utils.cycle_data.CycleData) -> None:
@@ -56,7 +48,12 @@ class CalculateCorrection(EventBuilderAbc):
             )
             return
 
-        delta = calc_delta_field(self._field_ref[cycle.cycle], cycle.field_pred)
+        delta = calc_delta_field(
+            self._field_ref[cycle.cycle],
+            cycle.field_pred,
+            beam_in=cycle_metadata.beam_in(cycle.cycle),
+            beam_out=cycle_metadata.beam_out(cycle.cycle),
+        )
         # delta[1] = scipy.signal.savgol_filter(delta[1], 11, 2)
         # delta[1] = signal.perona_malik_smooth(delta[1], 5.0, 5e-2, 2.0)
         delta[1] = scipy.ndimage.gaussian_filter(delta[1], sigma=4)
@@ -68,7 +65,7 @@ class CalculateCorrection(EventBuilderAbc):
         if cycle.correction is not None:  # and not cycle.cycle.endswith("ECO"):
             try:
                 correction = calc_new_correction(
-                    cycle.correction, delta, self._gain.get(cycle.user, 1.0)
+                    cycle.correction, delta, self._trim_settings.gain[cycle.cycle]
                 )
             except:  # noqa: E722
                 log.exception(f"{cycle}: Could not calculate correction.")
