@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import datetime.datetime
+import datetime
 import logging
 
 import numpy as np
@@ -150,7 +150,7 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         self._add_measurement_post.start()
         if self.meas_b_avail:
             assert hasattr(self, "_add_measurement_ref")
-            assert not hasattr(self, "_add_measurement_ref")
+            assert self._add_measurement_ref is not None
             self._add_measurement_ref.start()
         self._track_dyneco.start()
         self._track_fulleco.start()
@@ -166,7 +166,7 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         self._add_measurement_post.stop()
         if self.meas_b_avail:
             assert hasattr(self, "_add_measurement_ref")
-            assert not hasattr(self, "_add_measurement_ref")
+            assert self._add_measurement_ref is not None
             self._add_measurement_ref.stop()
         self._track_dyneco.stop()
         self._track_fulleco.stop()
@@ -175,7 +175,7 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         try:
             if self.meas_b_avail:
                 assert hasattr(self, "_add_measurement_ref")
-                assert not hasattr(self, "_add_measurement_ref")
+                assert self._add_measurement_ref is not None
                 self._add_measurement_ref.resetReference()
             self._correction.resetReference()
         except Exception:
@@ -203,7 +203,7 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         )
         if self.meas_b_avail:
             assert hasattr(self, "_add_measurement_ref")
-            assert not hasattr(self, "_add_measurement_ref")
+            assert self._add_measurement_ref is not None
             self._add_measurement_post.cycleDataAvailable.connect(
                 self._add_measurement_ref.onNewCycleData
             )
