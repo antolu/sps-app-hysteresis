@@ -29,9 +29,9 @@ dependencies = [
     "pjlsa >= 0.2",
     "lightning ~= 2.2.2",
     "pyrbac >= 1.1, < 2.0",
-    "pyda >= 0.5, < 1.0",
-    "pyda-japc >= 0.5, < 1.0",
-    "pyda-lsa >= 0.5, < 1.0",
+    "pyda >= 1.0, < =2.0",
+    "pyda-japc >= 1.0, < 2.0",
+    "pyda-lsa >= 1.0, < 2.0",
     "PyQt5 ~= 5.12",
     "rich >= 13.7",
     "QtPy ~= 2.4",
@@ -200,3 +200,4 @@ reportPrivateImportUsage = "none"
 reportGeneralTypeIssues = "none"
 reportAttributeAccessIssues = "none"
 reportArgumentType = "none"
+reportReturnType = "none"
