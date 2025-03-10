@@ -178,12 +178,16 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
         return super()._needs_da() or len(self._buffered_subscriptions) > 0
 
     def handle_acquisition(self, fspv: pyda.access.PropertyRetrievalResponse) -> None:
+        log.debug(
+            f"Handling acquisition for {fspv.query.endpoint}@{fspv.header.selector}."
+        )
         if str(fspv.query.endpoint) in self._buffered_subscriptions:
             try:
                 self._handle_buffered_acquisition_impl(fspv)
             except:  # noqa: E722
-                msg = f"Error handling buffered acquisition for {fspv.query.endpoint}@{fspv.query.context}."
+                msg = f"Error handling buffered acquisition for {fspv.query.endpoint}@{fspv.header.selector}."
                 log.exception(msg)
+            return
 
         super().handle_acquisition(fspv)
 
@@ -191,7 +195,7 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
         self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
         if fspv.exception is not None:
-            msg = f"Received exception for {fspv.query.endpoint}@{fspv.query.context}: {fspv.exception}."
+            msg = f"Received exception for {fspv.query.endpoint}@{fspv.header.selector}: {fspv.exception}."
             log.error(msg)
             return
 
@@ -316,7 +320,7 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
         self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
         if fspv.exception is not None:
-            msg = f"Received exception for {fspv.query.endpoint}@{fspv.query.context}: {fspv.exception}."
+            msg = f"Received exception for {fspv.query.endpoint}@{fspv.header.selector}: {fspv.exception}."
             log.error(msg)
             return
 
