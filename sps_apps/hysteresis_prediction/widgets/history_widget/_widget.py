@@ -15,6 +15,18 @@ from ._view import HistoryPlotWidget
 log = logging.getLogger(__name__)
 
 
+class NoHighlightDelegate(QtWidgets.QStyledItemDelegate):
+    def paint(
+        self,
+        painter: QtGui.QPainter,
+        option: QtWidgets.QStyleOptionViewItem,
+        index: QtCore.QModelIndex,
+    ) -> None:
+        if option.state & QtWidgets.QStyle.State_Selected:
+            option.state &= ~QtWidgets.QStyle.State_Selected
+        super().paint(painter, option, index)
+
+
 class HistoryWidget(QtWidgets.QWidget):
     def __init__(
         self,
@@ -101,6 +113,9 @@ class HistoryWidget(QtWidgets.QWidget):
         self.setReferenceButton.setEnabled(False)
         self.setReferenceButton.clicked.connect(self.onSelectReferenceClicked)
 
+        self.listView.setItemDelegate(NoHighlightDelegate(self.listView))
+        self.adjustSize()
+
     def _setup_lsa_selector(self) -> lsa_selector.LsaSelector:
         selector_model = lsa_selector.LsaSelectorModel(
             accelerator=lsa_selector.LsaSelectorAccelerator.SPS,
@@ -138,7 +153,7 @@ class HistoryWidget(QtWidgets.QWidget):
         def onDialogAcccepted() -> None:
             selected_index = dialog.selected_item
             if selected_index is not None:
-                item = self.lmodel.itemAt(selected_index)
+                item = self.currentWidget.lmodel.itemAt(selected_index)
 
                 self.currentWidget.lmodel.setReference(item)
                 self.currentWidget.pmodel.setReference(item)
