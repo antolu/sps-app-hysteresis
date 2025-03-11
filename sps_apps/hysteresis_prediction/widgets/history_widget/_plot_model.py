@@ -197,15 +197,18 @@ class PredictionPlotModel(QtCore.QObject):
 
         :param item: The item to use as reference.
         """
+        log.debug(f"Setting reference for plotting to {item.cycle_data}")
         current_reference = self._reference
 
         if not item.is_shown:
+            log.debug(f"New reference {item.cycle_data} not shown, plotting now.")
             self.showCycle(item)
 
         if current_reference is item:
             return
 
         self._reference = item
+        log.debug(f"Updating reference w.r.t. {item.cycle_data}")
         self.updateReferencePlots(item)
 
         # make reference curve wider

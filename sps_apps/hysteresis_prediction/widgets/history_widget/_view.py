@@ -6,57 +6,11 @@ import pyqtgraph as pg
 from qtpy import QtCore, QtGui, QtWidgets
 
 from ...generated.prediction_history_widget_ui import Ui_PredictionAnalysisWidget
-from ...generated.reference_selector_dialog_ui import Ui_ReferenceSelectorDialog
 from ...history import HistoryListModel
 from ._model import PredictionListModel
 from ._plot_model import PredictionPlotModel
 
 log = logging.getLogger(__name__)
-
-
-class ReferenceSelectorDialog(QtWidgets.QDialog, Ui_ReferenceSelectorDialog):
-    _model: QtCore.QAbstractProxyModel | None
-
-    def __init__(
-        self,
-        model: QtCore.QAbstractListModel | None = None,
-        parent: QtWidgets.QWidget | None = None,
-    ) -> None:
-        super().__init__(parent=parent)
-        self.setupUi(self)
-
-        if model is not None:
-            proxy_model = QtCore.QIdentityProxyModel()
-            proxy_model.setSourceModel(model)
-            self._model = proxy_model
-        else:
-            self._model = None
-
-        self.listView.setModel(self._model)
-
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.rejected.connect(self.reject)
-
-    def _get_model(self) -> QtCore.QAbstractProxyModel:
-        if self._model is None:
-            msg = "Model has not been set."
-            raise ValueError(msg)
-        return self._model
-
-    def _set_model(self, model: QtCore.QAbstractListModel) -> None:
-        proxy_model = QtCore.QIdentityProxyModel()
-        proxy_model.setSourceModel(model)
-        self._model = proxy_model
-        self.listView.setModel(self._model)
-
-    model = property(_get_model, _set_model)
-
-    @property
-    def selected_item(self) -> QtCore.QModelIndex | None:
-        try:
-            return self.listView.selectedIndexes()[0]
-        except IndexError:
-            return None
 
 
 class PlotContainer(QtCore.QObject):
@@ -269,18 +223,14 @@ class HistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.plot_measured = plot_measured
 
         self.lmodel = PredictionListModel(data_source=history, parent=self)
-        self.listPredictions.setModel(self.lmodel)
 
         self.plots = PlotContainer(parent=self.widget, plot_measured=plot_measured)
         self.pmodel = PredictionPlotModel(parent=self)
 
         self._connect_list_model()
         self._connect_plot_model()
-        self.buttonReference.clicked.connect(self._on_select_new_reference)
 
     def _connect_list_model(self) -> None:
-        self.listPredictions.clicked.connect(self.itemClicked)
-        self.listPredictions.clicked.connect(self.lmodel.clicked)
         self.lmodel.itemAdded.connect(self.pmodel.showCycle)
         self.lmodel.itemUpdated.connect(self.pmodel.updateCycle)
         self.lmodel.itemRemoved.connect(self.pmodel.removeCycle)
@@ -317,29 +267,11 @@ class HistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
             self.pmodel.removeCycle(item)
         else:
             self.pmodel.showCycle(item)
+        self.lmodel.clicked(index)
 
     @QtCore.Slot()
     def resetAxes(self) -> None:
         self.model.plot_model.resetAxes.emit()
-
-    def _on_select_new_reference(self) -> None:
-        """
-        Select a new reference cycle for plots, use a QIdentityProxyModel,
-        but select only one.
-        """
-        dialog = ReferenceSelectorDialog(model=self.lmodel, parent=self)
-
-        def on_dialog_accepted() -> None:
-            selected_index = dialog.selected_item
-            if selected_index is not None:
-                item = self.lmodel.itemAt(selected_index)
-
-                self.pmodel.setReference(item)
-                self.lmodel.setReference(item)
-
-        dialog.accepted.connect(on_dialog_accepted)
-
-        dialog.open()
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         self.windowClosed.emit()

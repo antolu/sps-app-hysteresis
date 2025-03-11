@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/lua/code/sps-app-hysteresis/resources/ui/prediction_history_widget.ui'
+# Form implementation generated from reading ui file '/Users/antonlu/code/cern/sps-app-hysteresis/resources/ui/prediction_history_widget.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.11
 #
@@ -26,30 +26,6 @@ class Ui_PredictionAnalysisWidget(object):
         self.verticalLayout = QtWidgets.QVBoxLayout(self.frame)
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout.setObjectName("verticalLayout")
-        self.frame_5 = QtWidgets.QFrame(self.frame)
-        self.frame_5.setMaximumSize(QtCore.QSize(400, 16777215))
-        self.frame_5.setFrameShape(QtWidgets.QFrame.StyledPanel)
-        self.frame_5.setFrameShadow(QtWidgets.QFrame.Raised)
-        self.frame_5.setObjectName("frame_5")
-        self.formLayout = QtWidgets.QFormLayout(self.frame_5)
-        self.formLayout.setObjectName("formLayout")
-        self.listPredictions = QtWidgets.QListView(self.frame_5)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.listPredictions.sizePolicy().hasHeightForWidth())
-        self.listPredictions.setSizePolicy(sizePolicy)
-        self.listPredictions.setMaximumSize(QtCore.QSize(400, 16777215))
-        self.listPredictions.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-        self.listPredictions.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
-        self.listPredictions.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self.listPredictions.setObjectName("listPredictions")
-        self.formLayout.setWidget(0, QtWidgets.QFormLayout.SpanningRole, self.listPredictions)
-        self.buttonReference = QtWidgets.QPushButton(self.frame_5)
-        self.buttonReference.setEnabled(True)
-        self.buttonReference.setObjectName("buttonReference")
-        self.formLayout.setWidget(1, QtWidgets.QFormLayout.SpanningRole, self.buttonReference)
-        self.verticalLayout.addWidget(self.frame_5)
         self.horizontalLayout.addWidget(self.frame)
         self.frame_2 = QtWidgets.QFrame(PredictionAnalysisWidget)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
@@ -94,7 +70,6 @@ class Ui_PredictionAnalysisWidget(object):
     def retranslateUi(self, PredictionAnalysisWidget):
         _translate = QtCore.QCoreApplication.translate
         PredictionAnalysisWidget.setWindowTitle(_translate("PredictionAnalysisWidget", "Prediction Analysis"))
-        self.buttonReference.setText(_translate("PredictionAnalysisWidget", "Select Reference"))
         self.actionClear_Buffer.setText(_translate("PredictionAnalysisWidget", "&Clear Buffer"))
         self.actionClear_Buffer.setToolTip(_translate("PredictionAnalysisWidget", "Clear buffered predictions"))
         self.actionExport_Predictions.setText(_translate("PredictionAnalysisWidget", "&Export Predictions"))
