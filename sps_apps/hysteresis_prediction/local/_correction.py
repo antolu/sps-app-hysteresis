@@ -66,8 +66,16 @@ class CalculateCorrection(EventBuilderAbc):
 
         if cycle.correction is not None:  # and not cycle.cycle.endswith("ECO"):
             try:
+                current_correction = np.vstack(
+                    cut_trim_beyond_time(
+                        cycle.correction[0],
+                        cycle.correction[1],
+                        beam_in,
+                        beam_out,
+                    )
+                )
                 correction = calc_new_correction(
-                    cycle.correction, delta, self._trim_settings.gain[cycle.cycle]
+                    current_correction, delta, self._trim_settings.gain[cycle.cycle]
                 )
             except:  # noqa: E722
                 log.exception(f"{cycle}: Could not calculate correction.")
