@@ -8,9 +8,8 @@ import numpy as np
 import numpy.typing as npt
 import pyda
 import pyda.access
-import scipy.ndimage
-import scipy.signal
 from qtpy import QtCore
+from skimage.restoration import denoise_tv_chambolle
 
 from ..trim import TrimSettings, cycle_metadata
 from .event_building import EventBuilderAbc
@@ -59,9 +58,7 @@ class CalculateCorrection(EventBuilderAbc):
             beam_in=beam_in,
             beam_out=beam_out,
         )
-        # delta[1] = scipy.signal.savgol_filter(delta[1], 11, 2)
-        # delta[1] = signal.perona_malik_smooth(delta[1], 5.0, 5e-2, 2.0)
-        delta[1] = scipy.ndimage.gaussian_filter(delta[1], sigma=4)
+        delta[1] = smooth_correction(*delta)[1]
         cycle.delta_applied = delta
 
         msg = f"{cycle}: Delta calculated."
@@ -341,3 +338,29 @@ def calc_new_correction(
 
     # return delta for plotting
     return np.vstack((current_correction[0], new_correction))
+
+
+# @numba.njit
+def smooth_with_tolerance_interp(y: np.ndarray, atol: float = 1e-5) -> np.ndarray:
+    y = y.copy()
+    n = len(y)
+    i = 1
+
+    while i < n - 1:
+        if np.abs(y[i] - y[i - 1]) < atol and np.abs(y[i] - y[i + 1]) < atol:
+            start = i - 1
+            while i < n - 1 and np.abs(y[start] - y[i]) < atol:
+                i += 1
+            end = i + 1
+            y[start:end] = np.linspace(y[start], y[end - 1], end - start)
+        i += 1
+    return y
+
+
+def smooth_correction(
+    xs: npt.NDArray[np.float64],
+    correction: npt.NDArray[np.float64],
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    correction = denoise_tv_chambolle(correction, weight=0.1)
+    correction = smooth_with_tolerance_interp(correction, atol=5e-6)
+    return xs, correction
