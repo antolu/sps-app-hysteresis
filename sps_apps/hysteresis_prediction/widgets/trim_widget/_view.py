@@ -143,9 +143,9 @@ class TrimSettingsWidget(QtWidgets.QWidget):
             self.TrimTMaxSpinBox.setValue(self.model.settings.trim_end[cycle])
 
         if self.model.settings.trim_enabled[cycle]:
-            self.ToggleButton.setState(ToggleButton.State.STATE2)
-        else:
             self.ToggleButton.setState(ToggleButton.State.STATE1)
+        else:
+            self.ToggleButton.setState(ToggleButton.State.STATE2)
 
     @QtCore.Slot(float)
     def onGainChanged(self, value: float) -> None:
@@ -179,7 +179,7 @@ class TrimSettingsWidget(QtWidgets.QWidget):
     @QtCore.Slot(ToggleButton.State)
     def onEnableTrim(self, state: ToggleButton.State) -> None:
         self.model.settings.trim_enabled[self.model.cycle] = (
-            state == ToggleButton.State.STATE2
+            state == ToggleButton.State.STATE1
         )
 
 
