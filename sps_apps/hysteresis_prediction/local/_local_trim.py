@@ -93,9 +93,9 @@ class LocalTrim(QtCore.QObject):
             correction_t = cycle_data.correction_applied[0]
             correction_v = cycle_data.correction_applied[1]
             # log shapes
-            log.debug(
-                f"[{cycle_data}] Correction shape: {correction_t.shape}, {correction_v.shape}"
-            )
+            # log.debug(
+            #     f"[{cycle_data}] Correction shape: {correction_t.shape}, {correction_v.shape}"
+            # )
 
             start = self._settings.trim_start[cycle_data.cycle]
             start = max(start, cycle_metadata.beam_in(cycle_data.cycle))
@@ -106,16 +106,6 @@ class LocalTrim(QtCore.QObject):
             correction_t, correction_v = self.cut_trim_beyond_time(
                 correction_t, correction_v, start, end
             )
-
-            assert cycle_data.delta_applied is not None, "No delta applied found."
-            delta_t, delta_v = self.cut_trim_beyond_time(
-                cycle_data.delta_applied[0],
-                cycle_data.delta_applied[1],
-                lower=start,
-                upper=end,
-            )
-
-            delta_v = self._settings.gain[cycle_data.cycle] * delta_v
 
             log.debug(
                 f"[{cycle_data}] Sending trims to LSA with {correction_t.size} points."
@@ -129,9 +119,11 @@ class LocalTrim(QtCore.QObject):
             trim_time_diff = trim_time.duration
             log.debug(f"Trim applied in {trim_time_diff:.02f}s.")
 
-            self.trimApplied.emit(
-                cycle_data, np.vstack((delta_t, delta_v)), trim_time_d, comment
-            )
+            # calculating the deltas is for purely plotting purposes
+            # any real usage should still be done with the CycleData.correction_applied field
+            delta = self.calc_delta(cycle_data, start, end)
+
+            self.trimApplied.emit(cycle_data, delta, trim_time_d, comment)
         except:
             log.exception("Failed to apply trim to LSA.")
             raise
@@ -189,3 +181,16 @@ class LocalTrim(QtCore.QObject):
             raise resp_set.exception
 
         return now
+
+    def calc_delta(self, cycle_data: CycleData, start: float, end: float) -> np.ndarray:
+        assert cycle_data.delta_applied is not None, "No delta applied found."
+        delta_t, delta_v = self.cut_trim_beyond_time(
+            cycle_data.delta_applied[0],
+            cycle_data.delta_applied[1],
+            lower=start,
+            upper=end,
+        )
+
+        delta_v = self._settings.gain[cycle_data.cycle] * delta_v
+
+        return np.vstack((delta_t, delta_v))
