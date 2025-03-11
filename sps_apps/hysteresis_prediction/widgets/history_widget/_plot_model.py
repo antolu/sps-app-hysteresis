@@ -63,10 +63,13 @@ class PredictionPlotModel(QtCore.QObject):
             color = self._color_pool.get_color()
             item.color = color
 
+        width = 4 if item is self._reference else 2
+
         if item.cycle_data.current_meas is not None and item.raw_current_plt is None:
             item.raw_current_plt = _make_curve_item(
                 *_make_meas_curve(item.cycle_data, item.cycle_data.current_meas),
                 item.color,
+                width=width,
             )
             self.measuredCurrentAdded.emit(item.raw_current_plt)
 
@@ -74,6 +77,7 @@ class PredictionPlotModel(QtCore.QObject):
             item.raw_meas_plt = _make_curve_item(
                 *_make_meas_curve(item.cycle_data, item.cycle_data.field_meas),
                 item.color,
+                width=width,
             )
             self.measuredFieldAdded.emit(item.raw_meas_plt)
 
@@ -86,6 +90,7 @@ class PredictionPlotModel(QtCore.QObject):
                 item.cycle_data.delta_applied[0],
                 item.cycle_data.delta_applied[1] * 1e4,
                 item.color,
+                width=width,
             )
             self.deltaFieldAdded.emit(item.delta_plt)
 
@@ -94,6 +99,7 @@ class PredictionPlotModel(QtCore.QObject):
                 self._reference.cycle_data.field_meas is not None
                 and item.ref_meas_plt is not None
             ):
+                log.debug(f"Creating ref meas plot for {item.cycle_data}")
                 item.ref_meas_plt = _make_curve_item(
                     *_make_meas_curve(
                         self._reference.cycle_data,
@@ -101,6 +107,7 @@ class PredictionPlotModel(QtCore.QObject):
                         - item.cycle_data.field_meas,
                     ),
                     item.color,
+                    width=width,
                 )
                 self.refMeasuredFieldAdded.emit(item.ref_meas_plt)
 
@@ -111,9 +118,7 @@ class PredictionPlotModel(QtCore.QObject):
                 ref_x, ref_y = _make_pred_curve(self._reference)
                 _, pred_y = _make_pred_curve(item)
                 item.ref_pred_plt = _make_curve_item(
-                    ref_x,
-                    (ref_y - pred_y) * 1e4,
-                    item.color,
+                    ref_x, (ref_y - pred_y) * 1e4, item.color, width=width
                 )
                 self.refPredictedFieldAdded.emit(item.ref_pred_plt)
 
@@ -122,7 +127,7 @@ class PredictionPlotModel(QtCore.QObject):
         item.is_shown = True
         if not item.is_shown and len(self._plotted_items) == 1:
             # first item, set axes
-            self.setReference(item)
+            # self.setReference(item)
             self.resetAxes()
 
     def updateCycle(self, item: PlotItem) -> None:
@@ -239,29 +244,38 @@ class PredictionPlotModel(QtCore.QObject):
             log.debug("No reference set, not updating.")
             return
 
-        if item.ref_meas_plt is None:
-            self.showCycle(item)
-        elif (
-            self._reference.cycle_data.field_meas is not None
-            and item.ref_meas_plt is not None
-        ):
-            _update_curve(
-                *_make_meas_curve(
-                    self._reference.cycle_data,
-                    self._reference.cycle_data.field_meas - item.cycle_data.field_meas,
-                ),
-                item.ref_meas_plt,
-            )
+        if item is self._reference:
+            log.debug("Reference is the same as the item, not updating.")
+            return
 
-        if item.ref_pred_plt is None:
-            self.showCycle(item)
-        elif (
-            self._reference.cycle_data.field_pred is not None
-            and item.ref_pred_plt is not None
-        ):
-            ref_x, ref_y = _make_pred_curve(self._reference)
-            _, pred_y = _make_pred_curve(item)
-            _update_curve(ref_x, (ref_y - pred_y) * 1e4, item.ref_pred_plt)
+        for item in self._plotted_items:
+            log.debug(f"Updating plots for {item.cycle_data}")
+            if item.ref_meas_plt is None:
+                self.showCycle(item)
+            elif (
+                self._reference.cycle_data.field_meas is not None
+                and item.ref_meas_plt is not None
+            ):
+                log.debug(f"Updating ref meas plot for {item.cycle_data}")
+                _update_curve(
+                    *_make_meas_curve(
+                        self._reference.cycle_data,
+                        self._reference.cycle_data.field_meas
+                        - item.cycle_data.field_meas,
+                    ),
+                    item.ref_meas_plt,
+                )
+
+            if item.ref_pred_plt is None:
+                self.showCycle(item)
+            elif (
+                self._reference.cycle_data.field_pred is not None
+                and item.ref_pred_plt is not None
+            ):
+                log.debug(f"Updating ref pred plot for {item.cycle_data}")
+                ref_x, ref_y = _make_pred_curve(self._reference)
+                _, pred_y = _make_pred_curve(item)
+                _update_curve(ref_x, (ref_y - pred_y) * 1e4, item.ref_pred_plt)
 
     @staticmethod
     def setCurveWidth(pg_curve: pg.PlotCurveItem, width: int) -> None:
@@ -271,7 +285,7 @@ class PredictionPlotModel(QtCore.QObject):
         :param pg_curve: The curve to set the width of.
         :param width: The width to set.
         """
-        pg_curve.setPen(width=width)
+        pg_curve.setPen(width=width, color=pg_curve.opts["pen"].color())
 
     @QtCore.Slot()
     def resetAxes(self) -> None:
@@ -318,7 +332,7 @@ def _make_pred_curve(item: PlotItem) -> tuple[np.ndarray, np.ndarray]:
 
 
 def _make_curve_item(
-    x: np.ndarray, y: np.ndarray, color: QtGui.QColor
+    x: np.ndarray, y: np.ndarray, color: QtGui.QColor, width: int = 2
 ) -> pg.PlotCurveItem:
     """
     Create a new curve item.
@@ -327,7 +341,7 @@ def _make_curve_item(
     :param y: The y data.
     :param color: The color of the curve.
     """
-    return pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(color=color, width=2))
+    return pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(color=color, width=width))
 
 
 def _make_meas_curve(item: PlotItem, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
