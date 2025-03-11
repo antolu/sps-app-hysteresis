@@ -14,7 +14,12 @@ build_wheel:
 
 # A development installation of the package tested with pytest.
 test_dev:
-  extends: .acc_py_dev_test
+  extends:
+    - .acc_py_dev_test
+    - .acc_py_run_on_acc_py
+  before_script:
+    - !reference [.acc_py_dev_test, before_script]
+    - !reference [.acc_py_run_on_acc_py, before_script]
   script:
     # Run the unit-tests with coverage output.
     - cd ${project_root}
