@@ -46,11 +46,13 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QtWidgets.QDialog):
             self.comboDevice.setCurrentIndex(self.last_selected_device)
 
         self.last_selected_model = settings["last_selected_model", ""]
-        if not self.last_selected_model:
+        if self.last_selected_model:
+            log.debug(f"Setting last selected model to {self.last_selected_model}.")
             self.comboBoxModel.setCurrentIndex(
                 self.comboBoxModel.findText(self.last_selected_model)
             )
         else:
+            log.debug("No last selected model found. Setting to first model.")
             self.last_selected_model = self.comboBoxModel.currentText()
 
         self.buttonBrowse.clicked.connect(self.onBrowseClicked)
