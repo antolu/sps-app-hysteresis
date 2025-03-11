@@ -9,6 +9,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 
 from ...generated.reference_selector_dialog_ui import Ui_ReferenceSelectorDialog
 from ...history import PredictionHistory
+from ...utils import mute_signals
 from ._view import HistoryPlotWidget
 
 log = logging.getLogger(__name__)
@@ -77,10 +78,13 @@ class HistoryWidget(QtWidgets.QWidget):
 
         self._history = history
         self._tabs: dict[str, HistoryPlotWidget] = {}
+        self._cycle2user: dict[str, str] = {}
 
         # make tabs closable
         self.tabWidget.setTabsClosable(True)
         self.tabWidget.tabCloseRequested.connect(self.onTabCloseRequested)
+
+        self.tabWidget.currentChanged.connect(self.onTabChanged)
 
         # set minimum size
         if measured_available:
@@ -113,11 +117,15 @@ class HistoryWidget(QtWidgets.QWidget):
 
         return LsaSelector
 
-    @QtCore.Slot(lsa_selector.AbstractLsaSelectorContext)
-    def onUserChanged(self, user: lsa_selector.AbstractLsaSelectorContext) -> None:
+    @QtCore.Slot(lsa_selector.AbstractLsaSelectorResidentContext)
+    def onUserChanged(
+        self, user: lsa_selector.AbstractLsaSelectorResidentContext
+    ) -> None:
         # if button state is off, trigger the button
         log.debug(f"Requested to show {user.name}")
         self.show_or_create_tab(user.name)
+
+        self._cycle2user[user.name] = user.user
 
     @QtCore.Slot()
     def onSelectReferenceClicked(self) -> None:
@@ -171,8 +179,9 @@ class HistoryWidget(QtWidgets.QWidget):
                 self,
                 plot_measured=self.measured_available,
             )
-            self.tabWidget.addTab(widget, name)
-            self.tabWidget.setCurrentWidget(widget)
+            with mute_signals(self.tabWidget):
+                self.tabWidget.addTab(widget, name)
+                self.tabWidget.setCurrentWidget(widget)
             self._tabs[name] = widget
 
             if len(self._tabs) > self.max_tabs:
@@ -184,17 +193,29 @@ class HistoryWidget(QtWidgets.QWidget):
             msg = f"Tab {name} was closed, reopening."
             log.debug(msg)
 
-            self.tabWidget.addTab(self._tabs[name], name)
+            with mute_signals(self.tabWidget):
+                self.tabWidget.addTab(self._tabs[name], name)
         else:
             msg = f"Tab {name} already open, switching to it."
             log.debug(msg)
 
-            self.tabWidget.setCurrentWidget(self._tabs[name])
+            with mute_signals(self.tabWidget):
+                self.tabWidget.setCurrentWidget(self._tabs[name])
 
         self.listView.setModel(self.currentWidget.lmodel)
 
         if not self.setReferenceButton.isEnabled():
             self.setReferenceButton.setEnabled(True)
+
+    @QtCore.Slot(int)
+    def onTabChanged(self, index: int) -> None:
+        self.listView.setModel(self.tabWidget.widget(index).lmodel)
+
+        name = self.tabWidget.tabText(index)
+        log.debug(f"Switched to tab {name}")
+
+        with mute_signals(self.LsaSelector):
+            self.LsaSelector.select_user(self._cycle2user[name])
 
     @QtCore.Slot(int)
     def onTabCloseRequested(self, index: int) -> None:
