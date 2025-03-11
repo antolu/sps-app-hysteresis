@@ -12,8 +12,8 @@ import scipy.ndimage
 import scipy.signal
 from qtpy import QtCore
 
-from ..data import EventBuilderAbc
 from ..trim import TrimSettings, cycle_metadata
+from .event_building import EventBuilderAbc
 
 log = logging.getLogger(__name__)
 
@@ -48,11 +48,16 @@ class CalculateCorrection(EventBuilderAbc):
             )
             return
 
+        beam_in = cycle_metadata.beam_in(cycle.cycle)
+        beam_out = cycle_metadata.beam_out(cycle.cycle)
+        log.debug(
+            f"{cycle}: Cutting delta with Beam in: {beam_in}, Beam out: {beam_out}"
+        )
         delta = calc_delta_field(
             self._field_ref[cycle.cycle],
             cycle.field_pred,
-            beam_in=cycle_metadata.beam_in(cycle.cycle),
-            beam_out=cycle_metadata.beam_out(cycle.cycle),
+            beam_in=beam_in,
+            beam_out=beam_out,
         )
         # delta[1] = scipy.signal.savgol_filter(delta[1], 11, 2)
         # delta[1] = signal.perona_malik_smooth(delta[1], 5.0, 5e-2, 2.0)

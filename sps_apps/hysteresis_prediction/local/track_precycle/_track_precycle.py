@@ -14,7 +14,7 @@ import hystcomp_utils.cycle_data
 import pandas as pd
 from qtpy import QtCore
 
-from ...data import EventBuilderAbc
+from ...local.event_building import EventBuilderAbc
 
 DEFAULT_PRECYCLE_SEQUENCE = [
     "SPS.USER.LHCPILOT",

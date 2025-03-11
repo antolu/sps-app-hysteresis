@@ -12,9 +12,9 @@ from op_app_context import context
 from pyda_lsa import LsaCycleContext, LsaEndpoint
 from qtpy import QtCore
 
+from ..trim._cycle_metadata import cycle_metadata
+from ..trim._settings import LocalTrimSettings
 from ..utils import ThreadWorker, time_execution
-from ._cycle_metadata import cycle_metadata
-from ._settings import LocalTrimSettings
 
 log = logging.getLogger(__name__)
 

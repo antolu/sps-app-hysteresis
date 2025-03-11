@@ -16,7 +16,7 @@ import pyda_japc
 from qtpy import QtCore
 
 from ..contexts import UcapParameterNames, app_context
-from ..data import JapcEndpoint, StartCycleEventBuilder
+from ..local.event_building import JapcEndpoint, StartCycleEventBuilder
 from ._data_flow import DataFlow, FlowWorker
 
 log = logging.getLogger(__name__)

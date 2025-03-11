@@ -10,7 +10,8 @@ from PyQt5.QtCore import QObject
 from qtpy import QtCore
 
 from ..contexts import app_context
-from ..data import (
+from ..local import CalculateCorrection, Inference, LocalTrim
+from ..local.event_building import (
     AddMeasurementReferencesEventBuilder,
     AddMeasurementsEventBuilder,
     AddProgrammedEventBuilder,
@@ -21,9 +22,7 @@ from ..data import (
     TrackDynEcoEventBuilder,
     TrackFullEcoEventBuilder,
 )
-from ..inference import CalculateCorrection, Inference
-from ..signals import TrackPrecycleEventBuilder
-from ..trim import LocalTrim
+from ..local.track_precycle import TrackPrecycleEventBuilder
 from ._data_flow import DataFlow, FlowWorker
 
 log = logging.getLogger(__name__)

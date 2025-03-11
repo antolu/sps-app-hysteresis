@@ -9,8 +9,8 @@ from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore, QtWidgets
 from sps_mlp_hystcomp import PETEPredictor, TFTPredictor
 
-from ..data import EventBuilderAbc
 from ..utils import ThreadWorker, load_cursor, run_in_thread, time_execution
+from .event_building import EventBuilderAbc
 
 MS = int(1e3)
 NS = int(1e9)

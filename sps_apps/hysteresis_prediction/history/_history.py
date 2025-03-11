@@ -34,6 +34,14 @@ class PredictionHistory(QtCore.QObject):
         """
         if cycle_data.cycle in self._history:
             self._history[cycle_data.cycle].update(cycle_data)
+        elif cycle_data.field_pred is None:  # no prediction
+            log.debug(
+                f"Cycle {cycle_data.cycle} not found in history, no prediction to update."
+            )
+        elif cycle_data.field_meas is None:  # no measurement
+            log.debug(
+                f"Cycle {cycle_data.cycle} not found in history, no measurement to update."
+            )
         else:
             msg = f"Cycle {cycle_data.cycle} not found in history, cannot update."
             log.error(msg)
