@@ -226,6 +226,8 @@ class PredictionPlotModel(QtCore.QObject):
             ):
                 self.setCurveWidth(getattr(current_reference, attr), 2)
 
+        self.newReference.emit(item)
+
     def updateReferencePlots(self, item: PlotItem) -> None:
         """
         Update all plots that are reference dependent.

@@ -334,7 +334,7 @@ class HistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
             if selected_index is not None:
                 item = self.lmodel.itemAt(selected_index)
 
-                self.pmodel.newReference.emit(item)
+                self.pmodel.setReference(item)
                 self.lmodel.setReference(item)
 
         dialog.accepted.connect(on_dialog_accepted)
