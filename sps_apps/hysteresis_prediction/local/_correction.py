@@ -73,6 +73,7 @@ class CalculateCorrection(EventBuilderAbc):
                 log.exception(f"{cycle}: Could not calculate correction.")
                 return
             cycle.correction_applied = correction
+            log.info(f"Time axis: {list(correction[0])}")
 
             msg = f"{cycle}: New correction calculated."
             log.debug(msg)
@@ -224,60 +225,24 @@ def insert_points(
 
 
 def match_array_size(
-    current_correction: npt.NDArray[np.float64],
-    new_correction: npt.NDArray[np.float64],
+    array1: npt.NDArray[np.float64],
+    array2: npt.NDArray[np.float64],
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
-    if current_correction[0].size < new_correction[0].size:
-        # upsample LSA trim to match prediction, keep BP edges
-        new_x = np.concatenate((new_correction[0], current_correction[0]))
-        new_x = np.sort(np.unique(new_x))
-        current_correction = np.vstack((
-            new_x,
-            np.interp(
-                new_x,
-                *current_correction,
-            ),
-        ))
+    # Calculate the union of the time axes
+    union_time_axis = np.union1d(array1[0], array2[0])
 
-        # upsample prediction to match new LSA trim
-        new_correction = np.vstack((
-            new_x,
-            np.interp(
-                new_x,
-                *new_correction,
-            ),
-        ))
-    elif current_correction[0].size > new_correction[0].size:
-        # upsample prediction to match LSA trim
-        new_correction = np.vstack((
-            current_correction[0],
-            np.interp(
-                current_correction[0],
-                *new_correction,
-            ),
-        ))
+    # Interpolate the values to the new time axis
+    array1_interpolated = np.vstack((
+        union_time_axis,
+        np.interp(union_time_axis, array1[0], array1[1]),
+    ))
 
-        new_x = current_correction[0]
-    else:
-        new_x = np.concatenate((new_correction[0], current_correction[0]))
-        new_x = np.sort(np.unique(new_x))
-        current_correction = np.vstack((
-            new_x,
-            np.interp(
-                new_x,
-                *current_correction,
-            ),
-        ))
+    array2_interpolated = np.vstack((
+        union_time_axis,
+        np.interp(union_time_axis, array2[0], array2[1]),
+    ))
 
-        new_correction = np.vstack((
-            new_x,
-            np.interp(
-                new_x,
-                *new_correction,
-            ),
-        ))
-
-    return current_correction, new_correction
+    return array1_interpolated, array2_interpolated
 
 
 def cut_trim_beyond_time(
