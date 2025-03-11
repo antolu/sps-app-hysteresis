@@ -41,8 +41,6 @@ class PredictionPlotModel(QtCore.QObject):
 
         self._plotted_items: set[PlotItem] = set()
 
-        self.newReference.connect(self.setReference)
-
         self._reference: PlotItem | None = None
         self._color_pool = ColorPool()
 
@@ -97,7 +95,7 @@ class PredictionPlotModel(QtCore.QObject):
         if self._reference is not None and item is not self._reference:
             if (
                 self._reference.cycle_data.field_meas is not None
-                and item.ref_meas_plt is not None
+                and item.ref_meas_plt is None
             ):
                 log.debug(f"Creating ref meas plot for {item.cycle_data}")
                 item.ref_meas_plt = _make_curve_item(
@@ -248,6 +246,10 @@ class PredictionPlotModel(QtCore.QObject):
             if item is self._reference:
                 continue
 
+            if not item.is_shown:
+                log.debug(f"Item {item} not shown, not updating.")
+                continue
+
             log.debug(f"Updating plots for {item.cycle_data}")
             if item.ref_meas_plt is None:
                 self.showCycle(item)
@@ -264,6 +266,17 @@ class PredictionPlotModel(QtCore.QObject):
                     ),
                     item.ref_meas_plt,
                 )
+            else:
+                if item.ref_meas_plt is not None:
+                    log.warning(
+                        f"Reference meas plot for {item.cycle_data} is None, but should not be."
+                    )
+                elif item.ref_pred_plt is not None:
+                    log.warning(
+                        f"Reference pred plot for {item.cycle_data} is None, but should not be."
+                    )
+                else:
+                    log.warning("Don't know what to do.")
 
             if item.ref_pred_plt is None:
                 self.showCycle(item)
