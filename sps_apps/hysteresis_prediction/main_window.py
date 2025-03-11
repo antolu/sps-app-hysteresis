@@ -67,6 +67,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self._trim_widget.show()
         self._history_widget.show()
 
+        self.actionAutoregressive.setChecked(False)
         if app_context().ONLINE:
             self.action_Load_Model.setEnabled(False)
             self.actionProgrammed_current.setEnabled(False)
