@@ -73,7 +73,6 @@ class CalculateCorrection(EventBuilderAbc):
                 log.exception(f"{cycle}: Could not calculate correction.")
                 return
             cycle.correction_applied = correction
-            log.info(f"Time axis: {list(correction[0])}")
 
             msg = f"{cycle}: New correction calculated."
             log.debug(msg)
