@@ -107,7 +107,7 @@ class PlotContainer(QtCore.QObject):
         self.deltaPlot.setTitle("Reference difference (trim applied) [T]")
         assert self.deltaPlot.vb is not None
         self.deltaPlot.vb.setXLink(self.measuredCurrentPlot.vb)
-        self.deltaPlot.vb.setYRange(-10, 10)
+        self.deltaPlot.vb.setYRange(-4, 4)
 
     def _add_plots(self) -> None:
         self.widget.setBackground("w")
