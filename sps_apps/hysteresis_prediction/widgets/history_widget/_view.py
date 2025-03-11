@@ -187,6 +187,10 @@ class PlotContainer(QtCore.QObject):
             )
 
     @QtCore.Slot(pg.PlotCurveItem)
+    def addMeasuredCurrentPlot(self, plot: pg.PlotCurveItem) -> None:
+        self.measuredCurrentPlot.addItem(plot)
+
+    @QtCore.Slot(pg.PlotCurveItem)
     def addMeasuredFieldPlot(self, plot: pg.PlotCurveItem) -> None:
         if self.measuredFieldPlot is None:
             msg = "Measured field plot is not enabled. Cannot plot."
@@ -213,6 +217,10 @@ class PlotContainer(QtCore.QObject):
     @QtCore.Slot(pg.PlotCurveItem)
     def addDeltaPlot(self, plot: pg.PlotCurveItem) -> None:
         self.deltaPlot.addItem(plot)
+
+    @QtCore.Slot(pg.PlotCurveItem)
+    def removeMeasuredCurrentPlot(self, plot: pg.PlotCurveItem) -> None:
+        self.measuredCurrentPlot.removeItem(plot)
 
     @QtCore.Slot(pg.PlotCurveItem)
     def removeMeasuredFieldPlot(self, plot: pg.PlotCurveItem) -> None:
@@ -279,8 +287,8 @@ class HistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.lmodel.modelReset.connect(self.pmodel.removeAll)
 
     def _connect_plot_model(self) -> None:
-        self.pmodel.measuredCurrentAdded.connect(self.plots.addMeasuredFieldPlot)
-        self.pmodel.measuredCurrentRemoved.connect(self.plots.removeMeasuredFieldPlot)
+        self.pmodel.measuredCurrentAdded.connect(self.plots.addMeasuredCurrentPlot)
+        self.pmodel.measuredCurrentRemoved.connect(self.plots.removeMeasuredCurrentPlot)
         self.pmodel.measuredFieldAdded.connect(self.plots.addMeasuredFieldPlot)
         self.pmodel.measuredFieldRemoved.connect(self.plots.removeMeasuredFieldPlot)
         self.pmodel.predictedFieldAdded.connect(self.plots.addPredictedFieldPlot)
