@@ -106,13 +106,9 @@ class HistoryListModel(QtCore.QAbstractListModel):
             return
 
         self._data[idx] = data
+        model_index = self.index(idx, 0)
 
-        index = (
-            QtCore.QModelIndex(),
-            idx,
-            idx,
-        )
-        self.dataChanged.emit(index, index, [QtCore.Qt.DisplayRole])
+        self.dataChanged.emit(model_index, model_index, [QtCore.Qt.DisplayRole])
         self.itemUpdated.emit(data)
 
     def _deque_idx(self, data: CycleData) -> int:
