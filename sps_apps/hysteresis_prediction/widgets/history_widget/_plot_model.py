@@ -244,11 +244,10 @@ class PredictionPlotModel(QtCore.QObject):
             log.debug("No reference set, not updating.")
             return
 
-        if item is self._reference:
-            log.debug("Reference is the same as the item, not updating.")
-            return
-
         for item in self._plotted_items:
+            if item is self._reference:
+                continue
+
             log.debug(f"Updating plots for {item.cycle_data}")
             if item.ref_meas_plt is None:
                 self.showCycle(item)
