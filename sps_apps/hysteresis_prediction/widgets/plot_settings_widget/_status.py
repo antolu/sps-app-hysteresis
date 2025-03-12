@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from enum import Enum, auto
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 __all__ = ["LOG_MESSAGES", "AppStatus"]

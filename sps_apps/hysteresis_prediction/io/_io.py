@@ -7,7 +7,7 @@ from pathlib import Path
 from hystcomp_utils.cycle_data import CycleData
 from op_app_context import settings
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 class IO:

@@ -10,7 +10,7 @@ from qtpy import QtCore, QtGui
 from ...utils import ColorPool
 from ._dataclass import PlotItem
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 class PredictionPlotModel(QtCore.QObject):
@@ -93,7 +93,7 @@ class PredictionPlotModel(QtCore.QObject):
             self.deltaFieldAdded.emit(item.delta_plt)
 
         if (
-            item.ref_meas_plt is not None
+            item.ref_meas_plt is None
             and item.cycle_data.field_meas_ref is not None
             and item.cycle_data.field_meas is not None
         ):
@@ -111,7 +111,7 @@ class PredictionPlotModel(QtCore.QObject):
             self.refMeasuredFieldAdded.emit(item.ref_meas_plt)
 
         if (
-            item.ref_pred_plt is not None
+            item.ref_pred_plt is None
             and item.cycle_data.field_ref is not None
             and item.cycle_data.field_pred is not None
         ):

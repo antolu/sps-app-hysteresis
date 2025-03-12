@@ -15,7 +15,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 
 from ...generated.model_load_dialog_ui import Ui_ModelLoadDialog
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 class ModelLoadDialog(Ui_ModelLoadDialog, QtWidgets.QDialog):

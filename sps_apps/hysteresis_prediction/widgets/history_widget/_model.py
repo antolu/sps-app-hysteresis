@@ -13,7 +13,7 @@ from qtpy import QtCore, QtGui
 from ...history import HistoryListModel
 from ._dataclass import PlotItem
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 BEAM_IN = "SIX.MC-CTML/ControlValue#controlValue"

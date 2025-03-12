@@ -6,7 +6,7 @@ import typing
 from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 class ReferenceCycles(QtCore.QObject):

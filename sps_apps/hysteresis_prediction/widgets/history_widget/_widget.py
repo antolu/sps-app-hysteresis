@@ -12,7 +12,7 @@ from ...history import PredictionHistory
 from ...utils import mute_signals
 from ._view import HistoryPlotWidget
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 class NoHighlightDelegate(QtWidgets.QStyledItemDelegate):

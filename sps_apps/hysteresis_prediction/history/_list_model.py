@@ -7,7 +7,7 @@ from collections import deque
 from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore, QtGui
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 class HistoryListModel(QtCore.QAbstractListModel):

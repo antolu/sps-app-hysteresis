@@ -23,7 +23,7 @@ from ...utils import mute_signals
 from .._widgets import ToggleButton
 from ._model import TrimModel
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 class TrimInfoWidget(QtWidgets.QWidget):

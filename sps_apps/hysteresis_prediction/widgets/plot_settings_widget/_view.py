@@ -12,7 +12,7 @@ from ...generated.plot_settings_widget_ui import Ui_PlotSettingsWidget
 from ...utils import run_in_main_thread
 from ._status import LOG_MESSAGES, AppStatus
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 FMT = "%Y-%m-%d %H:%M:%S.%f"

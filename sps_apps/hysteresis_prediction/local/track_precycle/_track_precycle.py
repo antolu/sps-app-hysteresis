@@ -25,7 +25,7 @@ DEFAULT_PRECYCLE_SEQUENCE = [
 _HERE = pathlib.Path(__file__).parent
 
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 class TrackPrecycleEventBuilder(EventBuilderAbc):

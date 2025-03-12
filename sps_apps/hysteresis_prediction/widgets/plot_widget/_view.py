@@ -15,7 +15,7 @@ from qtpy.QtWidgets import QVBoxLayout, QWidget
 from ._model import PlotModel
 from ._sources import LocalTimerTimingSource
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 AXES_RANGE_KWARGS = {"field": (0.0, 2.2), "current": (0.0, 6000)}

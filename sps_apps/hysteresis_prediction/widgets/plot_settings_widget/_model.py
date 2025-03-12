@@ -4,7 +4,7 @@ import logging
 
 from qtpy.QtCore import QObject, Signal
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 class PlotSettingsModel(QObject):

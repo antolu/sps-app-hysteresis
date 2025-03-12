@@ -10,7 +10,7 @@ from qtpy import QtCore
 
 from ._cycle_metadata import cycle_metadata
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 class TrimSettings(QtCore.QObject):

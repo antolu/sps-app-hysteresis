@@ -10,7 +10,7 @@ from qtpy.QtCore import QTimer
 
 __all__ = ["LocalTimerTimingSource"]
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 MS = 1e3

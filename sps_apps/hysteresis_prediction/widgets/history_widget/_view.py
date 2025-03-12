@@ -10,7 +10,7 @@ from ...history import HistoryListModel
 from ._model import PredictionListModel
 from ._plot_model import PredictionPlotModel
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 class PlotContainer(QtCore.QObject):

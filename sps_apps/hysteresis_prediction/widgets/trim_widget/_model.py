@@ -10,7 +10,7 @@ from qtpy import QtCore
 
 from ...trim import TrimSettings
 
-log = logging.getLogger()
+log = logging.getLogger(__package__)
 
 
 class TrimModel(QtCore.QObject):

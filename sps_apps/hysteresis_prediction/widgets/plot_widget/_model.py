@@ -12,7 +12,7 @@ from transformertf.data import downsample as downsample_tf
 from ...flow import DataFlow
 from ._sources import AcquiredDataType, CurrentFieldSource
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 class PlotModel(QtCore.QObject):

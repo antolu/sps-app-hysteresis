@@ -8,7 +8,7 @@ from qtpy import QtCore
 from ._list_model import HistoryListModel
 from ._reference_cycles import ReferenceCycles
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 class PredictionHistory(QtCore.QObject):

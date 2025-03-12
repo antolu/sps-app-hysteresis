@@ -16,7 +16,7 @@ from ..trim._cycle_metadata import cycle_metadata
 from ..trim._settings import LocalTrimSettings
 from ..utils import ThreadWorker, time_execution
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 TRIM_THRESHOLD = 5e-6
