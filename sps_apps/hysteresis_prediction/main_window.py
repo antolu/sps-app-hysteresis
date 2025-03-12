@@ -116,7 +116,6 @@ class MainWindow(Ui_main_window, ApplicationFrame):
     def _connect_actions(self) -> None:
         self.actionShow_Plot_Settings.triggered.connect(self.toggle_plot_settings)
         self.actionContinuous_Data_Export.toggled.connect(self._io.set_enabled)
-        self.action_Clear_Reference.triggered.connect(self._data.resetReference)
 
         if not app_context().ONLINE:
             self.action_Load_Model.triggered.connect(self.on_load_model_triggered)

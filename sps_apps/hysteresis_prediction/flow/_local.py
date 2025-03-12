@@ -172,7 +172,7 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         self._track_dyneco.stop()
         self._track_fulleco.stop()
 
-    @QtCore.Slot()
+    @QtCore.Slot(str)
     def resetReference(self, cycle: str) -> None:
         try:
             if self.meas_b_avail:
