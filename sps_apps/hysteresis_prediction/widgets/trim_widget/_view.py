@@ -278,5 +278,9 @@ class TrimWidgetView(QtWidgets.QWidget):
     @QtCore.Slot()
     def onResetReference(self) -> None:
         selected_context = self.LsaSelector.selected_context
+        if selected_context is None:
+            log.error("No context selected.")
+            return
+
         log.debug(f"Resetting reference for {selected_context.name}")
         self.referenceReset.emit(selected_context.name)
