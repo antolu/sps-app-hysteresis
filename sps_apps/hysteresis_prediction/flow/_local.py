@@ -209,10 +209,13 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
             self._add_measurement_post.cycleDataAvailable.connect(
                 self._add_measurement_ref.onNewCycleData
             )
-
-        self._add_measurement_post.cycleDataAvailable.connect(
-            self._buffer.onNewMeasCycleData
-        )
+            self._add_measurement_ref.cycleDataAvailable.connect(
+                self._buffer.onNewMeasCycleData
+            )
+        else:
+            self._add_measurement_post.cycleDataAvailable.connect(
+                self._buffer.onNewMeasCycleData
+            )
 
         self._correction.cycleDataAvailable.connect(self._track_dyneco.onNewCycleData)
         self._correction.cycleDataAvailable.connect(self._track_fulleco.onNewCycleData)
