@@ -109,7 +109,7 @@ class PredictionPlotModel(QtCore.QObject):
             item.ref_meas_plt = _make_curve_item(
                 *_make_meas_curve(
                     item.cycle_data,
-                    item.cycle_data.field_meas_ref - item.cycle_data.field_meas,
+                    (item.cycle_data.field_meas_ref - item.cycle_data.field_meas) * 1e4,
                 ),
                 item.color,
                 width=width,
