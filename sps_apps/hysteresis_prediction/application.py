@@ -117,6 +117,7 @@ def main() -> None:
         flow_worker = LocalFlowWorker(
             buffer_size=args.buffer_size,
             provider=context.japc_provider,
+            meas_b_avail=app_context().B_MEAS_AVAIL,
         )
     else:
         ucap_params = app_context().UCAP_PARAMS
