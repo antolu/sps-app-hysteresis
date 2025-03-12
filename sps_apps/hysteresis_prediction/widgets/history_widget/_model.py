@@ -135,7 +135,9 @@ class PredictionListModel(QtCore.QAbstractListModel):
         # find the item in the list
         item = self._plot_metadata.get(cycle_data.cycle_timestamp)
         if item is None:
-            log.error(f"Reference cycle {cycle_data.cycle} not found in list.")
+            log.debug(
+                f"Reference cycle {cycle_data.cycle} not found in list. Waiting for it to come."
+            )
             return
 
         self._reference = item
