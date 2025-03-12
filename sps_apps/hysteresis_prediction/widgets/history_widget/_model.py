@@ -106,6 +106,13 @@ class PredictionListModel(QtCore.QAbstractListModel):
         self._plot_metadata[cycle_data.cycle_timestamp] = item
         self.itemAdded.emit(item)
 
+        if (
+            cycle_data.cycle_timestamp == cycle_data.reference_timestamp
+            and cycle_data == self.data_source.reference
+        ):
+            self._reference = item
+            self.referenceChanged.emit(item)
+
     def updateItem(self, cycle_data: CycleData) -> None:
         item = self._plot_metadata[cycle_data.cycle_timestamp]
         item.cycle_data = cycle_data
