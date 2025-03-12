@@ -20,6 +20,10 @@ class ReferenceCycles(QtCore.QObject):
 
     @QtCore.Slot(CycleData)
     def onNewCycleData(self, cycle_data: CycleData) -> None:
+        if cycle_data.cycle.endswith("ECO"):
+            log.debug(f"[{cycle_data}] Cycles in economy modes are not tracked")
+            return
+
         if self.is_reference(cycle_data):
             if cycle_data.cycle in self._references:
                 msg = (
