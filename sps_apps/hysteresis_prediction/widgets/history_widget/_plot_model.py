@@ -69,7 +69,10 @@ class PredictionPlotModel(QtCore.QObject):
                 item.color,
                 width=width,
             )
+            log.debug(f"[{item.cycle_data}] Creating current plot.")
             self.measuredCurrentAdded.emit(item.raw_current_plt)
+        elif item.cycle_data.current_meas is None:
+            log.debug(f"[{item.cycle_data}] No current data, skipping.")
 
         if item.cycle_data.field_meas is not None and item.raw_meas_plt is None:
             item.raw_meas_plt = _make_curve_item(
@@ -77,11 +80,16 @@ class PredictionPlotModel(QtCore.QObject):
                 item.color,
                 width=width,
             )
+            log.debug(f"[{item.cycle_data}] Creating field plot.")
             self.measuredFieldAdded.emit(item.raw_meas_plt)
+        elif item.cycle_data.field_meas is None:
+            log.debug(f"[{item.cycle_data}] No meas data, skipping.")
 
         if item.cycle_data.field_pred is not None and item.raw_pred_plt is None:
             item.raw_pred_plt = _make_curve_item(*_make_pred_curve(item), item.color)
             self.predictedFieldAdded.emit(item.raw_pred_plt)
+        elif item.cycle_data.field_pred is None:
+            log.debug(f"[{item.cycle_data}] No pred data, skipping.")
 
         if item.cycle_data.delta_applied is not None and item.delta_plt is None:
             item.delta_plt = _make_curve_item(
@@ -90,6 +98,7 @@ class PredictionPlotModel(QtCore.QObject):
                 item.color,
                 width=width,
             )
+            log.debug(f"[{item.cycle_data}] Creating delta plot.")
             self.deltaFieldAdded.emit(item.delta_plt)
 
         if (
@@ -97,8 +106,6 @@ class PredictionPlotModel(QtCore.QObject):
             and item.cycle_data.field_meas_ref is not None
             and item.cycle_data.field_meas is not None
         ):
-            log.debug(f"Creating ref meas plot for {item.cycle_data}")
-
             item.ref_meas_plt = _make_curve_item(
                 *_make_meas_curve(
                     item.cycle_data,
@@ -108,7 +115,10 @@ class PredictionPlotModel(QtCore.QObject):
                 width=width,
             )
 
+            log.debug(f"[{item.cycle_data}] Creating ref meas plot.")
             self.refMeasuredFieldAdded.emit(item.ref_meas_plt)
+        elif item.cycle_data.field_meas_ref is None:
+            log.debug(f"[{item.cycle_data}] No ref meas data, skipping.")
 
         if (
             item.ref_pred_plt is None
@@ -122,7 +132,10 @@ class PredictionPlotModel(QtCore.QObject):
                 ref_x, (ref_y - pred_y) * 1e4, item.color, width=width
             )
 
+            log.debug(f"[{item.cycle_data}] Creating ref pred plot.")
             self.refPredictedFieldAdded.emit(item.ref_pred_plt)
+        elif item.cycle_data.field_ref is None:
+            log.debug(f"[{item.cycle_data}] No ref pred data, skipping.")
 
         self._plotted_items.add(item)
 
@@ -137,6 +150,7 @@ class PredictionPlotModel(QtCore.QObject):
             log.debug(f"Item {item} not shown, not updating.")
             return
 
+        log.debug(f"[{item.cycle_data}] Updating plots with.")
         self.showCycle(item)
 
     @QtCore.Slot(PlotItem)
@@ -157,30 +171,37 @@ class PredictionPlotModel(QtCore.QObject):
         log.debug(f"Removing plot for cycle {item.cycle_data.cycle_time}")
 
         if item.ref_pred_plt is not None:
+            log.debug(f"[{item.cycle_data}] Removing ref pred plot.")
             self.refPredictedFieldRemoved.emit(item.ref_pred_plt)
             item.ref_pred_plt = None
 
         if item.raw_pred_plt is not None:
+            log.debug(f"[{item.cycle_data}] Removing pred plot.")
             self.predictedFieldRemoved.emit(item.raw_pred_plt)
             item.raw_pred_plt = None
 
         if item.raw_meas_plt is not None:
+            log.debug(f"[{item.cycle_data}] Removing meas plot.")
             self.measuredFieldRemoved.emit(item.raw_meas_plt)
             item.raw_meas_plt = None
 
         if item.raw_current_plt is not None:
+            log.debug(f"[{item.cycle_data}] Removing current plot.")
             self.measuredCurrentRemoved.emit(item.raw_current_plt)
             item.raw_current_plt = None
 
         if item.delta_plt is not None:
+            log.debug(f"[{item.cycle_data}] Removing delta plot.")
             self.deltaFieldRemoved.emit(item.delta_plt)
             item.delta_plt = None
 
         if item.ref_meas_plt is not None:
+            log.debug(f"[{item.cycle_data}] Removing ref meas plot.")
             self.refMeasuredFieldRemoved.emit(item.ref_meas_plt)
             item.ref_meas_plt = None
 
         if item.color is not None:
+            log.debug(f"Returning color {item.color} to pool.")
             self._color_pool.return_color(item.color)
             item.color = None
 
@@ -202,7 +223,7 @@ class PredictionPlotModel(QtCore.QObject):
 
         :param item: The item to use as reference.
         """
-        log.debug(f"Setting reference for plotting to {item.cycle_data}")
+        log.debug(f"[{item.cycle_data}] Setting plotting reference.")
         current_reference = self._reference
 
         if not item.is_shown:
@@ -275,8 +296,6 @@ def _make_pred_curve(item: PlotItem) -> tuple[np.ndarray, np.ndarray]:
 
     :param item: The item to create the curve for.
     """
-    log.debug(f"Creating pred plot for cycle {item.cycle_data.cycle_time}")
-
     data = item.cycle_data
     assert data.field_pred is not None
 
