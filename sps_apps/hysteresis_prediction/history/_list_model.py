@@ -130,8 +130,8 @@ class HistoryListModel(QtCore.QAbstractListModel):
 
         data = self._data.pop()
         index = self.index(len(self._data), 0)
-        self.rowsAboutToBeRemoved.emit(*index)
-        self.rowsRemoved.emit(*index)
+        self.rowsAboutToBeRemoved.emit(index, 0, 0)
+        self.rowsRemoved.emit(index, 0, 0)
 
         if data == self._reference and keep_reference:
             reference = data
@@ -149,7 +149,7 @@ class HistoryListModel(QtCore.QAbstractListModel):
         idx = self._deque_idx(data)
 
         if idx == -1:
-            msg = f"Cycle {data.cycle_timestamp} not found in the list. Cannot update entry."
+            msg = f"[{data}] not found in the list. Cannot update entry."
             log.error(msg)
             return
 
