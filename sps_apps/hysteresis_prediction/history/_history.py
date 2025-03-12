@@ -41,6 +41,7 @@ class PredictionHistory(QtCore.QObject):
         should be updated as well.
         """
         if cycle_data.cycle in self._history:
+            log.debug(f"[{cycle_data}]: Updating cycle data in history.")
             self._history[cycle_data.cycle].update(cycle_data)
         elif cycle_data.field_pred is None:  # no prediction
             log.debug(

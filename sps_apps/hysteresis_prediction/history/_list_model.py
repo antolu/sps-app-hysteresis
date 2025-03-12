@@ -156,6 +156,8 @@ class HistoryListModel(QtCore.QAbstractListModel):
         self._data[idx] = data
         model_index = self.index(idx, 0)
 
+        log.debug(f"[{data}] Updated in history.")
+
         self.dataChanged.emit(model_index, model_index, [QtCore.Qt.DisplayRole])
         self.itemUpdated.emit(data)
 
