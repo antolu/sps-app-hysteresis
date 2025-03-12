@@ -265,8 +265,10 @@ class HistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
     def itemClicked(self, index: QtCore.QModelIndex) -> None:
         item = self.lmodel.itemAt(index)
         if item.is_shown:
+            log.debug(f"[{item.cycle_data}] Hiding plots after click")
             self.pmodel.removeCycle(item)
         else:
+            log.debug(f"[{item.cycle_data}] Showing plots after click")
             self.pmodel.showCycle(item)
         self.lmodel.clicked(index)
 
