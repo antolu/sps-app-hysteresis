@@ -194,9 +194,6 @@ class HistoryWidget(QtWidgets.QWidget):
 
         self.listView.setModel(self.currentWidget.lmodel)
 
-        if not self.setReferenceButton.isEnabled():
-            self.setReferenceButton.setEnabled(True)
-
     @QtCore.Slot(int)
     def onTabChanged(self, index: int) -> None:
         self.listView.setModel(self.tabWidget.widget(index).lmodel)
