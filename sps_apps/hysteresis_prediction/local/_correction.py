@@ -8,6 +8,7 @@ import numpy as np
 import numpy.typing as npt
 import pyda
 import pyda.access
+from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
 from skimage.restoration import denoise_tv_chambolle
 
@@ -18,6 +19,8 @@ log = logging.getLogger(__name__)
 
 
 class CalculateCorrection(EventBuilderAbc):
+    newReference = QtCore.Signal(CycleData)
+
     def _handle_acquisition_impl(
         self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
@@ -126,18 +129,23 @@ class CalculateCorrection(EventBuilderAbc):
 
             # then, save or update the reference with the ECO cycle name
 
+        # save the reference if it has not been set, or reference was removed
         if cycle_data.cycle not in self._field_ref:
             log.debug(
                 f"{cycle_data}: Saving field reference since it has not "
                 f"been set ({cycle_data.field_pred.shape})."
             )
-            cycle_data.reference_timestamp = cycle_data.cycle_timestamp
-            cycle_data.field_ref = cycle_data.field_pred
+
+            if cycle_data.field_pred is None:
+                log.error(
+                    f"{cycle_data}: Prediction field not set. Cannot calculate correction."
+                )
+                return
+
             self._field_ref[cycle_data.cycle] = cycle_data.field_pred
-            self._field_ref_timestamps[cycle_data.cycle] = (
-                cycle_data.reference_timestamp
-            )
-        else:
+            self._field_ref_timestamps[cycle_data.cycle] = cycle_data.cycle_timestamp
+            self.newReference.emit(cycle_data)
+        else:  # set the
             ref_time = datetime.datetime.fromtimestamp(
                 self._field_ref_timestamps[cycle_data.cycle] * 1e-9
             )
@@ -146,10 +154,8 @@ class CalculateCorrection(EventBuilderAbc):
                 f"Adding the reference to the cycle data."
             )
 
-            cycle_data.reference_timestamp = self._field_ref_timestamps[
-                cycle_data.cycle
-            ]
-            cycle_data.field_ref = self._field_ref[cycle_data.cycle]
+        cycle_data.reference_timestamp = self._field_ref_timestamps[cycle_data.cycle]
+        cycle_data.field_ref = self._field_ref[cycle_data.cycle]
 
 
 def calc_delta_field(

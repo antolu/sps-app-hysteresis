@@ -92,33 +92,37 @@ class PredictionPlotModel(QtCore.QObject):
             )
             self.deltaFieldAdded.emit(item.delta_plt)
 
-        if self._reference is not None and item is not self._reference:
-            if (
-                self._reference.cycle_data.field_meas is not None
-                and item.ref_meas_plt is None
-            ):
-                log.debug(f"Creating ref meas plot for {item.cycle_data}")
-                item.ref_meas_plt = _make_curve_item(
-                    *_make_meas_curve(
-                        self._reference.cycle_data,
-                        self._reference.cycle_data.field_meas
-                        - item.cycle_data.field_meas,
-                    ),
-                    item.color,
-                    width=width,
-                )
-                self.refMeasuredFieldAdded.emit(item.ref_meas_plt)
+        if (
+            item.ref_meas_plt is not None
+            and item.cycle_data.field_meas_ref is not None
+            and item.cycle_data.field_meas is not None
+        ):
+            log.debug(f"Creating ref meas plot for {item.cycle_data}")
 
-            if (
-                self._reference.cycle_data.field_pred is not None
-                and item.ref_pred_plt is None
-            ):
-                ref_x, ref_y = _make_pred_curve(self._reference)
-                _, pred_y = _make_pred_curve(item)
-                item.ref_pred_plt = _make_curve_item(
-                    ref_x, (ref_y - pred_y) * 1e4, item.color, width=width
-                )
-                self.refPredictedFieldAdded.emit(item.ref_pred_plt)
+            item.ref_meas_plt = _make_curve_item(
+                *_make_meas_curve(
+                    item.cycle_data,
+                    item.cycle_data.field_meas_ref - item.cycle_data.field_meas,
+                ),
+                item.color,
+                width=width,
+            )
+
+            self.refMeasuredFieldAdded.emit(item.ref_meas_plt)
+
+        if (
+            item.ref_pred_plt is not None
+            and item.cycle_data.field_ref is not None
+            and item.cycle_data.field_pred is not None
+        ):
+            ref_x, ref_y = _make_pred_curve(item)
+            _, pred_y = _make_pred_curve(item)
+
+            item.ref_pred_plt = _make_curve_item(
+                ref_x, (ref_y - pred_y) * 1e4, item.color, width=width
+            )
+
+            self.refPredictedFieldAdded.emit(item.ref_pred_plt)
 
         self._plotted_items.add(item)
 
@@ -194,9 +198,7 @@ class PredictionPlotModel(QtCore.QObject):
     @QtCore.Slot(PlotItem)
     def setReference(self, item: PlotItem) -> None:
         """
-        Set the reference item for the plot.
-
-        If changed, this will trigger an update of all plots.
+        Set the reference item. Makes the reference curve wider, and plots it if not shown.
 
         :param item: The item to use as reference.
         """
@@ -212,7 +214,6 @@ class PredictionPlotModel(QtCore.QObject):
 
         self._reference = item
         log.debug(f"Updating reference w.r.t. {item.cycle_data}")
-        self.updateReferencePlots(item)
 
         # make reference curve wider
         for attr in (
@@ -233,61 +234,6 @@ class PredictionPlotModel(QtCore.QObject):
                 self.setCurveWidth(getattr(current_reference, attr), 2)
 
         self.newReference.emit(item)
-
-    def updateReferencePlots(self, item: PlotItem) -> None:
-        """
-        Update all plots that are reference dependent.
-        """
-        if self._reference is None:
-            log.debug("No reference set, not updating.")
-            return
-
-        for item in self._plotted_items:
-            if item is self._reference:
-                continue
-
-            if not item.is_shown:
-                log.debug(f"Item {item} not shown, not updating.")
-                continue
-
-            log.debug(f"Updating plots for {item.cycle_data}")
-            if item.ref_meas_plt is None:
-                self.showCycle(item)
-            elif (
-                self._reference.cycle_data.field_meas is not None
-                and item.ref_meas_plt is not None
-            ):
-                log.debug(f"Updating ref meas plot for {item.cycle_data}")
-                _update_curve(
-                    *_make_meas_curve(
-                        self._reference.cycle_data,
-                        self._reference.cycle_data.field_meas
-                        - item.cycle_data.field_meas,
-                    ),
-                    item.ref_meas_plt,
-                )
-            else:
-                if item.ref_meas_plt is not None:
-                    log.warning(
-                        f"Reference meas plot for {item.cycle_data} is None, but should not be."
-                    )
-                elif item.ref_pred_plt is not None:
-                    log.warning(
-                        f"Reference pred plot for {item.cycle_data} is None, but should not be."
-                    )
-                else:
-                    log.warning("Don't know what to do.")
-
-            if item.ref_pred_plt is None:
-                self.showCycle(item)
-            elif (
-                self._reference.cycle_data.field_pred is not None
-                and item.ref_pred_plt is not None
-            ):
-                log.debug(f"Updating ref pred plot for {item.cycle_data}")
-                ref_x, ref_y = _make_pred_curve(self._reference)
-                _, pred_y = _make_pred_curve(item)
-                _update_curve(ref_x, (ref_y - pred_y) * 1e4, item.ref_pred_plt)
 
     @staticmethod
     def setCurveWidth(pg_curve: pg.PlotCurveItem, width: int) -> None:

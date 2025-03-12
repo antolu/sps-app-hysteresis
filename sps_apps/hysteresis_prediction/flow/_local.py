@@ -172,13 +172,14 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         self._track_dyneco.stop()
         self._track_fulleco.stop()
 
-    def resetReference(self) -> None:
+    @QtCore.Slot()
+    def resetReference(self, cycle: str) -> None:
         try:
             if self.meas_b_avail:
                 assert hasattr(self, "_add_measurement_ref")
                 assert self._add_measurement_ref is not None
-                self._add_measurement_ref.resetReference()
-            self._correction.resetReference()
+                self._add_measurement_ref.resetReference(cycle_name=cycle)
+            self._correction.resetReference(cycle_name=cycle)
         except Exception:
             log.exception("Error resetting reference.")
 
@@ -250,5 +251,10 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
     def onCycleMeasured(self) -> QtCore.Signal:
         return self._add_measurement_ref.cycleDataAvailable
 
-    def setGain(self, selector: str, gain: float) -> None:
-        self._correction.setGain(selector, gain)
+    @property
+    def onNewReference(self) -> QtCore.Signal:
+        return self._correction.newReference
+
+    @QtCore.Slot(str, float)
+    def setGain(self, cycle: str, gain: float) -> None:
+        app_context().TRIM_SETTINGS.gain[cycle] = gain

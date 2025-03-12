@@ -14,7 +14,8 @@ class DataFlow:
     def stop(self) -> None:
         raise NotImplementedError
 
-    def resetReference(self) -> None:
+    @QtCore.Slot(str)
+    def resetReference(self, cycle: str) -> None:
         raise NotImplementedError
 
     @property
@@ -42,11 +43,15 @@ class DataFlow:
         raise NotImplementedError
 
     @property
+    def onNewReference(self) -> QtCore.Signal:
+        raise NotImplementedError
+
+    @property
     def onCycleMeasured(self) -> QtCore.Signal:
         raise NotImplementedError
 
     @QtCore.Slot(str, float)
-    def setGain(self, selector: str, gain: float) -> QtCore.Signal:
+    def setGain(self, cycle: str, gain: float) -> QtCore.Signal:
         raise NotImplementedError
 
 

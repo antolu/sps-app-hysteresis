@@ -235,6 +235,7 @@ class HistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.lmodel.itemUpdated.connect(self.pmodel.updateCycle)
         self.lmodel.itemRemoved.connect(self.pmodel.removeCycle)
         self.lmodel.modelReset.connect(self.pmodel.removeAll)
+        # self.lmodel.referenceChanged.connect(self.pmodel.setReference)
 
     def _connect_plot_model(self) -> None:
         self.pmodel.measuredCurrentAdded.connect(self.plots.addMeasuredCurrentPlot)

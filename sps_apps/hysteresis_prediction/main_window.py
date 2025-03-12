@@ -92,6 +92,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self._data.onCycleCorrectionCalculated.connect(self._history.add_cycle)
         self._data.onCycleStart.connect(self._history.update_cycle)
         self._data.onCycleMeasured.connect(self._history.update_cycle)
+        self._data.onNewReference.connect(self._history.onReferenceChanged)
+
+        self._trim_widget.referenceReset.connect(self._data.resetReference)
 
         # trim
         self._data.onTrimApplied.connect(self._trim_widget.onTrimApplied)

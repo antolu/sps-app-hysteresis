@@ -104,6 +104,10 @@ class TrimSettingsWidget(QtWidgets.QWidget):
             initial_state=ToggleButton.State.STATE2,
         )
 
+        self.ResetReferenceButton = QtWidgets.QPushButton(
+            "Reset Reference", parent=self
+        )
+
         layout = QtWidgets.QGridLayout(self)
         layout.addWidget(self.GainLabel, 0, 0)
         layout.addWidget(self.GainSpinBox, 0, 1)
@@ -112,6 +116,7 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         layout.addWidget(self.TrimTMaxLabel, 2, 0)
         layout.addWidget(self.TrimTMaxSpinBox, 2, 1)
         layout.addWidget(self.ToggleButton, 3, 0, 1, 2)
+        layout.addWidget(self.ResetReferenceButton, 4, 0, 1, 2)
         self.setLayout(layout)
 
         self.GainSpinBox.valueChanged.connect(self.onGainChanged)
@@ -124,8 +129,10 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         self.TrimTMinSpinBox.setEnabled(False)
         self.TrimTMaxSpinBox.setEnabled(False)
         self.ToggleButton.setEnabled(False)
+        self.ResetReferenceButton.setEnabled(False)
 
         self.model.contextChanged.connect(self.onContextChanged)
+        self._cycle: str | None = None
 
     @QtCore.Slot(str)
     def onContextChanged(self, cycle: str) -> None:
@@ -133,6 +140,7 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         self.TrimTMinSpinBox.setEnabled(True)
         self.TrimTMaxSpinBox.setEnabled(True)
         self.ToggleButton.setEnabled(True)
+        self.ResetReferenceButton.setEnabled(True)
 
         with mute_signals(self.GainSpinBox, self.TrimTMinSpinBox, self.TrimTMaxSpinBox):
             self.TrimTMinSpinBox.setMinimum(cycle_metadata.beam_in(cycle))
@@ -146,6 +154,8 @@ class TrimSettingsWidget(QtWidgets.QWidget):
             self.ToggleButton.setState(ToggleButton.State.STATE1)
         else:
             self.ToggleButton.setState(ToggleButton.State.STATE2)
+
+        self._cycle = cycle
 
     @QtCore.Slot(float)
     def onGainChanged(self, value: float) -> None:
@@ -186,6 +196,8 @@ class TrimSettingsWidget(QtWidgets.QWidget):
 class TrimWidgetView(QtWidgets.QWidget):
     _thread: QtCore.QThread | None = None
 
+    referenceReset = QtCore.Signal(str)
+
     def __init__(self, model: TrimModel, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent=parent)
         self._model = model
@@ -208,6 +220,9 @@ class TrimWidgetView(QtWidgets.QWidget):
         self.TrimInfoWidget = TrimInfoWidget(parent=self)
         model.contextChanged.connect(self.TrimInfoWidget.onContextChanged)
         self.TrimSettingsWidget = TrimSettingsWidget(model=model, parent=self)
+        self.TrimSettingsWidget.ResetReferenceButton.clicked.connect(
+            self.onResetReference
+        )
 
         self.left_frame = QtWidgets.QFrame(parent=self)
         self.left_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
@@ -256,5 +271,12 @@ class TrimWidgetView(QtWidgets.QWidget):
 
         self._plot_source.send_data(curve)
 
+    @QtCore.Slot(AbstractLsaSelectorContext)
     def onUserSelectionChanged(self, context: AbstractLsaSelectorContext) -> None:
         self._model.setCycle(context.name)
+
+    @QtCore.Slot()
+    def onResetReference(self) -> None:
+        selected_context = self.LsaSelector.selected_context
+        log.debug(f"Resetting reference for {selected_context.name}")
+        self.referenceReset.emit(selected_context.name)

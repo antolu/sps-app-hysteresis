@@ -35,12 +35,16 @@ class PredictionListModel(QtCore.QAbstractListModel):
     itemRemoved = QtCore.Signal(PlotItem)
     """ Emitted when an item is removed from the list. """
 
+    referenceChanged = QtCore.Signal(PlotItem)
+    """ Emitted when the reference is changed. """
+
     def __init__(
         self, data_source: HistoryListModel, parent: QtCore.QObject | None = None
     ) -> None:
         super().__init__(parent=parent)
 
         self.data_source = data_source
+        self.data_source.referenceChanged.connect(self.onReferenceChanged)
         self.data_source.itemAdded.connect(self.newItem)
         self.data_source.itemUpdated.connect(self.updateItem)
         self.data_source.itemRemoved.connect(self.removeItem)
@@ -59,6 +63,10 @@ class PredictionListModel(QtCore.QAbstractListModel):
             self.newItem(cycle_data)
         self.modelReset.emit()
 
+    @property
+    def reference(self) -> PlotItem | None:
+        return self._reference
+
     def data(self, index: QtCore.QModelIndex, role: int = 0) -> typing.Any:
         cycle_data = self.data_source.itemAt(index)
         value = self.data_source.data(index, role)
@@ -70,13 +78,6 @@ class PredictionListModel(QtCore.QAbstractListModel):
             if item is None:
                 return None
             return QtGui.QColor(item.color or "white")
-        if role == QtCore.Qt.ItemDataRole.FontRole and (
-            self._reference is not None
-            and cycle_data.cycle_timestamp == self._reference.cycle_data.cycle_timestamp
-        ):
-            font = QtGui.QFont()
-            font.setBold(True)
-            return font
 
         return None
 
@@ -98,10 +99,6 @@ class PredictionListModel(QtCore.QAbstractListModel):
     def itemAt(self, index: QtCore.QModelIndex) -> PlotItem:
         cycle = self.data_source.itemAt(index)
         return self._plot_metadata[cycle.cycle_timestamp]
-
-    @QtCore.Slot(PlotItem)
-    def setReference(self, reference: PlotItem) -> None:
-        self._reference = reference
 
     def newItem(self, cycle_data: CycleData) -> None:
         item = PlotItem(cycle_data=cycle_data)
@@ -132,3 +129,14 @@ class PredictionListModel(QtCore.QAbstractListModel):
     @QtCore.Slot(QtCore.QModelIndex)
     def clicked(self, index: QtCore.QModelIndex) -> None:
         self.dataChanged.emit(index, index, [QtCore.Qt.BackgroundRole])
+
+    @QtCore.Slot(CycleData)
+    def onReferenceChanged(self, cycle_data: CycleData) -> None:
+        # find the item in the list
+        item = self._plot_metadata.get(cycle_data.cycle_timestamp)
+        if item is None:
+            log.error(f"Reference cycle {cycle_data.cycle} not found in list.")
+            return
+
+        self._reference = item
+        self.referenceChanged.emit(item)

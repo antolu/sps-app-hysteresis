@@ -5,7 +5,7 @@ import typing
 from collections import deque
 
 from hystcomp_utils.cycle_data import CycleData
-from qtpy import QtCore
+from qtpy import QtCore, QtGui
 
 log = logging.getLogger(__name__)
 
@@ -24,18 +24,49 @@ class HistoryListModel(QtCore.QAbstractListModel):
     itemRemoved = QtCore.Signal(CycleData)
     """ Emitted when an item is removed from the list. """
 
-    def __init__(self, max_len: int = 10, parent: QtCore.QObject | None = None) -> None:
+    referenceChanged = QtCore.Signal(CycleData)
+
+    def __init__(
+        self,
+        max_len: int = 10,
+        parent: QtCore.QObject | None = None,
+    ) -> None:
         super().__init__(parent=parent)
 
         self._data: deque[CycleData] = deque(maxlen=max_len)
+        self._reference: CycleData | None = None
+
+    def set_reference(self, reference: CycleData) -> None:
+        old_reference = self._reference
+        if old_reference == reference:
+            log.debug("Reference is the same as the old reference.")
+            return
+
+        # get the current reference index and emit dataChanged
+        if old_reference is not None:
+            idx = self._deque_idx(old_reference)
+            model_index = self.index(idx, 0)
+            self.dataChanged.emit(model_index, model_index, [QtCore.Qt.FontRole])
+
+        self._reference = reference
+        self.referenceChanged.emit(reference)
+
+    def reference(self) -> CycleData | None:
+        return self._reference
 
     def data(self, index: QtCore.QModelIndex, role: int = 0) -> typing.Any:
         row = self._calc_real_row(index.row())
 
+        cycle_data = self._data[row]
         if role == QtCore.Qt.ItemDataRole.DisplayRole:
-            cycle_data = self._data[row]
-
             return f"{str(cycle_data.cycle_time)[:-7]}"
+        if role == QtCore.Qt.ItemDataRole.FontRole and (
+            self._reference is not None
+            and cycle_data.cycle_timestamp == self._reference.cycle_timestamp
+        ):
+            font = QtGui.QFont()
+            font.setBold(True)
+            return font
 
         return None
 
@@ -80,11 +111,7 @@ class HistoryListModel(QtCore.QAbstractListModel):
 
     def append(self, data: CycleData) -> None:
         if len(self._data) == self._data.maxlen:
-            to_remove = self._data.popleft()
-            index = (QtCore.QModelIndex(), 0, 0)
-            self.rowsAboutToBeRemoved.emit(*index)
-            self.rowsRemoved.emit(*index)
-            self.itemRemoved.emit(to_remove)
+            self.remove_last(keep_reference=True)
 
         self._data.append(data)
         index = (
@@ -95,6 +122,27 @@ class HistoryListModel(QtCore.QAbstractListModel):
         self.rowsAboutToBeInserted.emit(*index)
         self.rowsInserted.emit(*index)
         self.itemAdded.emit(data)
+
+    def remove_last(self, *, keep_reference: bool = True) -> CycleData:
+        if not self._data:
+            msg = "No items to remove."
+            raise IndexError(msg)
+
+        data = self._data.pop()
+        index = self.index(len(self._data), 0)
+        self.rowsAboutToBeRemoved.emit(*index)
+        self.rowsRemoved.emit(*index)
+
+        if data == self._reference and keep_reference:
+            reference = data
+            data = self._data.pop()
+
+            # move the reference to the end of the list and emit dataChanged
+            self._data.appendleft(reference)
+            ref_idx = (self.index(len(self._data), 0), 0, 0)
+            self.dataChanged.emit(*ref_idx, [QtCore.Qt.FontRole, QtCore.Qt.DisplayRole])
+
+        self.itemRemoved.emit(data)
 
     def update(self, data: CycleData) -> None:
         # check if the cycle is already in the list

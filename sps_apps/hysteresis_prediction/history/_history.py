@@ -6,6 +6,7 @@ from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
 
 from ._list_model import HistoryListModel
+from ._reference_cycles import ReferenceCycles
 
 log = logging.getLogger(__name__)
 
@@ -16,6 +17,13 @@ class PredictionHistory(QtCore.QObject):
 
         # map from cycle name to list model
         self._history: dict[str, HistoryListModel] = {}
+        self._references = ReferenceCycles(parent=self)
+
+        self._references.referenceChanged.connect(self.onReferenceChanged)
+
+    @property
+    def references(self) -> ReferenceCycles:
+        return self._references
 
     def add_cycle(self, cycle_data: CycleData) -> None:
         """
@@ -52,3 +60,10 @@ class PredictionHistory(QtCore.QObject):
             self._history[cycle] = HistoryListModel()
 
         return self._history[cycle]
+
+    @QtCore.Slot(CycleData)
+    def onReferenceChanged(self, cycle_data: CycleData) -> None:
+        if cycle_data.cycle not in self._history:
+            self._history[cycle_data.cycle] = HistoryListModel()
+
+        self._history[cycle_data.cycle].set_reference(cycle_data)

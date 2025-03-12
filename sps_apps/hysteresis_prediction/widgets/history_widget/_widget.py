@@ -43,7 +43,6 @@ class HistoryWidget(QtWidgets.QWidget):
         self.LsaSelector = self._setup_lsa_selector()
 
         self.listView = QtWidgets.QListView(self)
-        self.setReferenceButton = QtWidgets.QPushButton("Set Reference", self)
 
         self.actionRefreshLsaSelector = QtWidgets.QAction(self)
         self.actionRefreshLsaSelector.setText("&Refresh LSA Selector")
@@ -75,7 +74,6 @@ class HistoryWidget(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(frame)
         layout.addWidget(self.LsaSelector)
         layout.addWidget(self.listView)
-        layout.addWidget(self.setReferenceButton)
         frame.setMaximumWidth(320)
         frame.setMinimumWidth(320)
 
@@ -110,9 +108,6 @@ class HistoryWidget(QtWidgets.QWidget):
 
         self.listView.clicked.connect(self.onItemClicked)
 
-        self.setReferenceButton.setEnabled(False)
-        self.setReferenceButton.clicked.connect(self.onSelectReferenceClicked)
-
         self.listView.setItemDelegate(NoHighlightDelegate(self.listView))
         self.adjustSize()
 
@@ -141,26 +136,6 @@ class HistoryWidget(QtWidgets.QWidget):
         self.show_or_create_tab(user.name)
 
         self._cycle2user[user.name] = user.user
-
-    @QtCore.Slot()
-    def onSelectReferenceClicked(self) -> None:
-        """
-        Select a new reference cycle for plots, use a QIdentityProxyModel,
-        but select only one.
-        """
-        dialog = ReferenceSelectorDialog(model=self.currentWidget.lmodel, parent=self)
-
-        def onDialogAcccepted() -> None:
-            selected_index = dialog.selected_item
-            if selected_index is not None:
-                item = self.currentWidget.lmodel.itemAt(selected_index)
-
-                self.currentWidget.lmodel.setReference(item)
-                self.currentWidget.pmodel.setReference(item)
-
-        dialog.accepted.connect(onDialogAcccepted)
-
-        dialog.open()
 
     @QtCore.Slot()
     def onResetAxes(self) -> None:
