@@ -128,14 +128,14 @@ class HistoryListModel(QtCore.QAbstractListModel):
             msg = "No items to remove."
             raise IndexError(msg)
 
-        data = self._data.pop()
+        data = self._data.popleft()
         index = self.index(len(self._data), 0)
         self.rowsAboutToBeRemoved.emit(index, 0, 0)
         self.rowsRemoved.emit(index, 0, 0)
 
         if data == self._reference and keep_reference:
             reference = data
-            data = self._data.pop()
+            data = self._data.popleft()
 
             # move the reference to the end of the list and emit dataChanged
             self._data.appendleft(reference)
