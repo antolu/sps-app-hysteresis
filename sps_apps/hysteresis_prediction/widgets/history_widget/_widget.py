@@ -189,8 +189,10 @@ class HistoryWidget(QtWidgets.QWidget):
             msg = f"Tab {name} already open, switching to it."
             log.debug(msg)
 
-            with mute_signals(self.tabWidget):
-                self.tabWidget.setCurrentWidget(self._tabs[name])
+            # set widget without triggering onTabChanged
+            self.tabWidget.currentChanged.disconnect(self.onTabChanged)
+            self.tabWidget.setCurrentWidget(self._tabs[name])
+            self.tabWidget.currentChanged.connect(self.onTabChanged)
 
         self.listView.setModel(self.currentWidget.lmodel)
 
