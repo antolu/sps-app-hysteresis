@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import enum
 import logging
 
 import numpy as np
@@ -61,7 +62,7 @@ class PredictionPlotModel(QtCore.QObject):
             color = self._color_pool.get_color()
             item.color = color
 
-        width = 4 if item is self._reference else 2
+        width = 4 if item == self._reference else 2
 
         if item.cycle_data.current_meas is not None and item.raw_current_plt is None:
             item.raw_current_plt = _make_curve_item(
@@ -86,7 +87,9 @@ class PredictionPlotModel(QtCore.QObject):
             log.debug(f"[{item.cycle_data}] No meas data, skipping.")
 
         if item.cycle_data.field_pred is not None and item.raw_pred_plt is None:
-            item.raw_pred_plt = _make_curve_item(*_make_pred_curve(item), item.color)
+            item.raw_pred_plt = _make_curve_item(
+                *_make_pred_curve(item, use=PredictionItem.Prediction), item.color
+            )
             self.predictedFieldAdded.emit(item.raw_pred_plt)
         elif item.cycle_data.field_pred is None:
             log.debug(f"[{item.cycle_data}] No pred data, skipping.")
@@ -125,8 +128,8 @@ class PredictionPlotModel(QtCore.QObject):
             and item.cycle_data.field_ref is not None
             and item.cycle_data.field_pred is not None
         ):
-            ref_x, ref_y = _make_pred_curve(item)
-            _, pred_y = _make_pred_curve(item)
+            ref_x, ref_y = _make_pred_curve(item, use=PredictionItem.Reference)
+            _, pred_y = _make_pred_curve(item, use=PredictionItem.Prediction)
 
             item.ref_pred_plt = _make_curve_item(
                 ref_x, (ref_y - pred_y) * 1e4, item.color, width=width
@@ -290,18 +293,36 @@ def calc_downsample(high: np.ndarray, low: np.ndarray) -> int:
     return int(np.ceil(len(high) / len(low)))
 
 
-def _make_pred_curve(item: PlotItem) -> tuple[np.ndarray, np.ndarray]:
+class PredictionItem(enum.Enum):
+    Prediction = enum.auto()
+    Reference = enum.auto()
+
+
+def _make_pred_curve(
+    item: PlotItem, *, use: PredictionItem
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Create a curve for the dp/p plot.
 
     :param item: The item to create the curve for.
     """
     data = item.cycle_data
-    assert data.field_pred is not None
+    if use is PredictionItem.Reference:
+        if data.field_ref is None:
+            msg = f"[{data}] No reference field data found."
+            raise ValueError(msg)
+
+        value = data.field_ref
+    else:
+        if data.field_pred is None:
+            msg = f"[{data}] No field prediction found."
+            raise ValueError(msg)
+
+        value = data.field_pred
 
     time_axis = _make_time_axis(item)
-    field_pred = data.field_pred[1, :]
-    x = time_axis[:: calc_downsample(time_axis, data.field_pred[1, :])]
+    field_pred = value[1, :]
+    x = time_axis[:: calc_downsample(time_axis, value[1, :])]
 
     field_pred = np.interp(time_axis, x, field_pred)
 
