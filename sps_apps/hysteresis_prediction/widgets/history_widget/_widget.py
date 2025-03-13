@@ -185,6 +185,7 @@ class HistoryWidget(QtWidgets.QWidget):
 
             with mute_signals(self.tabWidget):
                 self.tabWidget.addTab(self._tabs[name], name)
+                self.tabWidget.setCurrentWidget(self._tabs[name])
         else:
             msg = f"Tab {name} already open, switching to it."
             log.debug(msg)
