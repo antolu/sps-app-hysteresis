@@ -27,6 +27,8 @@ class ParameterNames:
     I_PROG_FULLECO: str
     FULLECO_TRIGGER: str
 
+    RESET_REFERENCE_TRIGGER: str
+
     I_MEAS: str
     B_MEAS: str | None = None
     TRIM_SETTINGS: str | None = None

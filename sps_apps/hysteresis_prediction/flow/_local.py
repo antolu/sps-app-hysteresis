@@ -21,6 +21,7 @@ from ..local.event_building import (
     StartCycleEventBuilder,
     TrackDynEcoEventBuilder,
     TrackFullEcoEventBuilder,
+    TrackReferenceChangedEventBuilder,
 )
 from ..local.track_precycle import TrackPrecycleEventBuilder
 from ._data_flow import DataFlow, FlowWorker
@@ -131,6 +132,12 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         self._track_precycle = TrackPrecycleEventBuilder(
             precycle_sequence=["SPS.USER.LHCPILOT", "SPS.USER.MD1"], parent=parent
         )
+        self._track_reference_changed = TrackReferenceChangedEventBuilder(
+            param_trigger=param_names.RESET_REFERENCE_TRIGGER,
+            param_start_cycle=param_names.CYCLE_START,
+            provider=provider,
+            parent=parent,
+        )
 
         self._trim = LocalTrim(
             param_b_corr="SPSBEAM/BHYS",
@@ -155,6 +162,7 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
             self._add_measurement_ref.start()
         self._track_dyneco.start()
         self._track_fulleco.start()
+        self._track_precycle.start()
 
     def stop(self) -> None:
         self._create_cycle.stop()
@@ -171,9 +179,10 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
             self._add_measurement_ref.stop()
         self._track_dyneco.stop()
         self._track_fulleco.stop()
+        self._track_precycle.stop()
 
     @QtCore.Slot(str)
-    def resetReference(self, cycle: str) -> None:
+    def onResetReference(self, cycle: str) -> None:
         try:
             if self.meas_b_avail:
                 assert hasattr(self, "_add_measurement_ref")
@@ -223,6 +232,7 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         self._trim.trimApplied.connect(self._trimApplied.emit)
         self._track_dyneco.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)
         self._track_fulleco.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)
+        self._track_reference_changed.resetReference.connect(self.onResetReference)
 
         self._resetState.connect(self._predict.reset_state)
 

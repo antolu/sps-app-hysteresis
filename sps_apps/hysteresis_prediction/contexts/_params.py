@@ -14,6 +14,7 @@ MBI_PARAMS = ParameterNames(
     FULLECO_TRIGGER="XTIM.SX.FCY-MMODE-CT/Acquisition",
     I_MEAS="MBI/LOG.I.MEAS",
     B_MEAS="SR.BMEAS-SP-B-SD/CycleSamples#samples",
+    RESET_REFERENCE_TRIGGER="rmi://virtual_sps/SPSBEAM/B",
 )
 
 

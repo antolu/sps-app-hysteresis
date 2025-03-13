@@ -15,7 +15,7 @@ class DataFlow:
         raise NotImplementedError
 
     @QtCore.Slot(str)
-    def resetReference(self, cycle: str) -> None:
+    def onResetReference(self, cycle: str) -> None:
         raise NotImplementedError
 
     @property
