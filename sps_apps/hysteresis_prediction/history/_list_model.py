@@ -38,7 +38,10 @@ class HistoryListModel(QtCore.QAbstractListModel):
 
     def set_reference(self, reference: CycleData) -> None:
         old_reference = self._reference
-        if old_reference == reference:
+        if (
+            old_reference is not None
+            and old_reference.cycle_timestamp == reference.cycle_timestamp
+        ):
             log.debug("Reference is the same as the old reference.")
             return
 
@@ -128,19 +131,23 @@ class HistoryListModel(QtCore.QAbstractListModel):
             msg = "No items to remove."
             raise IndexError(msg)
 
-        data = self._data.popleft()
-        index = self.index(len(self._data), 0)
-        self.rowsAboutToBeRemoved.emit(index, 0, 0)
-        self.rowsRemoved.emit(index, 0, 0)
-
-        if data == self._reference and keep_reference:
-            reference = data
+        if (
+            self._reference is not None
+            and self._reference.cycle_timestamp == self._data[-1].cycle_timestamp
+        ):
+            log.debug(
+                f"[{self._data[-1]}] Reference is last item in history. Removing second last item."
+            )
+            data = self._data[-2]
+            self._data.remove(data)
+            idx = self.index(len(self._data) - 2, 0)
+        else:
+            log.debug(f"[{self._data[-1]}] Removed from history.")
             data = self._data.popleft()
+            idx = self.index(len(self._data), 0)
 
-            # move the reference to the end of the list and emit dataChanged
-            self._data.appendleft(reference)
-            ref_idx = (self.index(len(self._data), 0), 0, 0)
-            self.dataChanged.emit(*ref_idx, [QtCore.Qt.FontRole, QtCore.Qt.DisplayRole])
+        self.rowsAboutToBeRemoved.emit(idx, 0, 0)
+        self.rowsRemoved.emit(idx, 0, 0)
 
         self.itemRemoved.emit(data)
 
