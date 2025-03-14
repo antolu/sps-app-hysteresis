@@ -64,6 +64,7 @@ class AddMeasurementsEventBuilder(BufferedSubscriptionEventBuilder):
             self._get_buffered_data(self.param_i_meas, selector).data["value"]
         )
         cycle_data.current_meas = i_meas
+        cycle_data.current_input = i_meas
 
         if self.param_b_meas is not None:
             b_meas = (
