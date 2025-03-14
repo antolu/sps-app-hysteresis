@@ -9,6 +9,7 @@ offline.
 from __future__ import annotations
 
 import enum
+import logging
 import typing
 
 import hystcomp_utils.cycle_data
@@ -20,6 +21,9 @@ from ._event_builder_abc import EventBuilderAbc
 
 if typing.TYPE_CHECKING:
     import pyda.access
+
+
+log = logging.getLogger(__name__)
 
 
 class Metrics(typing.TypedDict):
@@ -64,6 +68,10 @@ class CalculateMetricsConverter(EventBuilderAbc):
         if cycle_data.field_ref is None:
             msg = f"{cycle_data}: field_ref is None, cannot calculate metrics."
             raise RuntimeError(msg)
+
+        if cycle_data.user == "ZERO":
+            log.debug(f"Skipping cycle data for {cycle_data.user}")
+            return
 
         relative_metrics = _calculate_metrics(
             cycle_data,
