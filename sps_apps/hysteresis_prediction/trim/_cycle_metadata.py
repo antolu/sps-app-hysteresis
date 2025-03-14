@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pyda
 import pyda.context
-import pyda_japc
+import pyda_lsa
 from op_app_context import context
 
 __all__ = ["cycle_metadata"]
@@ -10,14 +10,14 @@ __all__ = ["cycle_metadata"]
 
 BEAM_IN = "SIX.MC-CTML/ControlValue"  # #controlValue
 BEAM_OUT = "SX.BEAM-OUT-CTML/ControlValue"  # #controlValue
-RAMP_START = "XTIM.SX.S-RAMP-CT/Acquisition"  # #acqC
-FT_START = "XTIM.SX.SFLATTOP-CT/Acquisition"  # # acqQ
+RAMP_START = "SX.ST-RAMP-CTML/ControlValue"  # #controlValue
+FT_START = "SX.S-FTOP-CTML/ControlValue"  # # acqQ
 
 
 class CycleMetadata:
-    def __init__(self, *, provider: pyda_japc.JapcProvider | None = None):
+    def __init__(self, *, provider: pyda_lsa.LsaProvider | None = None):
         self._provider = provider
-        self._da = pyda.SimpleClient(provider=provider or context.japc_provider)
+        self._da = pyda.SimpleClient(provider=provider or context.lsa_provider)
 
         self._beam_in_cache: dict[str, int] = {}
         self._beam_out_cache: dict[str, int] = {}
@@ -40,19 +40,25 @@ class CycleMetadata:
 
     def ramp_start(self, cycle: str) -> int:
         if cycle not in self._ramp_start_cache:
-            self._ramp_start_cache[cycle] = int(self._get(cycle, RAMP_START, "acqC"))
+            self._ramp_start_cache[cycle] = int(
+                self._get(cycle, RAMP_START, "controlValue")
+            )
 
         return self._ramp_start_cache[cycle]
 
     def flattop_start(self, cycle: str) -> int:
         if cycle not in self._flattop_start_cache:
-            self._flattop_start_cache[cycle] = int(self._get(cycle, FT_START, "acqQ"))
+            self._flattop_start_cache[cycle] = int(
+                self._get(cycle, FT_START, "controlValue")
+            )
 
         return self._flattop_start_cache[cycle]
 
     def _get(self, cycle: str, device_property: str, field: str) -> int:
-        ctxt = pyda.context.TimingSelector(f"SPS.CYCLE.{cycle}")
-        return self._da.get(endpoint=device_property, context=ctxt).data[field]
+        return self._da.get(
+            endpoint=pyda_lsa.LsaEndpoint.from_str(f"{device_property}#{field}"),
+            context=pyda_lsa.LsaCycleContext(cycle=cycle),
+        ).data["value"]
 
 
 cycle_metadata = CycleMetadata()
