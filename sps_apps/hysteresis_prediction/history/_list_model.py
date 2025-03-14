@@ -133,23 +133,27 @@ class HistoryListModel(QtCore.QAbstractListModel):
 
         if (
             self._reference is not None
-            and self._reference.cycle_timestamp == self._data[-1].cycle_timestamp
+            and self._reference.cycle_timestamp == self._data[0].cycle_timestamp
+            and keep_reference
         ):
             log.debug(
-                f"[{self._data[-1]}] Reference is last item in history. Removing second last item."
+                f"[{self._data[0]}] Reference is first item in history. Removing second last item."
             )
-            data = self._data[-2]
+            data = self._data[1]
             self._data.remove(data)
-            idx = self.index(len(self._data) - 2, 0)
+            idx = self.index(self._calc_real_row(1), 0)
         else:
-            log.debug(f"[{self._data[-1]}] Removed from history.")
+            log.debug(f"{self._data[0]} is not reference {self._reference}.")
+            log.debug(f"[{self._data[0]}] Removed from history.")
             data = self._data.popleft()
-            idx = self.index(len(self._data), 0)
+            idx = self.index(self._calc_real_row(0), 0)
 
         self.rowsAboutToBeRemoved.emit(idx, 0, 0)
         self.rowsRemoved.emit(idx, 0, 0)
 
         self.itemRemoved.emit(data)
+
+        return data
 
     def update(self, data: CycleData) -> None:
         # check if the cycle is already in the list
