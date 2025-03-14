@@ -47,7 +47,7 @@ class Metrics(typing.TypedDict):
 
 
 class CalculateMetricsConverter(EventBuilderAbc):
-    newMetricsAvailable = QtCore.Signal(dict[str, Metrics])
+    newMetricsAvailable = QtCore.Signal(dict)  # dict[str, Metrics]
 
     def __init__(self, *, parent: QtCore.QObject | None = None) -> None:
         super().__init__(parent=parent)
