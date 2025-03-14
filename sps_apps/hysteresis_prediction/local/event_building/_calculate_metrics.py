@@ -171,8 +171,8 @@ def _calculate_relative_metrics_with_boundaries(
     t_pred = np.round(t_pred, 1)
     delta_pred = cycle_data.field_pred[1] - cycle_data.field_ref[1]
 
-    t_meas = np.arange(0, len(cycle_data.field_meas))  # ms
-    delta_meas = cycle_data.field_meas - cycle_data.field_meas_ref
+    t_meas = np.arange(0, len(cycle_data.field_meas.flatten()))  # ms
+    delta_meas = (cycle_data.field_meas - cycle_data.field_meas_ref).flatten()
 
     pred_to_keep = (t_pred >= lower_t) & (t_pred <= upper_t)
     t_pred = t_pred[pred_to_keep]
@@ -216,8 +216,8 @@ def _calculate_absolute_metrics_with_boundaries(
     t_pred = np.round(t_pred, 1)
     field_pred = cycle_data.field_pred[1]
 
-    t_meas = np.arange(0, len(cycle_data.field_meas))  # ms
-    field_meas = cycle_data.field_meas
+    t_meas = np.arange(0, cycle_data.field_meas.size)  # ms
+    field_meas = cycle_data.field_meas.flatten()
     field_meas_interp = np.interp(t_pred, t_meas, field_meas)
 
     to_keep = (t_pred >= lower_t) & (t_pred <= upper_t)
