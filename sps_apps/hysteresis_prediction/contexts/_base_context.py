@@ -9,6 +9,7 @@ between the application and the outside world.
 from __future__ import annotations
 
 import dataclasses
+import datetime
 import typing
 
 from ..trim import TrimSettings
@@ -56,6 +57,9 @@ class ApplicationContext:
 
     ONLINE: typing.Final[bool]
 
+    TIMESTAMP: typing.Final[datetime.datetime]
+    LOGDIR = "."
+
     def __init__(
         self,
         device: typing.Literal["MBI", "QF", "QD"],
@@ -74,3 +78,5 @@ class ApplicationContext:
         self.UCAP_PARAMS = ucap_params
 
         self.ONLINE = ucap_params is not None
+
+        self.TIMESTAMP = datetime.datetime.now()

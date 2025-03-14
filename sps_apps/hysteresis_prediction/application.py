@@ -11,6 +11,7 @@ from rich.logging import RichHandler
 from . import __version__
 from .contexts import app_context, set_context
 from .flow import LocalFlowWorker, UcapFlowWorker
+from .io.metrics import TensorboardWriter, TextWriter
 from .main_window import MainWindow
 
 torch.set_float32_matmul_precision("high")
@@ -84,6 +85,20 @@ def main() -> None:
         default="next",
         help="LSA server to use.",
     )
+    parser.add_argument(
+        "--logdir",
+        dest="logdir",
+        default=None,
+        help="Directory to save logs.",
+    )
+    parser.add_argument(
+        "--metrics-writer",
+        dest="metrics_writer",
+        choices=["txt", "tensorboard"],
+        default="txt",
+        help="Metrics writer to use.",
+    )
+
     args = parser.parse_args()
     setup_logger(args.verbose)
 
@@ -99,6 +114,8 @@ def main() -> None:
     settings.configure_application(application)
 
     set_context(args.device, online=args.online)
+
+    app_context().LOGDIR = args.logdir
 
     try:
         rbac_token = pyrbac.AuthenticationClient().login_location()
@@ -137,6 +154,14 @@ def main() -> None:
     application.aboutToQuit.connect(flow_worker.stop)
     application.aboutToQuit.connect(data_thread.quit)
     application.aboutToQuit.connect(data_thread.wait)
+
+    writer = (
+        TextWriter(output_dir=app_context().LOGDIR)
+        if args.metrics_writer == "txt"
+        else TensorboardWriter(output_dir=app_context().LOGDIR)
+    )
+
+    flow_worker.data_flow.onMetricsAvailable.connect(writer.onNewMetrics)
 
     main_window: MainWindow | None = None
 
