@@ -3,6 +3,7 @@ from ._add_measurements import AddMeasurementsEventBuilder
 from ._add_measurements_cycle_stamped import CycleStampedAddMeasurementsEventBuilder
 from ._add_programmed import AddProgrammedEventBuilder
 from ._buffer_builder import BufferEventbuilder
+from ._calculate_metrics import CalculateMetricsConverter
 from ._create_cycle import CreateCycleEventBuilder
 from ._event_builder_abc import (
     BufferedSubscription,
@@ -34,6 +35,7 @@ for _mod in (
     StartCycleEventBuilder,
     JapcEndpoint,
     TrackReferenceChangedEventBuilder,
+    CalculateMetricsConverter,
 ):
     _mod.__module__ = __name__
 

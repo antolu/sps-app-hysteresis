@@ -16,6 +16,7 @@ from ..local.event_building import (
     AddMeasurementsEventBuilder,
     AddProgrammedEventBuilder,
     BufferEventbuilder,
+    CalculateMetricsConverter,
     CreateCycleEventBuilder,
     CycleStampedAddMeasurementsEventBuilder,
     StartCycleEventBuilder,
@@ -138,6 +139,7 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
             provider=provider,
             parent=parent,
         )
+        self._calculate_metrics = CalculateMetricsConverter(parent=parent)
 
         self._trim = LocalTrim(
             param_b_corr="SPSBEAM/BHYS",
@@ -148,38 +150,48 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         self._connect_signals()
 
     def start(self) -> None:
-        self._create_cycle.start()
-        self._add_measurements_pre.start()
-        self._buffer.start()
-        self._predict.start()
-        self._correction.start()
-        self._start_cycle.start()
-        self._add_programmed.start()
-        self._add_measurement_post.start()
+        for builder in (
+            self._create_cycle,
+            self._add_measurements_pre,
+            self._buffer,
+            self._predict,
+            self._correction,
+            self._start_cycle,
+            self._add_programmed,
+            self._add_measurement_post,
+            self._track_dyneco,
+            self._track_fulleco,
+            self._track_precycle,
+        ):
+            builder.start()
+
         if self.meas_b_avail:
             assert hasattr(self, "_add_measurement_ref")
             assert self._add_measurement_ref is not None
             self._add_measurement_ref.start()
-        self._track_dyneco.start()
-        self._track_fulleco.start()
-        self._track_precycle.start()
+            self._calculate_metrics.start()
 
     def stop(self) -> None:
-        self._create_cycle.stop()
-        self._add_measurements_pre.stop()
-        self._buffer.stop()
-        self._predict.stop()
-        self._correction.stop()
-        self._start_cycle.stop()
-        self._add_programmed.stop()
-        self._add_measurement_post.stop()
+        for builder in (
+            self._create_cycle,
+            self._add_measurements_pre,
+            self._buffer,
+            self._predict,
+            self._correction,
+            self._start_cycle,
+            self._add_programmed,
+            self._add_measurement_post,
+            self._track_dyneco,
+            self._track_fulleco,
+            self._track_precycle,
+        ):
+            builder.stop()
+
         if self.meas_b_avail:
             assert hasattr(self, "_add_measurement_ref")
             assert self._add_measurement_ref is not None
             self._add_measurement_ref.stop()
-        self._track_dyneco.stop()
-        self._track_fulleco.stop()
-        self._track_precycle.stop()
+            self._calculate_metrics.stop()
 
     @QtCore.Slot(str)
     def onResetReference(self, cycle: str) -> None:
@@ -220,6 +232,9 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
             )
             self._add_measurement_ref.cycleDataAvailable.connect(
                 self._buffer.onNewMeasCycleData
+            )
+            self._add_measurement_ref.cycleDataAvailable.connect(
+                self._calculate_metrics.onNewCycleData
             )
         else:
             self._add_measurement_post.cycleDataAvailable.connect(
@@ -267,6 +282,10 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
     @property
     def onNewReference(self) -> QtCore.Signal:
         return self._correction.newReference
+
+    @property
+    def onMetricsAvailable(self) -> QtCore.Signal:
+        return self._calculate_metrics.newMetricsAvailable
 
     @QtCore.Slot(str, float)
     def setGain(self, cycle: str, gain: float) -> None:

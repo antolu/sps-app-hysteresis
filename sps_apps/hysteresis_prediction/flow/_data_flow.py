@@ -50,6 +50,10 @@ class DataFlow:
     def onCycleMeasured(self) -> QtCore.Signal:
         raise NotImplementedError
 
+    @property
+    def onMetricsAvailable(self) -> QtCore.Signal:
+        raise NotImplementedError
+
     @QtCore.Slot(str, float)
     def setGain(self, cycle: str, gain: float) -> QtCore.Signal:
         raise NotImplementedError
