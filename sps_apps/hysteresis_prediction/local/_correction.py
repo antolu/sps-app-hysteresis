@@ -50,6 +50,11 @@ class CalculateCorrection(EventBuilderAbc):
             )
             return
 
+        if cycle.cycle.endswith("ECO"):
+            log.debug(f"[{cycle}]: Skipping correction calculation for ECO cycle.")
+            self.cycleDataAvailable.emit(cycle)
+            return
+
         beam_in = cycle_metadata.beam_in(cycle.cycle)
         beam_out = cycle_metadata.beam_out(cycle.cycle)
         log.debug(
