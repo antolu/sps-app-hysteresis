@@ -3,27 +3,29 @@ from __future__ import annotations
 import logging
 
 import numpy as np
-from qtpy import QtCore
-
-from ...data import Acquisition
+import scipy.ndimage
+import scipy.signal
 from hystcomp_utils.cycle_data import CycleData
-from ._sources import AcquiredDataType, CurrentFieldSource
+from qtpy import QtCore
 from transformertf.data import downsample as downsample_tf
 
-log = logging.getLogger(__name__)
+from ...flow import DataFlow
+from ._sources import AcquiredDataType, CurrentFieldSource
+
+log = logging.getLogger(__package__)
 
 
 class PlotModel(QtCore.QObject):
     def __init__(
         self,
-        acquisition: Acquisition,
+        data: DataFlow,
         parent: QtCore.QObject | None = None,
         downsample: int = 100,
     ) -> None:
         super().__init__(parent=parent)
 
         self._downsample = downsample
-        self._acquisition = acquisition
+        self._data = data
 
         self._current_meas_source = CurrentFieldSource(
             AcquiredDataType.MeasuredData, downsample=downsample
@@ -47,18 +49,14 @@ class PlotModel(QtCore.QObject):
             AcquiredDataType.PredictedField, downsample=downsample
         )
 
-        self._acquisition.new_measured_data.connect(self._handle_new_measured)
-        self._acquisition.sig_new_programmed_cycle.connect(
-            self._handle_new_programmed
-        )
+        self._data.onCycleMeasured.connect(self._handle_new_measured)
+        self._data.onCycleForewarning.connect(self._handle_new_programmed)
+        self._data.onCycleCorrectionCalculated.connect(self.onNewPredicted)
 
     def __del__(self) -> None:
-        self._acquisition.new_measured_data.disconnect(
-            self._handle_new_measured
-        )
-        self._acquisition.sig_new_programmed_cycle.disconnect(
-            self._handle_new_programmed
-        )
+        self._data.onCycleMeasured.disconnect(self._handle_new_measured)
+        self._data.onCycleForewarning.disconnect(self._handle_new_programmed)
+        self._data.onCycleCorrectionCalculated.disconnect(self.onNewPredicted)
 
     def _handle_new_measured(self, cycle_data: CycleData) -> None:
         try:
@@ -74,27 +72,19 @@ class PlotModel(QtCore.QObject):
 
             if cycle_data.field_pred is not None:
                 field_pred = cycle_data.field_pred
-                downsample_factor = (
-                    cycle_data.field_meas.size // field_pred.shape[-1]
-                )
+                downsample_factor = cycle_data.field_meas.size // field_pred.shape[-1]
                 delta = (
                     downsample_tf(
-                        cycle_data.field_meas, downsample_factor, "interval"
+                        cycle_data.field_meas.flatten(), downsample_factor, "interval"
                     )
                     - field_pred[1, :]
                 ) * 1e4
                 self._field_meas_diff_source.new_value(
-                    cycle_data.cycle_timestamp,
-                    np.stack(
-                        (field_pred[0, :], delta),
-                        axis=0,
-                    ),
+                    cycle_data.cycle_timestamp, np.vstack((field_pred[0, :], delta))
                 )
 
         except Exception:  # noqa: broad-except
-            log.exception(
-                "An exception occurred while publishing new " "measured data."
-            )
+            log.exception("An exception occurred while publishing new measured data.")
             return
 
     def _handle_new_programmed(self, cycle_data: CycleData) -> None:
@@ -102,36 +92,27 @@ class PlotModel(QtCore.QObject):
             self._current_prog_source.new_value(
                 cycle_data.cycle_timestamp, cycle_data.current_prog
             )
-            # self._field_prog_source.new_value(
-            #     cycle_data.cycle_timestamp, cycle_data.field_prog
-            # )
         except Exception:  # noqa: broad-except
-            log.exception(
-                "An exception occurred while publishing new "
-                "programmed data."
-            )
+            log.exception("An exception occurred while publishing new programmed data.")
             return
 
-    @QtCore.Slot(CycleData, np.ndarray)
-    def onNewPredicted(
-        self, cycle_data: CycleData, predicted: np.ndarray
-    ) -> None:
+    @QtCore.Slot(CycleData)
+    def onNewPredicted(self, cycle_data: CycleData) -> None:
         try:
-            self._field_predict_source.new_value(
-                cycle_data.cycle_timestamp, predicted
-            )
+            predicted = cycle_data.field_pred
+            self._field_predict_source.new_value(cycle_data.cycle_timestamp, predicted)
 
             if cycle_data.field_ref is not None:
-                log.debug(f"Plotting field diff for cycle {cycle_data.cycle}")
+                log.debug(f"{cycle_data}: Plotting field diff for cycle.")
                 delta = (cycle_data.field_ref[1, :] - predicted[1, :]) * 1e4
+                # delta = scipy.signal.savgol_filter(delta, 5, 3)
+                delta = scipy.ndimage.gaussian_filter(delta, sigma=4)
                 self._field_ref_diff_source.new_value(
                     cycle_data.cycle_timestamp,
-                    np.stack([predicted[0, :], delta], axis=0),
+                    np.vstack([predicted[0, :], delta]),
                 )
         except Exception:  # noqa: broad-except
-            log.exception(
-                "An exception occurred while publishing new predicted data."
-            )
+            log.exception("An exception occurred while publishing new predicted data.")
             return
 
     @property
@@ -169,9 +150,11 @@ class PlotModel(QtCore.QObject):
     @downsample.setter
     def downsample(self, value: int) -> None:
         if not isinstance(value, int):
-            raise TypeError(f"downsample must be int, not {type(value)}.")
+            msg = f"downsample must be int, not {type(value)}."
+            raise TypeError(msg)
         if value < 1:
-            raise ValueError(f"downsample must be >= 1, not {value}.")
+            msg = f"downsample must be >= 1, not {value}."
+            raise ValueError(msg)
 
         self._downsample = value
 

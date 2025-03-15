@@ -2,12 +2,16 @@ import logging
 import sys
 from argparse import ArgumentParser
 
+import pyrbac
 import torch
 from accwidgets.qt import exec_app_interruptable
-from qtpy import QtWidgets
+from qtpy import QtCore, QtWidgets
 from rich.logging import RichHandler
 
 from . import __version__
+from .contexts import app_context, set_context
+from .flow import LocalFlowWorker, UcapFlowWorker
+from .io.metrics import TensorboardWriter, TextWriter
 from .main_window import MainWindow
 
 torch.set_float32_matmul_precision("high")
@@ -40,6 +44,16 @@ def setup_logger(logging_level: int = 0) -> None:
     logging.getLogger("py4j").setLevel(logging.WARNING)
     logging.getLogger("cern").setLevel(logging.WARNING)
 
+    set_module_logging("pyda", logging.WARNING)
+    set_module_logging("pyccda", logging.WARNING)
+    set_module_logging("torch", logging.WARNING)
+
+
+def set_module_logging(pattern: str, log_level: int = logging.WARNING) -> None:
+    for name in logging.root.manager.loggerDict:
+        if name.startswith(pattern):
+            logging.getLogger(name).setLevel(log_level)
+
 
 def main() -> None:
     parser = ArgumentParser()
@@ -47,10 +61,22 @@ def main() -> None:
     parser.add_argument(
         "-b",
         "--buffer-size",
-        type=int,
-        default=150000,
         dest="buffer_size",
+        type=int,
+        default=60000,
         help="Buffer size for acquisition.",
+    )
+    parser.add_argument(
+        "-d",
+        "--device",
+        choices=["MBI", "QF", "QD"],
+        required=True,
+        help="Device to apply field compensation to. Available magnetic circuits are SPS main dipoles (MBI), SPS focusing quadrupoles (QF) and SPS defocusing quadrupoles (QD).",
+    )
+    parser.add_argument(
+        "--online",
+        action="store_true",
+        help="Online prediction and trim monitoring. No predictions are done locally.",
     )
     parser.add_argument(
         "--lsa-server",
@@ -59,6 +85,20 @@ def main() -> None:
         default="next",
         help="LSA server to use.",
     )
+    parser.add_argument(
+        "--logdir",
+        dest="logdir",
+        default=None,
+        help="Directory to save logs.",
+    )
+    parser.add_argument(
+        "--metrics-writer",
+        dest="metrics_writer",
+        choices=["txt", "tensorboard"],
+        default="txt",
+        help="Metrics writer to use.",
+    )
+
     args = parser.parse_args()
     setup_logger(args.verbose)
 
@@ -68,12 +108,71 @@ def main() -> None:
     application.setOrganizationDomain("cern.ch")
     application.setApplicationName("SPS Hysteresis Prediction")
 
-    from op_app_context import context, settings
+    from op_app_context import context, settings  # noqa: PLC0415
 
     context.lsa_server = args.lsa_server
     settings.configure_application(application)
 
-    main_window = MainWindow()
+    set_context(args.device, online=args.online)
+
+    app_context().LOGDIR = args.logdir
+
+    try:
+        rbac_token = pyrbac.AuthenticationClient().login_location()
+        context.set_rbac_token(rbac_token)
+
+        logging.getLogger(__name__).info(f"Logged in as {rbac_token.user_name}")
+    except:  # noqa: E722
+        logging.getLogger(__name__).exception("Failed to login with RBAC.")
+        logging.getLogger(__name__).warning(
+            "No RBAC by location, you will have to login manually."
+        )
+
+    data_thread = QtCore.QThread()
+    if not args.online:
+        assert not app_context().ONLINE
+        flow_worker = LocalFlowWorker(
+            buffer_size=args.buffer_size,
+            provider=context.japc_provider,
+            meas_b_avail=app_context().B_MEAS_AVAIL,
+        )
+    else:
+        ucap_params = app_context().UCAP_PARAMS
+        if ucap_params is None:
+            msg = "UCAP parameters not available for this device."
+            raise ValueError(msg)
+        flow_worker = UcapFlowWorker(
+            provider=context.japc_provider,
+        )
+
+    flow_worker.moveToThread(data_thread)
+    flow_worker.init_data_flow()
+
+    data_thread.started.connect(flow_worker.start)
+
+    # quit the worker when the application is about to quit
+    application.aboutToQuit.connect(flow_worker.stop)
+    application.aboutToQuit.connect(data_thread.quit)
+    application.aboutToQuit.connect(data_thread.wait)
+
+    writer = (
+        TextWriter(output_dir=app_context().LOGDIR)
+        if args.metrics_writer == "txt"
+        else TensorboardWriter(output_dir=app_context().LOGDIR)
+    )
+
+    flow_worker.data_flow.onMetricsAvailable.connect(writer.onNewMetrics)
+
+    main_window: MainWindow | None = None
+
+    def exit_if_fail() -> None:
+        if main_window is None:
+            sys.exit(1)
+
+    data_thread.finished.connect(exit_if_fail)
+    data_thread.start()
+
+    main_window = MainWindow(data_flow=flow_worker.data_flow, parent=None)
     main_window.show()
 
     sys.exit(exec_app_interruptable(application))

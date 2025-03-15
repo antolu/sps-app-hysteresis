@@ -1,23 +1,35 @@
-from ._threadutil import ThreadWorker  # noqa: F401
-from ._threadutil import run_in_thread  # noqa: F401
-from ._threadutil import run_in_main_thread, thread  # noqa: F401
-from ._time import from_timestamp, time_execution  # noqa: F401
-from ._ui import load_cursor  # noqa: F401
+from .._mod_replace import replace_modname
+from ._color_pool import ColorPool
+from ._threadutil import (
+    ThreadWorker,
+    run_in_main_thread,
+    run_in_thread,
+    thread,
+)
+from ._time import from_timestamp, time_execution
+from ._ui import load_cursor, mute_signals
 
-from_timestamp.__module__ = __name__
-time_execution.__module__ = __name__
-run_in_main_thread.__module__ = __name__
-run_in_thread.__module__ = __name__
-thread.__module__ = __name__
-load_cursor.__module__ = __name__
-ThreadWorker.__module__ = __name__
+for _mod in (
+    from_timestamp,
+    time_execution,
+    run_in_main_thread,
+    run_in_thread,
+    thread,
+    load_cursor,
+    mute_signals,
+    ThreadWorker,
+    ColorPool,
+):
+    replace_modname(_mod, __name__)
 
 __all__ = [
+    "ColorPool",
+    "ThreadWorker",
     "from_timestamp",
-    "time_execution",
+    "load_cursor",
+    "mute_signals",
     "run_in_main_thread",
     "run_in_thread",
     "thread",
-    "load_cursor",
-    "ThreadWorker",
+    "time_execution",
 ]

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import pyqtgraph as pg
 from accwidgets.graph import (
@@ -16,7 +15,7 @@ from qtpy.QtWidgets import QVBoxLayout, QWidget
 from ._model import PlotModel
 from ._sources import LocalTimerTimingSource
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 AXES_RANGE_KWARGS = {"field": (0.0, 2.2), "current": (0.0, 6000)}
@@ -29,7 +28,7 @@ class PlotWidget(QWidget):
     ) -> None:
         super().__init__(parent)
 
-        self._model: Optional[PlotModel] = None
+        self._model: PlotModel | None = None
         self._curves: tuple[set[LivePlotCurve], ...] = (set(), set())
 
         layout = QVBoxLayout(self)
@@ -58,10 +57,10 @@ class PlotWidget(QWidget):
         self.plotDiscr.autoRange()
         self.plotCurField.autoRange()
 
-        self.plotDiscr.setRange(dpp_fixed=(-5, 5))  # noqa
-        self.plotCurField.setRange(**AXES_RANGE_KWARGS)  # noqa
+        self.plotDiscr.setRange(dpp_fixed=(-5, 5))
+        self.plotCurField.setRange(**AXES_RANGE_KWARGS)
 
-    def set_time_span(self, min: int, max: int) -> None:
+    def set_time_span(self, min: int, max: int) -> None:  # noqa: A002
         """
         Set the time span of the plot. From min to max.
         Relative to the latest time.
@@ -75,7 +74,7 @@ class PlotWidget(QWidget):
         self.plotCurField.update_config(config=plot_config)
         self.plotDiscr.update_config(config=plot_config)
 
-        self.plotCurField.setRange(**AXES_RANGE_KWARGS)  # noqa
+        self.plotCurField.setRange(**AXES_RANGE_KWARGS)
 
     def _setup_plots(self) -> None:
         # self.plotCurField.setXLink(self.plotDiscr)
@@ -101,7 +100,7 @@ class PlotWidget(QWidget):
 
         self._model = model
 
-    def _get_model(self) -> Optional[PlotModel]:
+    def _get_model(self) -> PlotModel | None:
         return self._model
 
     model = property(_get_model, _set_model)

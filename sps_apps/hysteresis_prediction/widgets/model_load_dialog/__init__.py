@@ -1,4 +1,4 @@
-from ._dialog import ModelLoadDialog  # noqa: F401
+from ._dialog import ModelLoadDialog
 
 ModelLoadDialog.__module__ = __name__
 

@@ -25,22 +25,23 @@ requires-python = ">=3.11"
 dependencies = [
     "accwidgets[all-widgets] >= 3.0, < 4.0",
     "matplotlib >= 3.8",
-    "numpy >= 1.26",
+    "numpy >= 1.26, < 2.0",
     "pjlsa >= 0.2",
-    "lightning >= 2.2, < 3.0",
+    "lightning ~= 2.2.2",
     "pyrbac >= 1.1, < 2.0",
-    "pyda >= 0.4, < 1.0",
-    "pyda-japc >= 0.4, < 1.0",
-    "pyda-lsa >= 0.4, < 1.0",
+    "pyda >= 1.0, < 2.0",
+    "pyda-japc >= 1.0, < 2.0",
+    "pyda-lsa >= 1.0, < 2.0",
     "PyQt5 ~= 5.12",
     "rich >= 13.7",
     "QtPy ~= 2.4",
     "scipy >= 1.12",
+    "scikit-image > 0.25",
     "scikit-learn >= 1.4",
-    "torch >= 2.2, < 3.0",
-    "hysteresis-scripts[inference] >= 0.1.dev0, < 1.0",
-    "hystcomp-utils >= 0.1.0, < 1.0",
-    "op-app-context ~= 0.1",
+    "torch ~= 2.5.1",
+    "sps-mlp-hysteresis-compensation ~= 0.4.1",
+    "hystcomp-utils >= 0.2.1, < 1.0",
+    "op-app-context >= 0.1, < 1.0",
 ]
 
 [project.optional-dependencies]
@@ -73,7 +74,7 @@ app-hysteresis = "sps_apps.hysteresis_prediction.application:main"
 
 [tool.black]
 target-version = ["py311"]
-line-length = 79
+line-length = 88
 include = '\.pyi?$'
 exclude = '''
 /(
@@ -117,61 +118,68 @@ exclude = [
     "venv",
 ]
 
-line-length = 79
-
+line-length = 88
 target-version = "py311"
+
+preview = true
+unsafe-fixes = true
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
 [tool.ruff.lint]
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-fixable = [
-    "A",
+select = [
+    "F",   # pyflakes
+    "E",   # error  (pycodestyle)
+    "W",   # warning (pycodestyle)
+    "I",   # isort
+    "N",   # naming  (pep8)
+    "UP",  # pyupgrade
+    "PLC", # convention  (pylint)
+    "PLE", # error  (pylint)
+    "PLW", # warning  (pylint)
+    # "D",  # docstring (pydocstyle),  # not enabled by default
+    "PD",   # pandas
+    "TRY",  # tryceratops
+    "NPY",  # numpy
+    "PERF", # perflint
+    "RUF",  # ruff
+    # v flake8 v
     "B",
-    "C",
-    "D",
-    "E",
-    "F",
-    "G",
-    "I",
-    "N",
-    "Q",
-    "S",
-    "T",
-    "W",
-    "ANN",
-    "ARG",
-    "BLE",
-    "COM",
-    "DJ",
-    "DTZ",
-    "EM",
-    "ERA",
-    "EXE",
+    "C4",
     "FBT",
-    "ICN",
-    "INP",
+    "A",
+    "EM",
     "ISC",
-    "NPY",
-    "PD",
-    "PGH",
+    "FA",
+    "G",
     "PIE",
-    "PL",
-    "PT",
-    "PTH",
     "PYI",
-    "RET",
+    "PT",
+    "Q",
     "RSE",
-    "RUF",
-    "SIM",
+    "RET",
     "SLF",
-    "TCH",
-    "TID",
-    "TRY",
-    "UP",
-    "YTT",
+    "SIM",
 ]
+fixable = ["ALL"]
+ignore = [
+    "E501",
+    "W505",
+    "ISC001",
+    "PD901",
+    "PLW2901",
+    "N812",
+    "N806",
+    "G003",
+    "G004",
+    "N815",
+    "N802",
+]
+
+[tool.ruff.format]
+preview = true
 
 [tool.mypy]
 disallow_untyped_defs = true
@@ -193,3 +201,4 @@ reportPrivateImportUsage = "none"
 reportGeneralTypeIssues = "none"
 reportAttributeAccessIssues = "none"
 reportArgumentType = "none"
+reportReturnType = "none"

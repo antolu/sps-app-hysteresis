@@ -4,11 +4,10 @@ import datetime
 import logging
 from pathlib import Path
 
+from hystcomp_utils.cycle_data import CycleData
 from op_app_context import settings
 
-from hystcomp_utils.cycle_data import CycleData
-
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 class IO:
@@ -29,7 +28,8 @@ class IO:
         self._enabled = False
         return self
 
-    def set_enabled(self, enabled: bool) -> IO:
+    def set_enabled(self, *, enabled: bool = True) -> IO:
+        log.debug(f"Setting IO enabled to {enabled}")
         self._enabled = enabled
         return self
 
@@ -39,9 +39,7 @@ class IO:
 
     def save_data(self, cycle_data: CycleData) -> None:
         if not self.enabled:
-            log.debug(
-                "IO disabled, skipping save for {}".format(str(cycle_data))
-            )
+            log.debug(f"IO disabled, skipping save for {cycle_data!s}")
             return
 
         out_dir = Path(settings["save_dir", "."])
@@ -51,9 +49,7 @@ class IO:
         user = cycle_data.user.split(".")[-1]
         cycle = cycle_data.cycle
         cycle_time = cycle_data.cycle_time.strftime("%Y%m%d_%H%M%S")
-        filename = "{}_{}_{}.parquet".format(cycle_time, user, cycle)
+        filename = f"{cycle_time}_{user}_{cycle}.parquet"
 
-        log.debug(
-            "Saving {} data to {}".format(str(cycle_data), out_dir / filename)
-        )
+        log.debug(f"Saving {cycle_data!s} data to {out_dir / filename}")
         cycle_data.to_pandas().to_parquet(out_dir / filename)

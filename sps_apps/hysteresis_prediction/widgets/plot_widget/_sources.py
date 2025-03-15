@@ -10,7 +10,7 @@ from qtpy.QtCore import QTimer
 
 __all__ = ["LocalTimerTimingSource"]
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__package__)
 
 
 MS = 1e3
@@ -59,9 +59,7 @@ class CurrentFieldSource(UpdateSource):
         """
         self._handle_new_value(cycle_timestamp, value)
 
-    def _handle_new_value(
-        self, cycle_timestamp: float, value: np.ndarray
-    ) -> None:
+    def _handle_new_value(self, cycle_timestamp: float, value: np.ndarray) -> None:
         if self.acquired_data_type == AcquiredDataType.MeasuredData:
             self._handle_measured_value(cycle_timestamp, value)
         elif self.acquired_data_type == AcquiredDataType.ProgrammedData:
@@ -99,21 +97,17 @@ class CurrentFieldSource(UpdateSource):
         )
         self.send_data(data)
 
-    def _handle_measured_value(
-        self, cycle_timestamp: float, value: np.ndarray
-    ) -> None:
+    def _handle_measured_value(self, cycle_timestamp: float, value: np.ndarray) -> None:
         """
         Handle new measured value. The value is a single array with the
         measured values, without time axis. The time axis is built based
         on the length of the array. The sampling rate is assumed to be
         1kHz.
         """
-        time_range = np.arange(len(value)) / MS + cycle_timestamp / NS
         value = value.flatten()
+        time_range = np.arange(len(value)) / MS + cycle_timestamp / NS
 
-        data = CurveData(
-            x=time_range[:: self.downsample], y=value[:: self.downsample]
-        )
+        data = CurveData(x=time_range[:: self.downsample], y=value[:: self.downsample])
         self.send_data(data)
 
     def _handle_predicted_value(
@@ -127,7 +121,7 @@ class CurrentFieldSource(UpdateSource):
         :param cycle_timestamp: timestamp of the cycle.
         :param value: value of the cycle.
         """
-        time_range = value[0, :]
+        time_range = value[0, :] + cycle_timestamp / NS
         value = value[1, :]
 
         data = CurveData(time_range, value)

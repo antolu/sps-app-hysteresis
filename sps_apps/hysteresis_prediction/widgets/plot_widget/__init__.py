@@ -1,8 +1,8 @@
-from ._model import PlotModel  # noqa: F401
-from ._sources import LocalTimerTimingSource  # noqa: F401
-from ._view import PlotWidget  # noqa: F401
+from ._model import PlotModel
+from ._sources import LocalTimerTimingSource
+from ._view import PlotWidget
 
 for _mod in (PlotWidget, PlotModel, LocalTimerTimingSource):
     _mod.__module__ = __name__
 
-__all__ = ["PlotWidget", "PlotModel", "LocalTimerTimingSource"]
+__all__ = ["LocalTimerTimingSource", "PlotModel", "PlotWidget"]

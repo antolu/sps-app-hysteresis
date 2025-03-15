@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import logging
 import typing
 
 import numpy as np
@@ -8,15 +9,21 @@ import numpy.typing as npt
 import pyqtgraph as pg
 from accwidgets import graph as accgraph
 from accwidgets.lsa_selector import (
+    AbstractLsaSelectorContext,
     LsaSelector,
     LsaSelectorAccelerator,
     LsaSelectorModel,
 )
+from hystcomp_utils.cycle_data import CycleData
 from op_app_context import context
 from qtpy import QtCore, QtWidgets
 
+from ...trim import cycle_metadata
+from ...utils import mute_signals
 from .._widgets import ToggleButton
 from ._model import TrimModel
+
+log = logging.getLogger(__package__)
 
 
 class TrimInfoWidget(QtWidgets.QWidget):
@@ -24,9 +31,7 @@ class TrimInfoWidget(QtWidgets.QWidget):
         super().__init__(parent=parent)
 
         self.LsaServerLabel = QtWidgets.QLabel("LSA Server", parent=self)
-        self.LsaServerLineValue = QtWidgets.QLabel(
-            context.lsa_server, parent=self
-        )
+        self.LsaServerLineValue = QtWidgets.QLabel(context.lsa_server, parent=self)
 
         self.LastTrimLabel = QtWidgets.QLabel("Last Trim", parent=self)
         self.LastTrimLineValue = QtWidgets.QLabel("N/A", parent=self)
@@ -50,24 +55,30 @@ class TrimInfoWidget(QtWidgets.QWidget):
         grid_layout.addWidget(self.BeamInLabel, 3, 0)
         grid_layout.addWidget(self.BeamInLineValue, 3, 1)
 
+    @QtCore.Slot(CycleData, np.ndarray, datetime.datetime, str)
     def on_trim_applied(
-        self, _: typing.Any, trim_time: datetime.datetime, trim_comment: str
+        self,
+        cycle_data: CycleData,
+        _: np.ndarray,
+        trim_time: datetime.datetime,
+        trim_comment: str,
     ) -> None:
-        self.LastTrimLineValue.setText(
-            trim_time.strftime("%Y%m%d-%H:%M:%S:%f")[:-4]
-        )
+        self.LastTrimLineValue.setText(trim_time.strftime("%Y%m%d-%H:%M:%S:%f")[:-4])
         self.LastCommentLineValue.setText(trim_comment)
 
-    def on_new_beam_in_time(self, beam_in: int, beam_out: int) -> None:
+    @QtCore.Slot(str)
+    def onContextChanged(self, cycle: str) -> None:
+        beam_in = cycle_metadata.beam_in(cycle)
+        beam_out = cycle_metadata.beam_out(cycle)
+
         self.BeamInLineValue.setText(f"C{beam_in} - C{beam_out}")
 
 
 class TrimSettingsWidget(QtWidgets.QWidget):
-    DryRunChanged = QtCore.Signal(bool)
-    FlattenChanged = QtCore.Signal(bool)
-
-    def __init__(self, parent: QtWidgets.QWidget | None = None):
+    def __init__(self, model: TrimModel, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent=parent)
+
+        self.model = model
 
         self.GainLabel = QtWidgets.QLabel("Gain", parent=self)
         self.GainSpinBox = QtWidgets.QDoubleSpinBox(parent=self)
@@ -75,9 +86,6 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         self.GainSpinBox.setSingleStep(0.1)
         self.GainSpinBox.setValue(1.0)
         self.GainSpinBox.setMaximumWidth(50)
-
-        self.DryRunLabel = QtWidgets.QLabel("Dry Run", parent=self)
-        self.DryRunCheckBox = QtWidgets.QCheckBox(parent=self)
 
         self.TrimTMinLabel = QtWidgets.QLabel("Trim T Min", parent=self)
         self.TrimTMinSpinBox = QtWidgets.QSpinBox(parent=self)
@@ -89,239 +97,190 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         self.TrimTMaxSpinBox.setEnabled(False)
         self.TrimTMaxSpinBox.setMaximumWidth(80)
 
-        self.FlattenLabel = QtWidgets.QLabel("Flatten", parent=self)
-        self.FlattenCheckBox = QtWidgets.QCheckBox(parent=self)
-        self.FlattenCheckBox.setEnabled(False)
-        self.FlattenLabel.setToolTip(
-            "Flatten field between trim T min and trim T max, "
-            "with the value of the field at trim T min."
+        self.ToggleButton = ToggleButton(parent=self)
+        self.ToggleButton.initializeState(
+            label_s2="Enable Trim",
+            label_s1="Disable Trim",
+            initial_state=ToggleButton.State.STATE2,
         )
 
-        self.setLayout(QtWidgets.QGridLayout(self))
-        self.layout().addWidget(self.GainLabel, 0, 0)
-        self.layout().addWidget(self.GainSpinBox, 0, 1)
-        self.layout().addWidget(self.DryRunLabel, 1, 0)
-        self.layout().addWidget(self.DryRunCheckBox, 1, 1)
-        self.layout().addWidget(self.TrimTMinLabel, 2, 0)
-        self.layout().addWidget(self.TrimTMinSpinBox, 2, 1)
-        self.layout().addWidget(self.TrimTMaxLabel, 3, 0)
-        self.layout().addWidget(self.TrimTMaxSpinBox, 3, 1)
-        self.layout().addWidget(self.FlattenLabel, 4, 0)
-        self.layout().addWidget(self.FlattenCheckBox, 4, 1)
+        self.ResetReferenceButton = QtWidgets.QPushButton(
+            "Reset Reference", parent=self
+        )
 
-        self.DryRunCheckBox.stateChanged.connect(self.on_dry_run_changed)
-        self.GainSpinBox.valueChanged.connect(self.on_gain_changed)
-        self.TrimTMinSpinBox.valueChanged.connect(self.on_min_value_changed)
-        self.TrimTMaxSpinBox.valueChanged.connect(self.on_max_value_changed)
-        self.FlattenCheckBox.stateChanged.connect(self.on_flatten_changed)
+        layout = QtWidgets.QGridLayout(self)
+        layout.addWidget(self.GainLabel, 0, 0)
+        layout.addWidget(self.GainSpinBox, 0, 1)
+        layout.addWidget(self.TrimTMinLabel, 1, 0)
+        layout.addWidget(self.TrimTMinSpinBox, 1, 1)
+        layout.addWidget(self.TrimTMaxLabel, 2, 0)
+        layout.addWidget(self.TrimTMaxSpinBox, 2, 1)
+        layout.addWidget(self.ToggleButton, 3, 0, 1, 2)
+        layout.addWidget(self.ResetReferenceButton, 4, 0, 1, 2)
+        self.setLayout(layout)
 
-    @QtCore.Slot(int)
-    def on_dry_run_changed(self, state: QtCore.Qt.CheckState) -> None:
-        value = state == QtCore.Qt.Checked
-        self.DryRunChanged.emit(value)
+        self.GainSpinBox.valueChanged.connect(self.onGainChanged)
+        self.TrimTMinSpinBox.valueChanged.connect(self.onMinValueChanged)
+        self.TrimTMaxSpinBox.valueChanged.connect(self.onMaxValueChanged)
+        self.ToggleButton.stateChanged.connect(self.onEnableTrim)
 
-    @QtCore.Slot(int)
-    def on_flatten_changed(self, state: QtCore.Qt.CheckState) -> None:
-        value = state == QtCore.Qt.Checked
-        self.FlattenChanged.emit(value)
+        # disable the trim settings until a context has been set
+        self.GainSpinBox.setEnabled(False)
+        self.TrimTMinSpinBox.setEnabled(False)
+        self.TrimTMaxSpinBox.setEnabled(False)
+        self.ToggleButton.setEnabled(False)
+        self.ResetReferenceButton.setEnabled(False)
+
+        self.model.contextChanged.connect(self.onContextChanged)
+        self._cycle: str | None = None
+
+    @QtCore.Slot(str)
+    def onContextChanged(self, cycle: str) -> None:
+        self.GainSpinBox.setEnabled(True)
+        self.TrimTMinSpinBox.setEnabled(True)
+        self.TrimTMaxSpinBox.setEnabled(True)
+        self.ToggleButton.setEnabled(True)
+        self.ResetReferenceButton.setEnabled(True)
+
+        with mute_signals(self.GainSpinBox, self.TrimTMinSpinBox, self.TrimTMaxSpinBox):
+            self.TrimTMinSpinBox.setMinimum(cycle_metadata.beam_in(cycle))
+            self.TrimTMaxSpinBox.setMaximum(cycle_metadata.beam_out(cycle))
+
+            self.GainSpinBox.setValue(self.model.settings.gain[cycle])
+            self.TrimTMinSpinBox.setValue(self.model.settings.trim_start[cycle])
+            self.TrimTMaxSpinBox.setValue(self.model.settings.trim_end[cycle])
+
+        if self.model.settings.trim_enabled[cycle]:
+            self.ToggleButton.setState(ToggleButton.State.STATE1)
+        else:
+            self.ToggleButton.setState(ToggleButton.State.STATE2)
+
+        self._cycle = cycle
 
     @QtCore.Slot(float)
-    def on_gain_changed(self, value: float) -> None:
+    def onGainChanged(self, value: float) -> None:
         if value <= 1.0:
             self.GainSpinBox.setSingleStep(0.02)
         else:
             self.GainSpinBox.setSingleStep(0.2)
 
-    @QtCore.Slot(int, int)
-    def on_new_beam_in_time(self, beam_in: int, beam_out: int) -> None:
-        if not self.TrimTMinSpinBox.isEnabled():
-            self.TrimTMinSpinBox.setEnabled(True)
-            self.TrimTMaxSpinBox.setEnabled(True)
-            self.FlattenCheckBox.setEnabled(True)
-
-        self.TrimTMinSpinBox.setMinimum(beam_in)
-        self.TrimTMinSpinBox.setMaximum(beam_out)
-        self.TrimTMaxSpinBox.setMinimum(beam_in)
-        self.TrimTMaxSpinBox.setMaximum(beam_out)
-
-        self.TrimTMaxSpinBox.setValue(beam_out)
-        self.TrimTMinSpinBox.setValue(beam_in)
+        self.model.settings.gain[self.model.cycle] = value
 
     @QtCore.Slot(int)
-    def on_min_value_changed(self, value: int) -> None:
+    def onMinValueChanged(self, value: int) -> None:
+        # ensure that the min value is less than the max value
         self.TrimTMaxSpinBox.setMinimum(value + 1)
 
         if value > self.TrimTMaxSpinBox.value():
             self.TrimTMaxSpinBox.setValue(value)
 
+        self.model.settings.trim_start[self.model.cycle] = value
+
     @QtCore.Slot(int)
-    def on_max_value_changed(self, value: int) -> None:
+    def onMaxValueChanged(self, value: int) -> None:
+        # ensure that the max value is greater than the min value
         self.TrimTMinSpinBox.setMaximum(value - 1)
 
         if value < self.TrimTMinSpinBox.value():
             self.TrimTMinSpinBox.setValue(value)
 
+        self.model.settings.trim_end[self.model.cycle] = value
+
+    @QtCore.Slot(ToggleButton.State)
+    def onEnableTrim(self, state: ToggleButton.State) -> None:
+        self.model.settings.trim_enabled[self.model.cycle] = (
+            state == ToggleButton.State.STATE1
+        )
+
 
 class TrimWidgetView(QtWidgets.QWidget):
-    windowClosed = QtCore.Signal()
-
     _thread: QtCore.QThread | None = None
 
-    def __init__(
-        self, model: TrimModel, parent: QtWidgets.QWidget | None = None
-    ):
+    referenceReset = QtCore.Signal(str)
+
+    def __init__(self, model: TrimModel, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent=parent)
-        self._model = None
+        self._model = model
 
         selector_model = LsaSelectorModel(
             accelerator=LsaSelectorAccelerator.SPS, lsa=context.lsa_client
         )
         self.LsaSelector = LsaSelector(model=selector_model, parent=self)
 
-        self.TrimInfoWidget = TrimInfoWidget(parent=self)
-        self.TrimSettingsWidget = TrimSettingsWidget(parent=self)
+        self.menu_bar = QtWidgets.QMenuBar(parent=self)
+        self.menu_bar.setNativeMenuBar(False)
+        self.file_menu = QtWidgets.QMenu("&File", parent=self.menu_bar)
+        self.actionRefreshLsaSelector = QtWidgets.QAction(
+            "Refresh LSA Selector", parent=self
+        )
+        self.file_menu.addAction(self.actionRefreshLsaSelector)
+        self.actionRefreshLsaSelector.triggered.connect(self.LsaSelector.model.refetch)
+        self.menu_bar.addMenu(self.file_menu)
 
-        self.toggle_button = ToggleButton(parent=self)
-        self.toggle_button.initializeState(
-            label_s2="Enable Trim",
-            label_s1="Disable Trim",
-            initial_state=ToggleButton.State.STATE2,
+        self.TrimInfoWidget = TrimInfoWidget(parent=self)
+        model.contextChanged.connect(self.TrimInfoWidget.onContextChanged)
+        self.TrimSettingsWidget = TrimSettingsWidget(model=model, parent=self)
+        self.TrimSettingsWidget.ResetReferenceButton.clicked.connect(
+            self.onResetReference
         )
 
         self.left_frame = QtWidgets.QFrame(parent=self)
         self.left_frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
-        self.left_frame.setLayout(QtWidgets.QVBoxLayout(self.left_frame))
-        self.left_frame.layout().setAlignment(QtCore.Qt.AlignLeft)
-        self.left_frame.layout().addWidget(self.LsaSelector)
-        self.left_frame.layout().addWidget(self.TrimInfoWidget)
-        self.left_frame.layout().addWidget(self.TrimSettingsWidget)
-        self.left_frame.layout().addWidget(self.toggle_button)
+        layout = QtWidgets.QVBoxLayout(self.left_frame)
+        layout.setAlignment(QtCore.Qt.AlignLeft)
+        layout.addWidget(self.LsaSelector)
+        layout.addWidget(self.TrimInfoWidget)
+        layout.addWidget(self.TrimSettingsWidget)
+        self.left_frame.setLayout(layout)
         self.left_frame.setMaximumSize(300, 16777215)
         self.left_frame.setSizePolicy(
             QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding
         )
 
-        self.plotWidget = accgraph.StaticPlotWidget(
-            parent=self, background="w"
-        )
+        self.plotWidget = accgraph.StaticPlotWidget(parent=self, background="w")
 
         self.setLayout(QtWidgets.QHBoxLayout(self))
         self.layout().addWidget(self.left_frame)
         self.layout().addWidget(self.plotWidget)
+        self.layout().setMenuBar(self.menu_bar)
+
+        self.setWindowTitle("SPS Hysteresis Prediction Trims")
 
         self.setMinimumSize(800, 400)
 
-        self.LsaSelector.userSelectionChanged.connect(
-            self.on_user_selected_lsa
-        )
-        self.toggle_button.setEnabled(False)
-
+        self.LsaSelector.contextSelectionChanged.connect(self.onUserSelectionChanged)
         self._plot_source = accgraph.UpdateSource()
-
-        self.model = model
 
         self._setup_plots()
 
-        if self._thread is None:
-            self._thread = QtCore.QThread()
-            self._thread.start()
-
     def _setup_plots(self) -> None:
         self.plotWidget.addCurve(
-            data_source=self._plot_source, pen=pg.mkPen(color="k")
+            data_source=self._plot_source, pen=pg.mkPen(color="k", width=2)
         )
 
-    @property
-    def model(self) -> TrimModel | None:
-        return self._model
-
-    @model.setter
-    def model(self, value: TrimModel) -> None:
-        if self._model is not None:
-            self._disconnect_model(self._model)
-
-        self._connect_model(value)
-        self._model = value
-
-    def _connect_model(self, model: TrimModel) -> None:
-        model.trimApplied.connect(self.TrimInfoWidget.on_trim_applied)
-        model.trimApplied.connect(self._on_trim_applied)
-        model.beamInRetrieved.connect(self.TrimInfoWidget.on_new_beam_in_time)
-        model.beamInRetrieved.connect(
-            self.TrimSettingsWidget.on_new_beam_in_time
-        )
-
-        self.toggle_button.state1Activated.connect(model.enable_trim)
-        self.toggle_button.state2Activated.connect(model.disable_trim)
-
-        self.TrimSettingsWidget.DryRunChanged.connect(model.set_dry_run)
-        self.TrimSettingsWidget.GainSpinBox.valueChanged.connect(
-            model.set_gain
-        )
-        self.TrimSettingsWidget.TrimTMaxSpinBox.valueChanged.connect(
-            model.set_trim_t_max
-        )
-        self.TrimSettingsWidget.TrimTMinSpinBox.valueChanged.connect(
-            model.set_trim_t_min
-        )
-        self.TrimSettingsWidget.FlattenChanged.connect(model.set_flatten)
-
-    def _disconnect_model(self, model: TrimModel) -> None:
-        model.trimApplied.disconnect(self.TrimInfoWidget.on_trim_applied)
-        model.trimApplied.disconnect(self._on_trim_applied)
-        model.beamInRetrieved.disconnect(
-            self.TrimInfoWidget.on_new_beam_in_time
-        )
-        model.beamInRetrieved.disconnect(
-            self.TrimSettingsWidget.on_new_beam_in_time
-        )
-
-        self.toggle_button.state1Activated.disconnect(model.enable_trim)
-        self.toggle_button.state2Activated.disconnect(model.disable_trim)
-        self.toggle_button.setEnabled(False)
-
-        self.TrimSettingsWidget.DryRunChanged.disconnect(model.set_dry_run)
-        self.TrimSettingsWidget.GainSpinBox.valueChanged.disconnect(
-            model.set_gain
-        )
-        self.TrimSettingsWidget.TrimTMaxSpinBox.valueChanged.disconnect(
-            model.set_trim_t_max
-        )
-        self.TrimSettingsWidget.TrimTMinSpinBox.valueChanged.disconnect(
-            model.set_trim_t_min
-        )
-        self.TrimSettingsWidget.FlattenChanged.disconnect(model.set_flatten)
-
-    def _on_trim_applied(
+    def onTrimApplied(
         self,
+        cycle_data: CycleData,
         values: tuple[npt.NDArray[np.int32], npt.NDArray[np.float32]],
+        trim_time: datetime.datetime,
+        comment: str,
         *_: typing.Any,
     ) -> None:
+        log.info("Trim applied. Updating plot.")
         curve = accgraph.CurveData(*values)
 
         self._plot_source.send_data(curve)
 
-    def on_user_selected_lsa(self, user: str) -> None:
-        if self.model is None:
-            raise RuntimeError("Model is not set.")
+    @QtCore.Slot(AbstractLsaSelectorContext)
+    def onUserSelectionChanged(self, context: AbstractLsaSelectorContext) -> None:
+        self._model.setCycle(context.name)
 
-        if user != self.model.selector:
-            self.toggle_button.setEnabled(False)
+    @QtCore.Slot()
+    def onResetReference(self) -> None:
+        selected_context = self.LsaSelector.selected_context
+        if selected_context is None:
+            log.error("No context selected.")
+            return
 
-            if self.toggle_button.state == ToggleButton.State.STATE2:
-                self.toggle_button.toggle()
-
-            if self._thread is not None:
-                self.model.selector = user
-
-                self.toggle_button.setEnabled(True)
-
-
-if __name__ == "__main__":
-    from qtpy import QtWidgets
-
-    app = QtWidgets.QApplication([])
-    model = TrimModel()
-    view = TrimWidgetView(model=model)
-    view.show()
-    app.exec_()
+        log.debug(f"Resetting reference for {selected_context.name}")
+        self.referenceReset.emit(selected_context.name)

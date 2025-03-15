@@ -5,11 +5,11 @@ The widget is separated into the TrimModel and TrimWidgetView.
 The TrimModel is responsible for the logic and the TrimWidgetView is responsible for the GUI.
 """
 
-from ._model import TrimModel  # noqa: F401
-from ._view import TrimWidgetView  # noqa: F401
+from ._model import TrimModel
+from ._view import TrimWidgetView
 
 TrimWidgetView.__module__ = __name__
 TrimModel.__module__ = __name__
 
 
-__all__ = ["TrimWidgetView", "TrimModel"]
+__all__ = ["TrimModel", "TrimWidgetView"]

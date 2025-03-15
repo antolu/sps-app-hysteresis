@@ -130,32 +130,12 @@
        <widget class="QComboBox" name="comboBoxModel">
         <item>
          <property name="text">
-          <string>PhyLSTM</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>VanillaTransformer</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>TransformerV2</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>TransformerEncoder</string>
+          <string>PETE</string>
          </property>
         </item>
         <item>
          <property name="text">
           <string>TemporalFusionTransformer</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>LSTM</string>
          </property>
         </item>
        </widget>

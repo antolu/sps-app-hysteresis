@@ -1,9 +1,9 @@
-import pytest
-import pandas as pd
 import pathlib
 
-
 import hystcomp_utils.cycle_data
+import pandas as pd
+import pytest
+from op_app_context import context
 
 _MARKER_NAME = "uses_virtual_device"
 
@@ -25,15 +25,13 @@ def pytest_configure(config: pytest.Config) -> None:
         f"{_MARKER_NAME}: mark test to run only when virtual devices are available.",
     )
 
-    import pyda_lsa._jpype_tools
-
-    pyda_lsa._jpype_tools.set_lsa_server("next")
+    context.lsa_server = "next"
 
 
 def pytest_runtest_setup(item: pytest.Item) -> None:
-    if list(
-        item.iter_markers(name=_MARKER_NAME)
-    ) and not item.config.getoption("virtual_dev", default=False):
+    if list(item.iter_markers(name=_MARKER_NAME)) and not item.config.getoption(
+        "virtual_dev", default=False
+    ):
         pytest.skip(
             "This relies on presence of a virtual device. For reproducibility, "
             "an LSA server must be connected for these tests",
