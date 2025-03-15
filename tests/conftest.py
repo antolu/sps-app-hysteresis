@@ -3,6 +3,7 @@ import pathlib
 import hystcomp_utils.cycle_data
 import pandas as pd
 import pytest
+from op_app_context import context
 
 _MARKER_NAME = "uses_virtual_device"
 
@@ -24,9 +25,7 @@ def pytest_configure(config: pytest.Config) -> None:
         f"{_MARKER_NAME}: mark test to run only when virtual devices are available.",
     )
 
-    import pyda_lsa._jpype_tools  # noqa: PLC0415
-
-    pyda_lsa._jpype_tools.set_lsa_server("next")  # noqa: SLF001
+    context.lsa_server = "next"
 
 
 def pytest_runtest_setup(item: pytest.Item) -> None:
