@@ -38,7 +38,7 @@ dependencies = [
     "scipy >= 1.12",
     "scikit-image > 0.25",
     "scikit-learn >= 1.4",
-    "torch ~= 2.2.2",
+    "torch ~= 2.5.1",
     "sps-mlp-hysteresis-compensation ~= 0.4.1",
     "hystcomp-utils >= 0.2.1, < 1.0",
     "op-app-context >= 0.1, < 1.0",
