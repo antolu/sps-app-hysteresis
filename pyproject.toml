@@ -40,7 +40,7 @@ dependencies = [
     "scikit-learn >= 1.4",
     "torch ~= 2.5.1",
     "sps-mlp-hysteresis-compensation ~= 0.4.1",
-    "hystcomp-utils >= 0.2.1, < 1.0",
+    "hystcomp-utils >= 0.2.2, < 1.0",
     "op-app-context >= 0.1, < 1.0",
 ]
 
