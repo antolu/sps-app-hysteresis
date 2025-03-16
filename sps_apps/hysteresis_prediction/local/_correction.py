@@ -61,7 +61,7 @@ class CalculateCorrection(EventBuilderAbc):
             f"{cycle}: Cutting delta with Beam in: {beam_in}, Beam out: {beam_out}"
         )
         delta = calc_delta_field(
-            self._field_ref[cycle.cycle],
+            self._field_ref[self._cycle_id(cycle)],
             cycle.field_pred,
             beam_in=beam_in,
             beam_out=beam_out,
@@ -134,17 +134,9 @@ class CalculateCorrection(EventBuilderAbc):
             cycle_data.reference_timestamp = None
 
             # then, save or update the reference with the ECO cycle name
-
-        id_ = cycle_data.cycle
-        if cycle_data.economy_mode is not hystcomp_utils.cycle_data.EconomyMode.NONE:
-            if cycle_data.economy_mode is hystcomp_utils.cycle_data.EconomyMode.FULL:
-                id_ += "_FULLECO"
-            elif (
-                cycle_data.economy_mode is hystcomp_utils.cycle_data.EconomyMode.DYNAMIC
-            ):
-                id_ += "_DYNECO"
-
+        #
         # save the reference if it has not been set, or reference was removed
+        id_ = self._cycle_id(cycle_data)
         if id_ not in self._field_ref:
             log.debug(
                 f"{cycle_data}: Saving field reference since it has not "
@@ -171,6 +163,19 @@ class CalculateCorrection(EventBuilderAbc):
 
         cycle_data.reference_timestamp = self._field_ref_timestamps[id_]
         cycle_data.field_ref = self._field_ref[id_]
+
+    @staticmethod
+    def _cycle_id(cycle_data: hystcomp_utils.cycle_data.CycleData) -> str:
+        id_ = cycle_data.cycle
+        if cycle_data.economy_mode is not hystcomp_utils.cycle_data.EconomyMode.NONE:
+            if cycle_data.economy_mode is hystcomp_utils.cycle_data.EconomyMode.FULL:
+                id_ += "_FULLECO"
+            elif (
+                cycle_data.economy_mode is hystcomp_utils.cycle_data.EconomyMode.DYNAMIC
+            ):
+                id_ += "_DYNECO"
+
+        return id_
 
 
 def calc_delta_field(
