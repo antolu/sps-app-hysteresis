@@ -50,8 +50,8 @@ class CalculateCorrection(EventBuilderAbc):
             )
             return
 
-        if cycle.cycle.endswith("ECO"):
-            log.debug(f"[{cycle}]: Skipping correction calculation for ECO cycle.")
+        if cycle.economy_mode is not hystcomp_utils.cycle_data.EconomyMode.NONE:
+            log.debug(f"[{cycle}]: Skipping correction calculation for economy cycle.")
             self.cycleDataAvailable.emit(cycle)
             return
 
@@ -119,9 +119,10 @@ class CalculateCorrection(EventBuilderAbc):
         if (
             cycle_data.reference_timestamp is not None
             and np.allclose(cycle_data.cycle_timestamp, cycle_data.reference_timestamp)
-            and cycle_data.cycle.endswith("ECO")
+            and cycle_data.economy_mode
+            is not hystcomp_utils.cycle_data.EconomyMode.NONE
         ):
-            cycle_name = "_".join(cycle_data.cycle.split("_")[:-1])
+            cycle_name = cycle_data.cycle
 
             # compare non-ECO cycle to ECO cycle, if the same, delete the reference
             # because the ECO cycle is the reference
@@ -134,8 +135,17 @@ class CalculateCorrection(EventBuilderAbc):
 
             # then, save or update the reference with the ECO cycle name
 
+        id_ = cycle_data.cycle
+        if cycle_data.economy_mode is not hystcomp_utils.cycle_data.EconomyMode.NONE:
+            if cycle_data.economy_mode is hystcomp_utils.cycle_data.EconomyMode.FULL:
+                id_ += "_FULLECO"
+            elif (
+                cycle_data.economy_mode is hystcomp_utils.cycle_data.EconomyMode.DYNAMIC
+            ):
+                id_ += "_DYNECO"
+
         # save the reference if it has not been set, or reference was removed
-        if cycle_data.cycle not in self._field_ref:
+        if id_ not in self._field_ref:
             log.debug(
                 f"{cycle_data}: Saving field reference since it has not "
                 f"been set ({cycle_data.field_pred.shape})."
@@ -147,20 +157,20 @@ class CalculateCorrection(EventBuilderAbc):
                 )
                 return
 
-            self._field_ref[cycle_data.cycle] = cycle_data.field_pred
-            self._field_ref_timestamps[cycle_data.cycle] = cycle_data.cycle_timestamp
+            self._field_ref[id_] = cycle_data.field_pred
+            self._field_ref_timestamps[id_] = cycle_data.cycle_timestamp
             self.newReference.emit(cycle_data)
         else:  # set the
             ref_time = datetime.datetime.fromtimestamp(
-                self._field_ref_timestamps[cycle_data.cycle] * 1e-9
+                self._field_ref_timestamps[id_] * 1e-9
             )
             log.debug(
                 f"{cycle_data}: Reference already saved from timestamp {ref_time}. "
                 f"Adding the reference to the cycle data."
             )
 
-        cycle_data.reference_timestamp = self._field_ref_timestamps[cycle_data.cycle]
-        cycle_data.field_ref = self._field_ref[cycle_data.cycle]
+        cycle_data.reference_timestamp = self._field_ref_timestamps[id_]
+        cycle_data.field_ref = self._field_ref[id_]
 
 
 def calc_delta_field(

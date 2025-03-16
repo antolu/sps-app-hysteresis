@@ -47,39 +47,52 @@ class AddMeasurementReferencesEventBuilder(EventBuilderAbc):
             log.error(f"{cycle_data}: No reference found")
             return
 
-        cycle_data.field_meas_ref = self._reference_fields[cycle_data.cycle]
+        id_ = self._cycle_id(cycle_data)
+        cycle_data.field_meas_ref = self._reference_fields[id_]
 
         ref_time = datetime.datetime.fromtimestamp(
-            self._reference_timestamps[cycle_data.cycle] * NS2S
+            self._reference_timestamps[id_] * NS2S
         )
         log.debug(f"{cycle_data}: Added reference field from timestamp {ref_time}")
 
         self.cycleDataAvailable.emit(cycle_data)
 
+    @staticmethod
+    def _cycle_id(cycle_data: hystcomp_utils.cycle_data.CycleData) -> str:
+        id_ = cycle_data.cycle
+
+        if cycle_data.economy_mode is not hystcomp_utils.cycle_data.EconomyMode.NONE:
+            if cycle_data.economy_mode is hystcomp_utils.cycle_data.EconomyMode.FULL:
+                id_ += "_FULLECO"
+            elif (
+                cycle_data.economy_mode is hystcomp_utils.cycle_data.EconomyMode.DYNAMIC
+            ):
+                id_ += "_DYNECO"
+
+        return id_
+
     def _maybe_save_reference(
         self, cycle_data: hystcomp_utils.cycle_data.CycleData
     ) -> None:
-        if cycle_data.cycle not in self._reference_timestamps:
+        id_ = self._cycle_id(cycle_data)
+        if id_ not in self._reference_timestamps:
             if cycle_data.field_meas is None:
                 log.error(f"{cycle_data}: field_meas is None")
                 return
 
             log.debug(f"{cycle_data}: Saving reference for the first time.")
 
-            self._reference_timestamps[cycle_data.cycle] = cycle_data.cycle_timestamp
-            self._reference_fields[cycle_data.cycle] = cycle_data.field_meas.copy()
+            self._reference_timestamps[id_] = cycle_data.cycle_timestamp
+            self._reference_fields[id_] = cycle_data.field_meas.copy()
             return
 
         if cycle_data.reference_timestamp is None:
             log.error(f"{cycle_data}: reference_timestamp is None")
             return
 
-        if (
-            cycle_data.reference_timestamp
-            != self._reference_timestamps[cycle_data.cycle]
-        ):
+        if cycle_data.reference_timestamp != self._reference_timestamps[id_]:
             # update reference
-            old_reference_stamp = self._reference_timestamps[cycle_data.cycle]
+            old_reference_stamp = self._reference_timestamps[id_]
             old_time = datetime.datetime.fromtimestamp(old_reference_stamp * NS2S)
             new_time = datetime.datetime.fromtimestamp(
                 cycle_data.cycle_timestamp * NS2S
@@ -90,8 +103,8 @@ class AddMeasurementReferencesEventBuilder(EventBuilderAbc):
                 " and field updated."
             )
 
-            self._reference_timestamps[cycle_data.cycle] = cycle_data.cycle_timestamp
-            self._reference_fields[cycle_data.cycle] = cycle_data.field_meas.copy()
+            self._reference_timestamps[id_] = cycle_data.cycle_timestamp
+            self._reference_fields[id_] = cycle_data.field_meas.copy()
             return
 
     def resetReference(self, cycle_name: str | None = None) -> None:

@@ -69,14 +69,14 @@ class TrackFullEcoEventBuilder(BufferedSubscriptionEventBuilder):
             cycle_data = self._cycle_data_buffer[selector]
 
             log.info(f"{cycle_data} is in FULLECO mode")
-            if cycle_data.cycle.endswith("FULLECO"):
+            if cycle_data.economy_mode is hystcomp_utils.cycle_data.EconomyMode.FULL:
                 log.warning(f"{cycle_data} is already in FULLECO mode")
                 return
-            if cycle_data.cycle.endswith("DYNECO"):
+            if cycle_data.economy_mode is hystcomp_utils.cycle_data.EconomyMode.DYNAMIC:
                 log.warning(f"{cycle_data} is in DYNECO mode")
                 return
 
-            cycle_data.cycle = f"{cycle_data.cycle}_FULLECO"
+            cycle_data.economy_mode = hystcomp_utils.cycle_data.EconomyMode.FULL
 
             msg = f"[{cycle_data}]: Adding FULLECO programmed current."
             log.debug(msg)
@@ -97,12 +97,6 @@ class TrackFullEcoEventBuilder(BufferedSubscriptionEventBuilder):
 
             msg = f"[{cycle_data}]: Added FULLECO programmed current."
             log.debug(msg)
-
-            if cycle_data.cycle.endswith("ECO"):
-                msg = f"[{cycle_data}]: ECO cycle has already had programs updated."
-                log.debug(msg)
-                # self.cycleDataAvailable.emit(cycle_data)
-                return
 
             self.cycleDataAvailable.emit(cycle_data)
 

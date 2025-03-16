@@ -71,8 +71,8 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
 
         cycle_data = self._cycle_data_buffer[selector]
 
-        if cycle_data.cycle.endswith("ECO"):
-            msg = f"[{cycle_data}]: ECO cycle has already had programs updated."
+        if cycle_data.economy_mode is not hystcomp_utils.cycle_data.EconomyMode.NONE:
+            msg = f"[{cycle_data}]: economy cycle has already had programs updated."
             log.debug(msg)
             self.cycleDataAvailable.emit(cycle_data)
             return
