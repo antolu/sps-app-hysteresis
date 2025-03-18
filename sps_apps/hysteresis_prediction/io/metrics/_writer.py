@@ -107,7 +107,7 @@ class TensorboardWriter(WriterBase):
         )
 
     def onNewMetrics(self, metrics: dict[str, Metrics]) -> None:
-        cycle_name = metrics["lsaCycleName"]
+        cycle_name = metrics["relative"]["lsaCycleName"]
 
         log.debug(f"[{cycle_name}] Writing metrics to tensorboard")
 
