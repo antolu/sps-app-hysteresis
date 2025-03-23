@@ -138,6 +138,11 @@
           <string>TemporalFusionTransformer</string>
          </property>
         </item>
+        <item>
+         <property name="text">
+          <string>PFTFT</string>
+         </property>
+        </item>
        </widget>
       </item>
      </layout>

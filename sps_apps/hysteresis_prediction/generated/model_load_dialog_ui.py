@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/opt/home/lua/app-hysteresis/sps-app-hysteresis/resources/ui/model_load_dialog.ui'
+# Form implementation generated from reading ui file '/Users/antonlu/code/cern/sps-app-hysteresis/resources/ui/model_load_dialog.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.11
 #
@@ -82,6 +82,7 @@ class Ui_ModelLoadDialog(object):
         self.comboBoxModel.setObjectName("comboBoxModel")
         self.comboBoxModel.addItem("")
         self.comboBoxModel.addItem("")
+        self.comboBoxModel.addItem("")
         self.formLayout_3.setWidget(1, QtWidgets.QFormLayout.SpanningRole, self.comboBoxModel)
         self.verticalLayout.addWidget(self.frame_3)
         self.buttonBox = QtWidgets.QDialogButtonBox(ModelLoadDialog)
@@ -106,3 +107,4 @@ class Ui_ModelLoadDialog(object):
         self.labelModel.setText(_translate("ModelLoadDialog", "Model Architecture"))
         self.comboBoxModel.setItemText(0, _translate("ModelLoadDialog", "PETE"))
         self.comboBoxModel.setItemText(1, _translate("ModelLoadDialog", "TemporalFusionTransformer"))
+        self.comboBoxModel.setItemText(2, _translate("ModelLoadDialog", "PFTFT"))

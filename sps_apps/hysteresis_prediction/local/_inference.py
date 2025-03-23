@@ -7,7 +7,7 @@ import numpy as np
 import pyda.access
 from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore, QtWidgets
-from sps_mlp_hystcomp import PETEPredictor, TFTPredictor
+from sps_mlp_hystcomp import PETEPredictor, PFTFTPredictor, TFTPredictor
 
 from ..utils import ThreadWorker, load_cursor, run_in_thread, time_execution
 from .event_building import EventBuilderAbc
@@ -69,12 +69,17 @@ class Inference(EventBuilderAbc):
         QtCore.QThreadPool.globalInstance().start(worker)
 
     def _on_load_model(
-        self, model_name: str, ckpt_path: str, device: str = "cpu"
+        self,
+        model_name: str,
+        ckpt_path: str,
+        device: typing.Literal["cpu", "cuda", "auto"] = "cpu",
     ) -> None:
         if model_name == "PETE":
             predictor_cls = PETEPredictor
         elif model_name == "TemporalFusionTransformer":
             predictor_cls = TFTPredictor
+        elif model_name == "PFTFT":
+            predictor_cls = PFTFTPredictor
         else:
             msg = f"Unknown model name: {model_name}"
             log.exception(msg)
