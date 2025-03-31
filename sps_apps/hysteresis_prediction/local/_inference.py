@@ -90,7 +90,7 @@ class Inference(EventBuilderAbc):
                 self._predictor = predictor_cls.load_from_checkpoint(
                     ckpt_path, device=device
                 )
-                # self._predictor.prog_t_phase = 0.15 * 1e-3
+                self._predictor.prog_t_phase = 0.1535 * 1e-3
             except:  # noqa F722
                 log.exception("Error occurred.")
                 return
