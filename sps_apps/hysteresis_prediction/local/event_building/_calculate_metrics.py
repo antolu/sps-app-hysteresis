@@ -69,7 +69,7 @@ class CalculateMetricsConverter(EventBuilderAbc):
             msg = f"{cycle_data}: field_ref is None, cannot calculate metrics."
             raise RuntimeError(msg)
 
-        if cycle_data.user == "ZERO":
+        if cycle_data.user.split(".")[-1] in {"ZERO", "MD1"}:
             log.debug(f"Skipping cycle data for {cycle_data.user}")
             return
 
