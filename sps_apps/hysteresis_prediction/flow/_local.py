@@ -162,6 +162,7 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
             self._track_dyneco,
             self._track_fulleco,
             self._track_precycle,
+            self._track_reference_changed,
         ):
             builder.start()
 
@@ -184,6 +185,7 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
             self._track_dyneco,
             self._track_fulleco,
             self._track_precycle,
+            self._track_reference_changed,
         ):
             builder.stop()
 
