@@ -1,4 +1,5 @@
 import logging
+import os.path
 import sys
 from argparse import ArgumentParser
 
@@ -47,6 +48,33 @@ def setup_logger(logging_level: int = 0) -> None:
     set_module_logging("pyda", logging.WARNING)
     set_module_logging("pyccda", logging.WARNING)
     set_module_logging("torch", logging.WARNING)
+
+
+def add_file_handler(
+    logger: logging.Logger,
+    log_file: str,
+    level: int = logging.DEBUG,
+    formatter: logging.Formatter | None = None,
+) -> None:
+    """
+    Add a file handler to the logger.
+
+    Args:
+        logger (logging.Logger): The logger to add the file handler to.
+        log_file (str): The path to the log file.
+        level (int, optional): The logging level for the file handler. Defaults to logging.DEBUG.
+        formatter (logging.Formatter, optional): The formatter for the file handler. Defaults to None.
+    """
+    if formatter is None:
+        formatter = logging.Formatter(
+            "%(asctime)s %(levelname)s %(message)s",
+            "%Y-%m-%d %H:%M:%S",
+        )
+
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(level)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
 
 def set_module_logging(pattern: str, log_level: int = logging.WARNING) -> None:
@@ -101,6 +129,18 @@ def main() -> None:
 
     args = parser.parse_args()
     setup_logger(args.verbose)
+
+    # Set up logging to a file in the log directory
+    log_file = os.path.join(args.logdir, "application.log")
+    add_file_handler(
+        logging.getLogger(),
+        log_file,
+        level=logging.DEBUG,
+        formatter=logging.Formatter(
+            "%(asctime)s %(levelname)s %(message)s",
+            "%Y-%m-%d %H:%M:%S",
+        ),
+    )
 
     application = QtWidgets.QApplication([])
     application.setApplicationVersion(__version__)
