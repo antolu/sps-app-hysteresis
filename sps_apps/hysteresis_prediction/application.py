@@ -131,6 +131,8 @@ def main() -> None:
     setup_logger(args.verbose)
 
     # Set up logging to a file in the log directory
+    if not os.path.exists(args.logdir):
+        os.makedirs(args.logdir, exist_ok=True)
     log_file = os.path.join(args.logdir, "application.log")
     add_file_handler(
         logging.getLogger(),
