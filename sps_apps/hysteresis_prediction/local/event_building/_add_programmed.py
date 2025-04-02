@@ -48,6 +48,7 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
 
         self.param_i_prog = param_i_prog
         self.param_b_prog = param_b_prog
+        self.trigger = trigger
 
         self._cycle_data_buffer: dict[str, hystcomp_utils.cycle_data.CycleData] = {}
 
@@ -57,8 +58,8 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
         parameter = str(fspv.query.endpoint)
         selector = str(fspv.header.selector)
 
-        if parameter != TRIGGER:
-            msg = f"Received unknown acquisition for {parameter}@{selector}."
+        if parameter != self.trigger:
+            msg = f"Received unknown acquisition for {parameter}@{selector}, expected {self.trigger}"
             raise ValueError(msg)
 
         if selector not in self._cycle_data_buffer:
