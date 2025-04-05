@@ -42,7 +42,7 @@ class TrackReferenceChangedEventBuilder(BufferedSubscriptionEventBuilder):
         param_start_cycle: str = START_CYCLE,
         *,
         provider: pyda_japc.JapcProvider | None = None,
-        no_metadata_source=False,
+        no_metadata_source=True,
         parent: QtCore.QObject | None = None,
     ):
         super().__init__(
