@@ -113,6 +113,10 @@ class AddMeasurementReferencesEventBuilder(EventBuilderAbc):
             self._reference_timestamps = {}
             self._reference_fields = {}
         else:
+            if cycle_name not in self._reference_timestamps:
+                log.info(f"{cycle_name}: Field reference not set. Nothing to reset")
+                return
+
             log.info(f"Resetting reference for {cycle_name}")
             self._reference_timestamps.pop(cycle_name, None)
             self._reference_fields.pop(cycle_name, None)

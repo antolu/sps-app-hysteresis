@@ -104,6 +104,9 @@ class EventBuilderAbc(QtCore.QObject):
         handles = {}
         for sub in subscriptions:
             endpoint = JapcEndpoint.from_str(sub.parameter)
+            log.debug(
+                f"{self.__class__.__qualname__}: Setting up subscription {endpoint} @ {sub.selector}, receive_first_updates={not sub.ignore_first_updates}"
+            )
             handle = self._da.subscribe(
                 endpoint=endpoint,
                 context=sub.selector,

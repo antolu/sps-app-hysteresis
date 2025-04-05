@@ -164,6 +164,7 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
             self._track_precycle,
             self._track_reference_changed,
         ):
+            log.info(f"Starting {builder}")
             builder.start()
 
         if self.meas_b_avail:
@@ -187,6 +188,7 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
             self._track_precycle,
             self._track_reference_changed,
         ):
+            log.info(f"Stopping {builder}")
             builder.stop()
 
         if self.meas_b_avail:
