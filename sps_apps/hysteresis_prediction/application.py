@@ -10,6 +10,7 @@ from qtpy import QtCore, QtWidgets
 from rich.logging import RichHandler
 
 from . import __version__
+from ._rbac import PyrbacAuthenticationListener
 from .contexts import app_context, set_context
 from .flow import LocalFlowWorker, UcapFlowWorker
 from .io.metrics import TensorboardWriter, TextWriter
@@ -160,15 +161,20 @@ def main() -> None:
     app_context().LOGDIR = args.logdir
 
     try:
-        rbac_token = pyrbac.AuthenticationClient().login_location()
-        context.set_rbac_token(rbac_token)
+        token = pyrbac.AuthenticationClient().login_location()
+        listener = PyrbacAuthenticationListener()
+        service = pyrbac.LoginService.create_for_location(listener)
 
-        logging.getLogger(__name__).info(f"Logged in as {rbac_token.user_name}")
+        listener.rbacTokenObtained.connect(context.set_rbac_token)
+
+        logging.getLogger(__name__).info(f"Logged in as {token.user_name}")
+        logging.getLogger(__name__).info(f"Created service: {service}")
     except:  # noqa: E722
         logging.getLogger(__name__).exception("Failed to login with RBAC.")
         logging.getLogger(__name__).warning(
             "No RBAC by location, you will have to login manually."
         )
+        service = None
 
     data_thread = QtCore.QThread()
     if not args.online:
@@ -216,5 +222,8 @@ def main() -> None:
 
     main_window = MainWindow(data_flow=flow_worker.data_flow, parent=None)
     main_window.show()
+
+    if service is not None:
+        service.rbacTokenObtained.connect(main_window.rba_widget.model.update_token)
 
     sys.exit(exec_app_interruptable(application))
