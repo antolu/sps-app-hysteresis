@@ -39,7 +39,8 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         log_console.toggleExpandedMode()
 
         self.rba_widget = RbaButton(self)
-        self.rba_widget.model.update_token(context.rbac_token)
+        if context.rbac_token is not None:
+            self.rba_widget.model.update_token(context.rbac_token)
 
         timing_model = TimingBarModel(
             domain=TimingBarDomain.SPS, japc=context.japc_client
