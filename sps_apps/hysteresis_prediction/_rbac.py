@@ -28,7 +28,7 @@ class PyrbacAuthenticationListener(pyrbac.AuthenticationListener):
         self._token_expired_callbacks.append(callback)
 
     def authentication_done(self, token: pyrbac.Token) -> None:
-        log.info(f"RBAC token obtained: {token.serial_id()}")
+        log.info(f"RBAC token obtained: {token.serial_id}")
         self.token = token
         for callback in self._token_obtained_callbacks:
             try:
@@ -48,7 +48,7 @@ class PyrbacAuthenticationListener(pyrbac.AuthenticationListener):
         self.token = None
 
     def token_expired(self, token: pyrbac.Token) -> None:
-        log.info(f"RBAC token expired: {token.serial_id()}")
+        log.info(f"RBAC token expired: {token.serial_id}")
         for callback in self._token_expired_callbacks:
             try:
                 callback(token)

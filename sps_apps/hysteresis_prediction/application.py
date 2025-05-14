@@ -162,10 +162,11 @@ def main() -> None:
 
     try:
         token = pyrbac.AuthenticationClient().login_location()
+        context.rbac_token = token
         listener = PyrbacAuthenticationListener()
         service = pyrbac.LoginService.create_for_location(listener)
 
-        listener.rbacTokenObtained.connect(context.set_rbac_token)
+        listener.register_token_obtained_callback(context.set_rbac_token)
 
         logging.getLogger(__name__).info(f"Logged in as {token.user_name}")
         logging.getLogger(__name__).info(f"Created service: {service}")
