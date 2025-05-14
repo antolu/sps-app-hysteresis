@@ -175,6 +175,7 @@ def main() -> None:
             "No RBAC by location, you will have to login manually."
         )
         service = None
+        listener = None
 
     data_thread = QtCore.QThread()
     if not args.online:
@@ -223,7 +224,9 @@ def main() -> None:
     main_window = MainWindow(data_flow=flow_worker.data_flow, parent=None)
     main_window.show()
 
-    if service is not None:
-        service.rbacTokenObtained.connect(main_window.rba_widget.model.update_token)
+    if service is not None and listener is not None:
+        listener.register_token_obtained_callback(
+            main_window.rba_widget.model.update_token
+        )
 
     sys.exit(exec_app_interruptable(application))
