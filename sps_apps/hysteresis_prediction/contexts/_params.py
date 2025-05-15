@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ._base_context import ParameterNames, UcapParameterNames
+from ._base_context import EddyCurrentModel, ParameterNames, UcapParameterNames
 
 MBI_PARAMS = ParameterNames(
     TRIGGER="SX.CZERO-CTML/CycleWarning",
@@ -30,4 +30,9 @@ MBI_UCAP_PARAMS = UcapParameterNames(
         "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.ECO/ResetReference"
     ),
     SET_GAIN="rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.ECO/Gain",
+)
+
+MBI_EDDY_CURRENT_MODEL = EddyCurrentModel(
+    NAME="SPS.MBI.EDDY_CURRENT",
+    VERSION="0.1",
 )
