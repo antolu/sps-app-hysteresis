@@ -34,7 +34,41 @@ def inference_thread() -> QtCore.QThread:
     return _thread
 
 
-class Inference(EventBuilderAbc):
+class InferenceFlags:
+    """Flags for the inference module."""
+
+    def __init__(self) -> None:
+        self._do_inference = False
+        self._autoregressive = False
+        self._use_programmed_current = True
+
+    def set_do_inference(self, state: bool) -> None:  # noqa: FBT001
+        self._do_inference = state
+
+    def set_autoregressive(self, state: bool) -> None:  # noqa: FBT001
+        self._autoregressive = state
+
+    @property
+    def autoregressive(self) -> bool:
+        return self._autoregressive
+
+    @autoregressive.setter
+    def autoregressive(self, value: bool) -> None:
+        self.set_autoregressive(value)
+
+    def set_use_programmed_current(self, *, state: bool) -> None:
+        self._use_programmed_current = state
+
+    @property
+    def use_programmed_current(self) -> bool:
+        return self._use_programmed_current
+
+    @use_programmed_current.setter
+    def use_programmed_current(self, value: bool) -> None:
+        self.set_use_programmed_current(state=value)
+
+
+class Inference(InferenceFlags, EventBuilderAbc):
     model_loaded = QtCore.Signal()
 
     predictionStarted = QtCore.Signal()
@@ -45,16 +79,14 @@ class Inference(EventBuilderAbc):
         device: typing.Literal["cpu", "cuda", "auto"] = "cpu",
         parent: QtCore.QObject | None = None,
     ) -> None:
-        super().__init__(parent=parent)
+        EventBuilderAbc.__init__(self, parent=parent)
+        InferenceFlags.__init__(self)
 
         self._e_predictor = EddyCurrentPredictor()
         self._predictor: PETEPredictor | TFTPredictor | None = None
 
-        self._do_inference = False
-        self._autoregressive = False
-        self._use_programmed_current = True
-
         self._prev_state: typing.Any | None = None
+        self._prev_e_state: typing.Any | None = None
 
     def _handle_acquisition_impl(
         self, fspv: pyda.access.PropertyRetrievalResponse
@@ -181,17 +213,34 @@ class Inference(EventBuilderAbc):
                 log.debug(msg)
                 raise ValueError(msg)
 
+            # run first prediction
+            self._e_predictor.set_cycled_initial_state(buffer[:-1])
             self._predictor.set_cycled_initial_state(
                 buffer[:-1],
                 use_programmed_current=self._use_programmed_current,
             )
             self._prev_state = self._predictor.state
+            self._prev_e_state = self._e_predictor.state
 
-            return self._predictor.predict_cycle(
+            t_pred, b_pred = self._predictor.predict_cycle(
                 cycle=last_cycle,
                 save_state=True,
                 use_programmed_current=self._use_programmed_current,
             )
+            t_e_pred, b_e_pred = self._e_predictor.predict_cycle(
+                cycle=last_cycle,
+                save_state=True,
+            )
+
+            # interpolate the eddy current prediction to the same time as the
+            # main prediction
+            b_e_pred_interp = np.interp(
+                t_pred,
+                t_e_pred,
+                b_e_pred.flatten(),
+            )
+            return np.vstack((t_pred, b_pred + b_e_pred_interp))
+
         if last_cycle.cycle.endswith("ECO"):
             msg = f"[{last_cycle}]: ECO cycle detected, using previous state to predict again."
             log.debug(msg)
@@ -199,11 +248,23 @@ class Inference(EventBuilderAbc):
             # doesn't matter if we are going autoregressive or not since
             # the state was kept from the last cycle
             self._predictor.state = self._prev_state
-            return self._predictor.predict_cycle(
+            t_pred, b_pred = self._predictor.predict_cycle(
                 cycle=last_cycle,
                 save_state=True,
                 use_programmed_current=self._use_programmed_current,
             )
+
+            self._e_predictor.state = self._prev_e_state
+            t_e_pred, b_e_pred = self._e_predictor.predict_cycle(
+                cycle=last_cycle,
+                save_state=True,
+            )
+            b_e_pred_interp = np.interp(
+                t_pred,
+                t_e_pred,
+                b_e_pred.flatten(),
+            )
+            return np.vstack((t_pred, b_pred + b_e_pred_interp))
 
         # no need to save the state again since the next prediction will not
         # be an ECO cycle
@@ -213,11 +274,23 @@ class Inference(EventBuilderAbc):
 
             # save the state before prediction if we need to re-predict
             self._prev_state = self._predictor.state
-            return self._predictor.predict_cycle(
+            t_pred, b_pred = self._predictor.predict_cycle(
                 cycle=last_cycle,
                 save_state=True,
                 use_programmed_current=self._use_programmed_current,
             )
+
+            t_e_pred, b_e_pred = self._e_predictor.predict_cycle(
+                cycle=last_cycle,
+                save_state=True,
+            )
+
+            b_e_pred_interp = np.interp(
+                t_pred,
+                t_e_pred,
+                b_e_pred.flatten(),
+            )
+            return np.vstack((t_pred, b_pred + b_e_pred_interp))
 
         msg = f"[{last_cycle}]: Autoregressive mode disabled, re-initializing state."
         log.debug(msg)
@@ -228,44 +301,35 @@ class Inference(EventBuilderAbc):
         log.debug(f"[{last_cycle}]: Saving state for next prediction.")
         self._prev_state = self._predictor.state
 
+        self._e_predictor.set_cycled_initial_state(buffer[:-1])
+        self._prev_e_state = self._e_predictor.state
+
         log.debug(f"[{last_cycle}]: Predicting next cycle.")
-        return self._predictor.predict_cycle(
+        t_pred, b_pred = self._predictor.predict_cycle(
             cycle=last_cycle,
             save_state=True,
             use_programmed_current=self._use_programmed_current,
         )
+        t_e_pred, b_e_pred = self._e_predictor.predict_cycle(
+            cycle=last_cycle,
+            save_state=True,
+        )
+
+        b_e_pred_interp = np.interp(
+            t_pred,
+            t_e_pred,
+            b_e_pred.flatten(),
+        )
+        return np.vstack((t_pred, b_pred + b_e_pred_interp))
 
     @property
     def model_is_loaded(self) -> bool:
         return self._predictor is not None and self._predictor._module is not None  # noqa: SLF001
-
-    def set_do_inference(self, state: bool) -> None:  # noqa: FBT001
-        self._do_inference = state
-
-    def set_autoregressive(self, state: bool) -> None:  # noqa: FBT001
-        self._autoregressive = state
-
-    @property
-    def autoregressive(self) -> bool:
-        return self._autoregressive
-
-    @autoregressive.setter
-    def autoregressive(self, value: bool) -> None:
-        self.set_autoregressive(value)
-
-    def set_use_programmed_current(self, *, state: bool) -> None:
-        self._use_programmed_current = state
-
-    @property
-    def use_programmed_current(self) -> bool:
-        return self._use_programmed_current
-
-    @use_programmed_current.setter
-    def use_programmed_current(self, value: bool) -> None:
-        self.set_use_programmed_current(state=value)
 
     def reset_state(self) -> None:
         if self._predictor is not None:
             self._predictor.reset_state()
         else:
             log.error("Model not loaded. Cannot reset state.")
+
+        self._e_predictor.reset_state()
