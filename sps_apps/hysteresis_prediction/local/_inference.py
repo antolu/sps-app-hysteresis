@@ -222,24 +222,12 @@ class Inference(InferenceFlags, EventBuilderAbc):
             self._prev_state = self._predictor.state
             self._prev_e_state = self._e_predictor.state
 
-            t_pred, b_pred = self._predictor.predict_cycle(
+            return predict_cycle(
                 cycle=last_cycle,
-                save_state=True,
+                predictor=self._predictor,
+                e_predictor=self._e_predictor,
                 use_programmed_current=self._use_programmed_current,
             )
-            t_e_pred, b_e_pred = self._e_predictor.predict_cycle(
-                cycle=last_cycle,
-                save_state=True,
-            )
-
-            # interpolate the eddy current prediction to the same time as the
-            # main prediction
-            b_e_pred_interp = np.interp(
-                t_pred,
-                t_e_pred,
-                b_e_pred.flatten(),
-            )
-            return np.vstack((t_pred, b_pred + b_e_pred_interp))
 
         if last_cycle.cycle.endswith("ECO"):
             msg = f"[{last_cycle}]: ECO cycle detected, using previous state to predict again."
@@ -247,24 +235,17 @@ class Inference(InferenceFlags, EventBuilderAbc):
 
             # doesn't matter if we are going autoregressive or not since
             # the state was kept from the last cycle
-            self._predictor.state = self._prev_state
-            t_pred, b_pred = self._predictor.predict_cycle(
+            predictions = predict_cycle(
                 cycle=last_cycle,
-                save_state=True,
+                predictor=self._predictor,
+                e_predictor=self._e_predictor,
                 use_programmed_current=self._use_programmed_current,
             )
 
+            self._predictor.state = self._prev_state
             self._e_predictor.state = self._prev_e_state
-            t_e_pred, b_e_pred = self._e_predictor.predict_cycle(
-                cycle=last_cycle,
-                save_state=True,
-            )
-            b_e_pred_interp = np.interp(
-                t_pred,
-                t_e_pred,
-                b_e_pred.flatten(),
-            )
-            return np.vstack((t_pred, b_pred + b_e_pred_interp))
+
+            return predictions
 
         # no need to save the state again since the next prediction will not
         # be an ECO cycle
@@ -305,22 +286,12 @@ class Inference(InferenceFlags, EventBuilderAbc):
         self._prev_e_state = self._e_predictor.state
 
         log.debug(f"[{last_cycle}]: Predicting next cycle.")
-        t_pred, b_pred = self._predictor.predict_cycle(
+        return predict_cycle(
             cycle=last_cycle,
-            save_state=True,
+            predictor=self._predictor,
+            e_predictor=self._e_predictor,
             use_programmed_current=self._use_programmed_current,
         )
-        t_e_pred, b_e_pred = self._e_predictor.predict_cycle(
-            cycle=last_cycle,
-            save_state=True,
-        )
-
-        b_e_pred_interp = np.interp(
-            t_pred,
-            t_e_pred,
-            b_e_pred.flatten(),
-        )
-        return np.vstack((t_pred, b_pred + b_e_pred_interp))
 
     @property
     def model_is_loaded(self) -> bool:
@@ -333,3 +304,43 @@ class Inference(InferenceFlags, EventBuilderAbc):
             log.error("Model not loaded. Cannot reset state.")
 
         self._e_predictor.reset_state()
+
+
+def predict_cycle(
+    cycle: CycleData,
+    predictor: EddyCurrentPredictor | PETEPredictor | TFTPredictor,
+    e_predictor: EddyCurrentPredictor | None = None,
+    *,
+    use_programmed_current: bool = True,
+) -> np.ndarray:
+    """Predict the field for the given cycle.
+
+    :param cycle: The cycle to predict the field for.
+    :param predictor: The predictor to use.
+    :param e_predictor: The EddyCurrentPredictor to use for the eddy current prediction.
+    :param use_programmed_current: Whether to use programmed current or not.
+
+    :return: The predicted field of the cycle. Time axis in seconds, field in T.
+    """
+    t_pred, b_pred = predictor.predict_cycle(
+        cycle=cycle,
+        save_state=True,
+        use_programmed_current=use_programmed_current,
+    )
+    if e_predictor is None:
+        return np.vstack((t_pred, b_pred))
+
+    t_e_pred, b_e_pred = e_predictor.predict_cycle(
+        cycle=cycle,
+        save_state=True,
+        use_programmed_current=use_programmed_current,
+    )
+
+    # interpolate the eddy current prediction to the same time as the
+    # main prediction
+    b_e_pred_interp = np.interp(
+        t_pred,
+        t_e_pred,
+        b_e_pred.flatten(),
+    )
+    return np.vstack((t_pred, b_pred + b_e_pred_interp))
