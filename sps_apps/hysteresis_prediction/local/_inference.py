@@ -23,7 +23,7 @@ NS = int(1e9)
 
 log = logging.getLogger(__name__)
 
-
+EDDY_CURRENT_COMPENSATION = True
 _thread: QtCore.QThread | None = None
 
 
@@ -225,7 +225,7 @@ class Inference(InferenceFlags, EventBuilderAbc):
             return predict_cycle(
                 cycle=last_cycle,
                 predictor=self._predictor,
-                e_predictor=self._e_predictor,
+                e_predictor=self._e_predictor if EDDY_CURRENT_COMPENSATION else None,
                 use_programmed_current=self._use_programmed_current,
             )
 
@@ -238,7 +238,7 @@ class Inference(InferenceFlags, EventBuilderAbc):
             predictions = predict_cycle(
                 cycle=last_cycle,
                 predictor=self._predictor,
-                e_predictor=self._e_predictor,
+                e_predictor=self._e_predictor if EDDY_CURRENT_COMPENSATION else None,
                 use_programmed_current=self._use_programmed_current,
             )
 
@@ -289,7 +289,7 @@ class Inference(InferenceFlags, EventBuilderAbc):
         return predict_cycle(
             cycle=last_cycle,
             predictor=self._predictor,
-            e_predictor=self._e_predictor,
+            e_predictor=self._e_predictor if EDDY_CURRENT_COMPENSATION else None,
             use_programmed_current=self._use_programmed_current,
         )
 
