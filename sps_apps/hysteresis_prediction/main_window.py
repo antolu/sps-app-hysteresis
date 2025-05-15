@@ -140,6 +140,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
     def on_load_model_triggered(self) -> None:
         dialog = ModelLoadDialog(parent=self)
         dialog.loadLocalCheckpoint.connect(self._data._predict.loadLocalModel)  # noqa: SLF001
+        dialog.loadMlpCheckpoint.connect(self._data._predict.loadMlpModel)  # noqa: SLF001
         result = dialog.exec()
 
         if result == QtWidgets.QDialog.Rejected:
