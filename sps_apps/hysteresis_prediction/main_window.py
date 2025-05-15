@@ -42,9 +42,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         if context.rbac_token is not None:
             self.rba_widget.model.update_token(context.rbac_token)
 
-        timing_model = TimingBarModel(
-            domain=TimingBarDomain.SPS, japc=context.japc_client
-        )
+        timing_model = TimingBarModel(domain=TimingBarDomain.SPS)
         timing_bar = TimingBar(self, model=timing_model)
         self.timing_bar = timing_bar
 
