@@ -121,7 +121,7 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QtWidgets.QDialog):
                 self.comboDevice.itemText(self.last_selected_device).lower(),
             )
 
-        elif self.tabWidget.currentWidget() == self.tabMlp:
+        elif self.tabWidget.currentWidget() == self.tabMLP:
             model_name = self.lineModelName.text()
 
             if not model_name:
@@ -157,10 +157,10 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QtWidgets.QDialog):
                 f"Selected MLP model {model_name} v{model_version} on device {self.last_selected_device}."
             )
             self.loadMlpCheckpoint.emit(
+                self.last_selected_model,
                 model_name,
                 model_version,
-                self.last_selected_model,
-                self.last_selected_device,
+                self.comboDevice.itemText(self.last_selected_device).lower(),
             )
         else:
             msg = "Unknown tab selected."
