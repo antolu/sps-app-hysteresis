@@ -28,6 +28,11 @@ EDDY_CURRENT_COMPENSATION = True
 _thread: QtCore.QThread | None = None
 
 
+def _mlp_client() -> mlp_client.Client:
+    """Get the MLP client for the current profile."""
+    return mlp_client.Client(profile=mlp_client.Profile.PRO)
+
+
 def inference_thread() -> QtCore.QThread:
     global _thread  # noqa: PLW0603
     if _thread is None:
@@ -129,6 +134,50 @@ class Inference(InferenceFlags, EventBuilderAbc):
 
         QtCore.QThreadPool.globalInstance().start(worker)
 
+    @QtCore.Slot(str, str, str, str)
+    def loadMlpModel(
+        self,
+        model_name: str,
+        params_name: str,
+        params_version: str,
+        device: str = "cpu",
+    ) -> None:
+        worker = ThreadWorker(
+            self._on_load_mlp_model, model_name, params_name, params_version, device
+        )
+        worker.exception.connect(
+            lambda e: QtWidgets.QMessageBox.critical(
+                None, "Error loading model", str(e), QtWidgets.QMessageBox.Ok
+            )
+        )
+        QtCore.QThreadPool.globalInstance().start(worker)
+
+    def _on_load_mlp_model(
+        self,
+        model_name: str,
+        params_name: str,
+        params_version: str,
+        device: typing.Literal["cpu", "cuda", "auto"] = "cpu",
+    ) -> None:
+        predictor_cls = resolve_predictor_cls(model_name)
+
+        with load_cursor():
+            client = _mlp_client()
+            try:
+                predictor = typing.cast(
+                    PETEPredictor | TFTPredictor | PFTFTPredictor,
+                    client.create_model(predictor_cls, params_name, params_version),
+                )
+                predictor.device = device
+                predictor.prog_t_phase = 0.1535 * 1e-3
+            except Exception:
+                log.exception("Error occurred while loading MLP model.")
+                return
+
+            self._predictor = predictor
+
+        self.model_loaded.emit()
+
     def _on_load_local_model(
         self,
         model_name: str,
@@ -145,8 +194,6 @@ class Inference(InferenceFlags, EventBuilderAbc):
             except:  # noqa F722
                 log.exception("Error occurred.")
                 return
-
-            self._ckpt_path = ckpt_path
 
         self.model_loaded.emit()
 
@@ -326,7 +373,6 @@ def predict_cycle(
     t_e_pred, b_e_pred = e_predictor.predict_cycle(
         cycle=cycle,
         save_state=True,
-        use_programmed_current=use_programmed_current,
     )
 
     # interpolate the eddy current prediction to the same time as the
