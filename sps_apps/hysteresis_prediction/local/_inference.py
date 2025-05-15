@@ -279,17 +279,15 @@ class Inference(InferenceFlags, EventBuilderAbc):
 
             # doesn't matter if we are going autoregressive or not since
             # the state was kept from the last cycle
-            predictions = predict_cycle(
+            self._predictor.state = self._prev_state
+            self._e_predictor.state = self._prev_e_state
+
+            return predict_cycle(
                 cycle=last_cycle,
                 predictor=self._predictor,
                 e_predictor=self._e_predictor if EDDY_CURRENT_COMPENSATION else None,
                 use_programmed_current=self._use_programmed_current,
             )
-
-            self._predictor.state = self._prev_state
-            self._e_predictor.state = self._prev_e_state
-
-            return predictions
 
         # no need to save the state again since the next prediction will not
         # be an ECO cycle
