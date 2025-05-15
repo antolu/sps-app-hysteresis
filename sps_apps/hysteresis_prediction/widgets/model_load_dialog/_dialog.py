@@ -7,6 +7,7 @@ author: Anton Lu
 from __future__ import annotations
 
 import logging
+import re
 from os import path
 
 import torch
@@ -19,10 +20,15 @@ log = logging.getLogger(__package__)
 
 
 class ModelLoadDialog(Ui_ModelLoadDialog, QtWidgets.QDialog):
-    load_checkpoint = QtCore.Signal(str, str, str)
+    loadLocalCheckpoint = QtCore.Signal(str, str, str)
     """Signal emitted when the user has selected a model checkpoint and device to load it on.
     model name, checkpoint path, device.
     """
+    loadMlpCheckpoint = QtCore.Signal(str, str, str, str)
+    """Signal emitted when the user has selected a model checkpoint and device to load it on.
+    model_name, parameters_name, parameters_version, device
+    """
+
     last_selected_device: int = -1
     last_selected_model: str = ""
 
@@ -55,6 +61,9 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QtWidgets.QDialog):
             log.debug("No last selected model found. Setting to first model.")
             self.last_selected_model = self.comboBoxModel.currentText()
 
+        self.lineModelName.setText(settings["model_name", ""])
+        self.lineModelVersion.setText(settings["model_version", ""])
+
         self.buttonBrowse.clicked.connect(self.onBrowseClicked)
         self.buttonBox.accepted.connect(self.onOkClicked)
         self.buttonBox.rejected.connect(self.reject)
@@ -86,30 +95,84 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QtWidgets.QDialog):
 
         log.debug(f"Attempting to load model checkpoint at {ckpt_path}.")
 
-        if not ckpt_path:
-            QtWidgets.QMessageBox.warning(
-                self, "Model load error", "No checkpoint path specified."
+        if self.tabWidget.currentWidget() == self.tabLocal:
+            if not ckpt_path:
+                QtWidgets.QMessageBox.warning(
+                    self, "Model load error", "No checkpoint path specified."
+                )
+                log.error("No checkpoint path specified.")
+                return
+
+            if not path.exists(ckpt_path):
+                QtWidgets.QMessageBox.warning(
+                    self, "Model load error", "Checkpoint path does not exist."
+                )
+                log.error("Checkpoint path does not exist.")
+                return
+
+            self._save_shared_settings()
+            log.debug(
+                f"Selected checkpoint at {ckpt_path} on device {self.last_selected_device}."
             )
-            log.error("No checkpoint path specified.")
+
+            self.loadLocalCheckpoint.emit(
+                self.last_selected_model, ckpt_path, self.last_selected_device
+            )
+
+        elif self.tabWidget.currentWidget() == self.tabMlp:
+            model_name = self.lineModelName.text()
+
+            if not model_name:
+                QtWidgets.QMessageBox.warning(
+                    self, "Model load error", "No model name specified."
+                )
+                log.error("No model name specified.")
+                return
+
+            model_version = self.lineModelVersion.text()
+            if not model_version:
+                QtWidgets.QMessageBox.warning(
+                    self, "Model load error", "No model version specified."
+                )
+                log.error("No model version specified.")
+                return
+
+            # check that its d.d
+            RE = r"^\d+\.\d+$"
+            if not re.match(RE, model_version):
+                QtWidgets.QMessageBox.warning(
+                    self, "Model load error", "Invalid model version format."
+                )
+                log.error("Invalid model version format.")
+                return
+
+            self._save_shared_settings()
+
+            settings["last_selected_param_name"] = model_name
+            settings["last_selected_param_version"] = model_version
+
+            log.debug(
+                f"Selected MLP model {model_name} v{model_version} on device {self.last_selected_device}."
+            )
+            self.loadMlpCheckpoint.emit(
+                model_name,
+                model_version,
+                self.last_selected_model,
+                self.last_selected_device,
+            )
+        else:
+            msg = "Unknown tab selected."
+            log.critical(msg)
             return
 
-        if not path.exists(ckpt_path):
-            QtWidgets.QMessageBox.warning(
-                self, "Model load error", "Checkpoint path does not exist."
-            )
-            log.error("Checkpoint path does not exist.")
-            return
+        self.accept()
 
-        device = self.comboDevice.currentText().lower()
-        log.debug(f"Selected checkpoint at {ckpt_path} on device {device}.")
+    def _save_shared_settings(self) -> None:
+        self.comboDevice.currentText().lower()
         self.last_selected_device = self.comboDevice.currentIndex()
         self.last_selected_model = self.comboBoxModel.currentText()
 
         settings["last_selected_model"] = self.last_selected_model
-
-        self.load_checkpoint.emit(self.last_selected_model, ckpt_path, device)
-
-        self.accept()
 
     @property
     def ckpt_path(self) -> str:

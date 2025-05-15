@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import logging
 import typing
 
@@ -113,8 +114,10 @@ class Inference(InferenceFlags, EventBuilderAbc):
         log.info(f"Loaded eddy current model with {len(self._e_predictor.C)}")
 
     @QtCore.Slot(str, str, str)
-    def loadModel(self, model_name: str, ckpt_path: str, device: str = "cpu") -> None:
-        worker = ThreadWorker(self._on_load_model, model_name, ckpt_path, device)
+    def loadLocalModel(
+        self, model_name: str, ckpt_path: str, device: str = "cpu"
+    ) -> None:
+        worker = ThreadWorker(self._on_load_local_model, model_name, ckpt_path, device)
 
         def on_exception(e: Exception) -> None:
             log.exception("Error loading model.")
@@ -126,23 +129,13 @@ class Inference(InferenceFlags, EventBuilderAbc):
 
         QtCore.QThreadPool.globalInstance().start(worker)
 
-    def _on_load_model(
+    def _on_load_local_model(
         self,
         model_name: str,
         ckpt_path: str,
         device: typing.Literal["cpu", "cuda", "auto"] = "cpu",
     ) -> None:
-        if model_name == "PETE":
-            predictor_cls = PETEPredictor
-        elif model_name == "TemporalFusionTransformer":
-            predictor_cls = TFTPredictor
-        elif model_name == "PFTFT":
-            predictor_cls = PFTFTPredictor
-        else:
-            msg = f"Unknown model name: {model_name}"
-            log.exception(msg)
-            raise ValueError(msg)
-
+        predictor_cls = resolve_predictor_cls(model_name)
         with load_cursor():
             try:
                 self._predictor = predictor_cls.load_from_checkpoint(
@@ -344,3 +337,18 @@ def predict_cycle(
         b_e_pred.flatten(),
     )
     return np.vstack((t_pred, b_pred + b_e_pred_interp))
+
+
+@functools.lru_cache
+def resolve_predictor_cls(
+    model_name: str,
+) -> type[EddyCurrentPredictor | PETEPredictor | TFTPredictor]:
+    if model_name == "PETE":
+        return PETEPredictor
+    if model_name == "TemporalFusionTransformer":
+        return TFTPredictor
+    if model_name == "PFTFT":
+        return PFTFTPredictor
+    msg = f"Unknown model name: {model_name}"
+    log.exception(msg)
+    raise ValueError(msg)
