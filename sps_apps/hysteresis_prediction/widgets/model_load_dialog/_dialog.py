@@ -116,7 +116,9 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QtWidgets.QDialog):
             )
 
             self.loadLocalCheckpoint.emit(
-                self.last_selected_model, ckpt_path, self.last_selected_device
+                self.last_selected_model,
+                ckpt_path,
+                self.comboDevice.itemText(self.last_selected_device).lower(),
             )
 
         elif self.tabWidget.currentWidget() == self.tabMlp:
