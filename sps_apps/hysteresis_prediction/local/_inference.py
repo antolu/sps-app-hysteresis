@@ -145,11 +145,15 @@ class Inference(InferenceFlags, EventBuilderAbc):
         worker = ThreadWorker(
             self._on_load_mlp_model, model_name, params_name, params_version, device
         )
-        worker.exception.connect(
-            lambda e: QtWidgets.QMessageBox.critical(
+
+        def on_exception(e: Exception) -> None:
+            log.exception("Error loading model.")
+            QtWidgets.QMessageBox.critical(
                 None, "Error loading model", str(e), QtWidgets.QMessageBox.Ok
             )
-        )
+
+        worker.exception.connect(on_exception)
+
         QtCore.QThreadPool.globalInstance().start(worker)
 
     def _on_load_mlp_model(
@@ -172,7 +176,7 @@ class Inference(InferenceFlags, EventBuilderAbc):
                 predictor.prog_t_phase = 0.1535 * 1e-3
             except Exception:
                 log.exception("Error occurred while loading MLP model.")
-                return
+                raise
 
             self._predictor = predictor
 
@@ -191,9 +195,9 @@ class Inference(InferenceFlags, EventBuilderAbc):
                     ckpt_path, device=device
                 )
                 self._predictor.prog_t_phase = 0.1535 * 1e-3
-            except:  # noqa F722
+            except:
                 log.exception("Error occurred.")
-                return
+                raise
 
         self.model_loaded.emit()
 
