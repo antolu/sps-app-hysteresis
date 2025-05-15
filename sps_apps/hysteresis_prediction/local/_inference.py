@@ -3,11 +3,17 @@ from __future__ import annotations
 import logging
 import typing
 
+import mlp_client
 import numpy as np
 import pyda.access
 from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore, QtWidgets
-from sps_mlp_hystcomp import PETEPredictor, PFTFTPredictor, TFTPredictor
+from sps_mlp_hystcomp import (
+    EddyCurrentPredictor,
+    PETEPredictor,
+    PFTFTPredictor,
+    TFTPredictor,
+)
 
 from ..utils import ThreadWorker, load_cursor, run_in_thread, time_execution
 from .event_building import EventBuilderAbc
@@ -41,6 +47,7 @@ class Inference(EventBuilderAbc):
     ) -> None:
         super().__init__(parent=parent)
 
+        self._e_predictor = EddyCurrentPredictor()
         self._predictor: PETEPredictor | TFTPredictor | None = None
 
         self._do_inference = False
@@ -53,6 +60,25 @@ class Inference(EventBuilderAbc):
         self, fspv: pyda.access.PropertyRetrievalResponse
     ) -> None:
         pass
+
+    def load_eddy_current_model(
+        self,
+        model_name: str,
+        model_version: str,
+    ) -> None:
+        client = mlp_client.Client(profile=mlp_client.Profile.PRO)
+
+        log.debug(f"Loading Eddy Current model {model_name} version {model_version}.")
+        self._e_predictor = typing.cast(
+            EddyCurrentPredictor,
+            client.create_model(
+                EddyCurrentPredictor,
+                params_name=model_name,
+                params_version=model_version,
+            ),
+        )
+
+        log.info(f"Loaded eddy current model with {len(self._e_predictor.C)}")
 
     @QtCore.Slot(str, str, str)
     def loadModel(self, model_name: str, ckpt_path: str, device: str = "cpu") -> None:
