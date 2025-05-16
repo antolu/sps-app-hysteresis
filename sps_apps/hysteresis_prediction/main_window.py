@@ -37,14 +37,13 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         log_console = LogConsole(self)
         self.log_console = log_console
         log_console.toggleExpandedMode()
+        log_console.freeze()
 
         self.rba_widget = RbaButton(self)
         if context.rbac_token is not None:
             self.rba_widget.model.update_token(context.rbac_token)
 
-        timing_model = TimingBarModel(
-            domain=TimingBarDomain.SPS, japc=context.japc_client
-        )
+        timing_model = TimingBarModel(domain=TimingBarDomain.SPS)
         timing_bar = TimingBar(self, model=timing_model)
         self.timing_bar = timing_bar
 
@@ -73,6 +72,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self.action_Load_Model.setEnabled(False)
             self.actionProgrammed_current.setEnabled(False)
             self.actionAutoregressive.setEnabled(False)
+
+        log_console.clear()
+        log_console.unfreeze()
 
     def _connect_signals(self) -> None:
         self.widgetSettings.timespan_changed.connect(self.widgetPlot.set_time_span)
@@ -137,7 +139,8 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
     def on_load_model_triggered(self) -> None:
         dialog = ModelLoadDialog(parent=self)
-        dialog.load_checkpoint.connect(self._data._predict.loadModel)  # noqa: SLF001
+        dialog.loadLocalCheckpoint.connect(self._data._predict.loadLocalModel)  # noqa: SLF001
+        dialog.loadMlpCheckpoint.connect(self._data._predict.loadMlpModel)  # noqa: SLF001
         result = dialog.exec()
 
         if result == QtWidgets.QDialog.Rejected:
