@@ -19,7 +19,7 @@ from ..utils import ThreadWorker, time_execution
 log = logging.getLogger(__package__)
 
 
-TRIM_THRESHOLD = 2e-5
+TRIM_THRESHOLD = 5e-5
 
 
 class LocalTrim(QtCore.QObject):
