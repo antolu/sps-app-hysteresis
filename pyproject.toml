@@ -28,6 +28,7 @@ dependencies = [
     "numpy >= 1.26, < 2.0",
     "pjlsa >= 0.2",
     "lightning ~= 2.2.2",
+    "mlp-client ~= 1.0",
     "pyrbac >= 1.1, < 2.0",
     "pyda >= 1.0, < 2.0",
     "pyda-japc >= 1.0, < 2.0",
