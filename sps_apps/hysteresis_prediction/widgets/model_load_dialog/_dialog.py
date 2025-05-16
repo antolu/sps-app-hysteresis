@@ -61,8 +61,8 @@ class ModelLoadDialog(Ui_ModelLoadDialog, QtWidgets.QDialog):
             log.debug("No last selected model found. Setting to first model.")
             self.last_selected_model = self.comboBoxModel.currentText()
 
-        self.lineModelName.setText(settings["model_name", ""])
-        self.lineModelVersion.setText(settings["model_version", ""])
+        self.lineModelName.setText(settings["last_selected_param_name", ""])
+        self.lineModelVersion.setText(settings["last_selected_param_version", ""])
 
         self.buttonBrowse.clicked.connect(self.onBrowseClicked)
         self.buttonBox.accepted.connect(self.onOkClicked)
