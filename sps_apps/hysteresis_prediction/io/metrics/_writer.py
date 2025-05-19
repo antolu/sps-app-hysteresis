@@ -106,17 +106,25 @@ class TensorboardWriter(WriterBase):
             log_dir=self._output_dir / f"{self._prefix}_absolute"
         )
 
+        self.global_step = 0
+
     def onNewMetrics(self, metrics: dict[str, Metrics]) -> None:
-        cycle_name = metrics["lsaCycleName"]
+        cycle_name = metrics["relative"]["lsaCycleName"]
 
         log.debug(f"[{cycle_name}] Writing metrics to tensorboard")
 
         for key, value in metrics["relative"].items():
             if isinstance(value, float):
                 key = f"{cycle_name}/{key}"
-                self._relative_writer.add_scalar(key, value)
+                self._relative_writer.add_scalar(
+                    key, value, global_step=self.global_step
+                )
 
         for key, value in metrics["absolute"].items():
             if isinstance(value, float):
                 key = f"{cycle_name}/{key}"
-                self._absolute_writer.add_scalar(key, value)
+                self._absolute_writer.add_scalar(
+                    key, value, global_step=self.global_step
+                )
+
+        self.global_step += 1

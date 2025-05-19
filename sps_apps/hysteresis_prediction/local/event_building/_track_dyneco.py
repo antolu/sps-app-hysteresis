@@ -80,16 +80,16 @@ class TrackDynEcoEventBuilder(EventBuilderAbc):
         )
         log.debug(msg)
 
-        if cycle_data.cycle.endswith("ECO"):
+        if cycle_data.economy_mode is not hystcomp_utils.cycle_data.EconomyMode.NONE:
             msg = f"{id_} Cycle data is already ECO. Skipping."
             log.warning(msg)
             return
 
         orig_cycle = cycle_data.cycle
-        cycle_data.cycle += "_DYNECO"
+        cycle_data.economy_mode = hystcomp_utils.cycle_data.EconomyMode.DYNAMIC
         cycle_data.current_prog = iref
 
-        msg = f"{id_} Updated cycle data {orig_cycle} -> {cycle_data.cycle}."
+        msg = f"{id_} Updated cycle data {orig_cycle} with DYNECO."
         log.debug(msg)
 
         self.cycleDataAvailable.emit(cycle_data)

@@ -1,4 +1,5 @@
 import logging
+import os.path
 import sys
 from argparse import ArgumentParser
 
@@ -9,6 +10,7 @@ from qtpy import QtCore, QtWidgets
 from rich.logging import RichHandler
 
 from . import __version__
+from ._rbac import PyrbacAuthenticationListener
 from .contexts import app_context, set_context
 from .flow import LocalFlowWorker, UcapFlowWorker
 from .io.metrics import TensorboardWriter, TextWriter
@@ -47,6 +49,33 @@ def setup_logger(logging_level: int = 0) -> None:
     set_module_logging("pyda", logging.WARNING)
     set_module_logging("pyccda", logging.WARNING)
     set_module_logging("torch", logging.WARNING)
+
+
+def add_file_handler(
+    logger: logging.Logger,
+    log_file: str,
+    level: int = logging.DEBUG,
+    formatter: logging.Formatter | None = None,
+) -> None:
+    """
+    Add a file handler to the logger.
+
+    Args:
+        logger (logging.Logger): The logger to add the file handler to.
+        log_file (str): The path to the log file.
+        level (int, optional): The logging level for the file handler. Defaults to logging.DEBUG.
+        formatter (logging.Formatter, optional): The formatter for the file handler. Defaults to None.
+    """
+    if formatter is None:
+        formatter = logging.Formatter(
+            "%(asctime)s %(levelname)s %(message)s",
+            "%Y-%m-%d %H:%M:%S",
+        )
+
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(level)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
 
 def set_module_logging(pattern: str, log_level: int = logging.WARNING) -> None:
@@ -102,6 +131,20 @@ def main() -> None:
     args = parser.parse_args()
     setup_logger(args.verbose)
 
+    # Set up logging to a file in the log directory
+    if not os.path.exists(args.logdir):
+        os.makedirs(args.logdir, exist_ok=True)
+    log_file = os.path.join(args.logdir, "application.log")
+    add_file_handler(
+        logging.getLogger(),
+        log_file,
+        level=logging.DEBUG,
+        formatter=logging.Formatter(
+            "%(asctime)s %(levelname)s %(message)s",
+            "%Y-%m-%d %H:%M:%S",
+        ),
+    )
+
     application = QtWidgets.QApplication([])
     application.setApplicationVersion(__version__)
     application.setOrganizationName("CERN")
@@ -118,15 +161,22 @@ def main() -> None:
     app_context().LOGDIR = args.logdir
 
     try:
-        rbac_token = pyrbac.AuthenticationClient().login_location()
-        context.set_rbac_token(rbac_token)
+        token = pyrbac.AuthenticationClient().login_location()
+        context.rbac_token = token
+        listener = PyrbacAuthenticationListener()
+        service = pyrbac.LoginService.create_for_location(listener)
 
-        logging.getLogger(__name__).info(f"Logged in as {rbac_token.user_name}")
+        listener.register_token_obtained_callback(context.set_rbac_token)
+
+        logging.getLogger(__name__).info(f"Logged in as {token.user_name}")
+        logging.getLogger(__name__).info(f"Created service: {service}")
     except:  # noqa: E722
         logging.getLogger(__name__).exception("Failed to login with RBAC.")
         logging.getLogger(__name__).warning(
             "No RBAC by location, you will have to login manually."
         )
+        service = None
+        listener = None
 
     data_thread = QtCore.QThread()
     if not args.online:
@@ -174,5 +224,10 @@ def main() -> None:
 
     main_window = MainWindow(data_flow=flow_worker.data_flow, parent=None)
     main_window.show()
+
+    if service is not None and listener is not None:
+        listener.register_token_obtained_callback(
+            main_window.rba_widget.model.update_token
+        )
 
     sys.exit(exec_app_interruptable(application))

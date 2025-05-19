@@ -143,8 +143,12 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         self.ResetReferenceButton.setEnabled(True)
 
         with mute_signals(self.GainSpinBox, self.TrimTMinSpinBox, self.TrimTMaxSpinBox):
-            self.TrimTMinSpinBox.setMinimum(cycle_metadata.beam_in(cycle))
-            self.TrimTMaxSpinBox.setMaximum(cycle_metadata.beam_out(cycle))
+            self.TrimTMinSpinBox.setRange(
+                cycle_metadata.beam_in(cycle), cycle_metadata.beam_out(cycle) - 1
+            )
+            self.TrimTMaxSpinBox.setRange(
+                cycle_metadata.beam_in(cycle) + 1, cycle_metadata.beam_out(cycle)
+            )
 
             self.GainSpinBox.setValue(self.model.settings.gain[cycle])
             self.TrimTMinSpinBox.setValue(self.model.settings.trim_start[cycle])

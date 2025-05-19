@@ -4,10 +4,11 @@ from .._mod_replace import replace_modname
 from ..trim import LocalTrimSettings, OnlineTrimSettings
 from ._base_context import (
     ApplicationContext,
+    EddyCurrentModel,
     ParameterNames,
     UcapParameterNames,
 )
-from ._params import MBI_PARAMS, MBI_UCAP_PARAMS
+from ._params import MBI_EDDY_CURRENT_MODEL, MBI_PARAMS, MBI_UCAP_PARAMS
 
 for _mod in [ApplicationContext, ParameterNames, MBI_PARAMS]:
     replace_modname(_mod, __name__)
@@ -18,6 +19,7 @@ class ContextRecipe(typing.TypedDict):
     param_names: ParameterNames
     trim_settings: type[LocalTrimSettings | OnlineTrimSettings]
     ucap_param_names: typing.NotRequired[UcapParameterNames]
+    eddy_current_model: EddyCurrentModel
 
 
 _context_recipes: dict[str, ContextRecipe] = {
@@ -25,12 +27,14 @@ _context_recipes: dict[str, ContextRecipe] = {
         "device": "MBI",
         "param_names": MBI_PARAMS,
         "trim_settings": LocalTrimSettings,
+        "eddy_current_model": MBI_EDDY_CURRENT_MODEL,
     },
     "MBI_online": {
         "device": "MBI",
         "param_names": MBI_PARAMS,
         "trim_settings": OnlineTrimSettings,
         "ucap_param_names": MBI_UCAP_PARAMS,
+        "eddy_current_model": MBI_EDDY_CURRENT_MODEL,
     },
     # "QF": {
     #     "device": "QF",
@@ -80,6 +84,7 @@ def set_context(
         param_names=recipe["param_names"],
         trim_settings=trim_settings,
         ucap_params=ucap_params,
+        eddy_current_model=recipe["eddy_current_model"],
     )
     global _app_context  # noqa: PLW0603
     _app_context = context

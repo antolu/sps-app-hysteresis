@@ -104,6 +104,9 @@ class EventBuilderAbc(QtCore.QObject):
         handles = {}
         for sub in subscriptions:
             endpoint = JapcEndpoint.from_str(sub.parameter)
+            log.debug(
+                f"{self.__class__.__qualname__}: Setting up subscription {endpoint} @ {sub.selector}, receive_first_updates={not sub.ignore_first_updates}"
+            )
             handle = self._da.subscribe(
                 endpoint=endpoint,
                 context=sub.selector,
@@ -143,6 +146,9 @@ class EventBuilderAbc(QtCore.QObject):
     def onNewCycleData(self, cycle_data: hystcomp_utils.cycle_data.CycleData) -> None:
         msg = "This method is optional and should be implemented by the subclass."
         raise NotImplementedError(msg)
+
+    def __str__(self):
+        return f"{self.__class__.__name__}(subscriptions={[str(sub) for sub in self._subscriptions]})"
 
 
 class BufferedSubscriptionEventBuilder(EventBuilderAbc):
@@ -216,6 +222,12 @@ class BufferedSubscriptionEventBuilder(EventBuilderAbc):
         self, parameter: str, selector: str
     ) -> pyda.access.PropertyRetrievalResponse:
         return self._buffers[parameter][selector]
+
+    def __str__(self):
+        return (
+            f"{self.__class__.__name__}(subscriptions={[str(sub) for sub in self._subscriptions]}, "
+            "buffered_subscriptions={[str(sub) for sub in self._buffered_subscriptions]})"
+        )
 
 
 class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
@@ -358,3 +370,11 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
     ) -> pyda.access.PropertyRetrievalResponse:
         msg = "This method is not implemented."
         raise NotImplementedError(msg)
+
+    def __str__(self) -> str:
+        return (
+            f"{self.__class__.__name__}("
+            f"subscriptions={[str(sub) for sub in self._subscriptions]}, "
+            f"buffered_subscriptions={[str(sub) for sub in self._buffered_subscriptions]}, "
+            f"buffer_size={self._buffer_size}"
+        )

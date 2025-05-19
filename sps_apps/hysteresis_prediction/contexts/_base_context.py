@@ -44,6 +44,12 @@ class UcapParameterNames:
     SET_GAIN: str
 
 
+@dataclasses.dataclass(frozen=True)
+class EddyCurrentModel:
+    NAME: str
+    VERSION: str
+
+
 class ApplicationContext:
     """Base context class that all other contexts should inherit from."""
 
@@ -52,6 +58,8 @@ class ApplicationContext:
 
     PARAMS: typing.Final[ParameterNames]
     UCAP_PARAMS: typing.Final[UcapParameterNames | None]
+
+    EDDY_CURRENT_MODEL: typing.Final[EddyCurrentModel]
 
     TRIM_SETTINGS: TrimSettings
 
@@ -71,6 +79,7 @@ class ApplicationContext:
         device: typing.Literal["MBI", "QF", "QD"],
         param_names: ParameterNames,
         trim_settings: TrimSettings,
+        eddy_current_model: EddyCurrentModel,
         *,
         ucap_params: UcapParameterNames | None = None,
         b_meas_avail: bool | None = None,
@@ -78,6 +87,7 @@ class ApplicationContext:
         self.DEVICE = device
         self.PARAMS = param_names
         self.TRIM_SETTINGS = trim_settings
+        self.EDDY_CURRENT_MODEL = eddy_current_model
         self.B_MEAS_AVAIL = (
             self.PARAMS.B_MEAS is not None if b_meas_avail is None else b_meas_avail
         )

@@ -48,6 +48,7 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
 
         self.param_i_prog = param_i_prog
         self.param_b_prog = param_b_prog
+        self.trigger = trigger
 
         self._cycle_data_buffer: dict[str, hystcomp_utils.cycle_data.CycleData] = {}
 
@@ -57,8 +58,8 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
         parameter = str(fspv.query.endpoint)
         selector = str(fspv.header.selector)
 
-        if parameter != TRIGGER:
-            msg = f"Received unknown acquisition for {parameter}@{selector}."
+        if parameter != self.trigger:
+            msg = f"Received unknown acquisition for {parameter}@{selector}, expected {self.trigger}"
             raise ValueError(msg)
 
         if selector not in self._cycle_data_buffer:
@@ -71,8 +72,8 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
 
         cycle_data = self._cycle_data_buffer[selector]
 
-        if cycle_data.cycle.endswith("ECO"):
-            msg = f"[{cycle_data}]: ECO cycle has already had programs updated."
+        if cycle_data.economy_mode is not hystcomp_utils.cycle_data.EconomyMode.NONE:
+            msg = f"[{cycle_data}]: economy cycle has already had programs updated."
             log.debug(msg)
             self.cycleDataAvailable.emit(cycle_data)
             return

@@ -23,11 +23,12 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "accwidgets[all-widgets] >= 3.0, < 4.0",
+    "accwidgets[all-widgets] >= 4.0, < 5.0",
     "matplotlib >= 3.8",
     "numpy >= 1.26, < 2.0",
     "pjlsa >= 0.2",
     "lightning ~= 2.2.2",
+    "cern-mlp-client ~= 1.0",
     "pyrbac >= 1.1, < 2.0",
     "pyda >= 1.0, < 2.0",
     "pyda-japc >= 1.0, < 2.0",
@@ -39,8 +40,8 @@ dependencies = [
     "scikit-image > 0.25",
     "scikit-learn >= 1.4",
     "torch ~= 2.5.1",
-    "sps-mlp-hysteresis-compensation ~= 0.4.1",
-    "hystcomp-utils >= 0.2.1, < 1.0",
+    "sps-mlp-hysteresis-compensation ~= 0.7.2",
+    "hystcomp-utils >= 0.2.3, < 1.0",
     "op-app-context >= 0.1, < 1.0",
 ]
 

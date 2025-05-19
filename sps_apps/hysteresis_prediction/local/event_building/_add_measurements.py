@@ -52,11 +52,15 @@ class AddMeasurementsEventBuilder(BufferedSubscriptionEventBuilder):
         msg = f"Received cycle data for {selector}"
         log.debug(msg)
 
-        if not self._buffer_has_data(self.param_i_meas, selector) or (
-            self.param_b_meas is not None
-            and not self._buffer_has_data(self.param_b_meas, selector)
+        if not self._buffer_has_data(self.param_i_meas, selector):
+            msg = f"Missing current measurements for {selector}"
+            log.error(msg)
+            return
+
+        if self.param_b_meas is not None and not self._buffer_has_data(
+            self.param_b_meas, selector
         ):
-            msg = f"Missing measurements for {selector}"
+            msg = f"Missing field measurements for {selector}"
             log.error(msg)
             return
 

@@ -95,6 +95,10 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         )
         self._buffer = BufferEventbuilder(buffer_size=buffer_size, parent=parent)
         self._predict = Inference(parent=parent)
+        self._predict.load_eddy_current_model(
+            app_context().EDDY_CURRENT_MODEL.NAME,
+            app_context().EDDY_CURRENT_MODEL.VERSION,
+        )
         self._correction = CalculateCorrection(
             trim_settings=app_context().TRIM_SETTINGS, parent=parent
         )
@@ -162,7 +166,9 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
             self._track_dyneco,
             self._track_fulleco,
             self._track_precycle,
+            self._track_reference_changed,
         ):
+            log.info(f"Starting {builder}")
             builder.start()
 
         if self.meas_b_avail:
@@ -184,7 +190,9 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
             self._track_dyneco,
             self._track_fulleco,
             self._track_precycle,
+            self._track_reference_changed,
         ):
+            log.info(f"Stopping {builder}")
             builder.stop()
 
         if self.meas_b_avail:
