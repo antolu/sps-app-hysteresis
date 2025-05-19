@@ -12,14 +12,12 @@ from op_app_context import context
 from pyda_lsa import LsaCycleContext, LsaEndpoint
 from qtpy import QtCore
 
+from ..contexts import app_context
 from ..trim._cycle_metadata import cycle_metadata
 from ..trim._settings import LocalTrimSettings
 from ..utils import ThreadWorker, time_execution
 
 log = logging.getLogger(__package__)
-
-
-TRIM_THRESHOLD = 2e-5
 
 
 class LocalTrim(QtCore.QObject):
@@ -30,7 +28,7 @@ class LocalTrim(QtCore.QObject):
         param_b_corr: str,
         settings: LocalTrimSettings,
         *,
-        trim_threshold: float = TRIM_THRESHOLD,
+        trim_threshold: float | None = None,
         parent: QtCore.QObject | None = None,
     ):
         super().__init__(parent)
@@ -39,7 +37,7 @@ class LocalTrim(QtCore.QObject):
         self._settings = settings
 
         self._lsa = pyda.SimpleClient(provider=context.lsa_provider)
-        self._trim_threshold = trim_threshold
+        self._trim_threshold = trim_threshold or app_context().TRIM_MIN_THRESHOLD
         self._trim_lock = QtCore.QMutex()
 
     @QtCore.Slot(CycleData, name="onNewPrediction")
@@ -54,7 +52,7 @@ class LocalTrim(QtCore.QObject):
 
         _delta_t, delta_v = prediction.delta_applied
         max_val = np.max(np.abs(delta_v))
-        if max_val < TRIM_THRESHOLD:
+        if max_val < self._trim_threshold:
             msg = f"Max value in delta {max_val:.2e} < {self._trim_threshold:e}. \
                 Skipping trim on {prediction}"
 
@@ -92,10 +90,6 @@ class LocalTrim(QtCore.QObject):
             assert cycle_data.correction_applied is not None, "No correction found."
             correction_t = cycle_data.correction_applied[0]
             correction_v = cycle_data.correction_applied[1]
-            # log shapes
-            # log.debug(
-            #     f"[{cycle_data}] Correction shape: {correction_t.shape}, {correction_v.shape}"
-            # )
 
             start = self._settings.trim_start[cycle_data.cycle]
             start = max(start, cycle_metadata.beam_in(cycle_data.cycle))
