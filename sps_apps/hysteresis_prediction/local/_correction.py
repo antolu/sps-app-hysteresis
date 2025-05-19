@@ -12,6 +12,7 @@ from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
 from skimage.restoration import denoise_tv_chambolle
 
+from ..contexts import app_context
 from ..trim import TrimSettings, cycle_metadata
 from .event_building import EventBuilderAbc
 
@@ -88,6 +89,13 @@ class CalculateCorrection(EventBuilderAbc):
             except:  # noqa: E722
                 log.exception(f"{cycle}: Could not calculate correction.")
                 return
+
+            correction = clip_correction(
+                correction,
+                cycle.field_prog,
+                clip_factor=app_context().TRIM_CLIP_THRESHOLD,
+            )
+
             cycle.correction_applied = correction
 
             msg = f"{cycle}: New correction calculated."
@@ -336,6 +344,47 @@ def calc_new_correction(
 
     # return delta for plotting
     return np.vstack((current_correction[0], new_correction))
+
+
+def clip_correction(
+    correction: npt.NDArray[np.float64],
+    field_prog: npt.NDArray[np.float64],
+    clip_factor: float = 1.0,
+) -> npt.NDArray[np.float64]:
+    """
+    Clip the correction to the a a factor of the reference programmed field.
+
+    Parameters
+    ----------
+    correction : npt.NDArray[np.float64]
+        The correction to clip.
+    field_prog : npt.NDArray[np.float64]
+        The reference programmed field.
+    clip_val : float
+        The factor to clip the correction to.
+    """
+    field_prog_t = field_prog[0]
+    field_prog_v = field_prog[1]
+    field_prog_v_interp = np.interp(
+        correction[0],
+        field_prog_t,
+        field_prog_v,
+    )
+
+    # clip the correction to the field prog
+    correction_clipped = np.clip(
+        correction[1],
+        -(field_prog_v_interp * clip_factor),
+        field_prog_v_interp * clip_factor,
+    )
+
+    # log max and min values before and after clipping
+    log.debug(
+        f"Correction min: {np.min(correction[1])}, max: {np.max(correction[1])}, "
+        f"Clipped min: {np.min(correction_clipped)}, max: {np.max(correction_clipped)}"
+    )
+
+    return np.vstack((correction[0], correction_clipped))
 
 
 # @numba.njit
