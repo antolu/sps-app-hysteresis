@@ -10,6 +10,7 @@ import pyda.data
 from hystcomp_utils.cycle_data import CycleData
 from op_app_context import context
 from pyda_lsa import LsaCycleContext, LsaEndpoint
+from pyda_lsa.data import TrimFlags
 from qtpy import QtCore
 
 from ..contexts import app_context
@@ -175,7 +176,15 @@ class LocalTrim(QtCore.QObject):
                 setting_part="CORRECTION",
             ),
             data={"correction": func},
-            context=LsaCycleContext(cycle=cycle, comment=comment, transient=True),
+            context=LsaCycleContext(
+                cycle=cycle,
+                comment=comment,
+                flags=TrimFlags(
+                    transient=True,
+                    drive=context.lsa_server not in {"next", "dev"},
+                    propagate_to_children=context.lsa_server not in {"next", "dev"},
+                ),
+            ),
         )
 
         if resp_set.exception is not None:
