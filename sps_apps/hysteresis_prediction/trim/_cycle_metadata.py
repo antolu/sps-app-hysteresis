@@ -17,7 +17,7 @@ FT_START = "SX.S-FTOP-CTML/ControlValue"  # # acqQ
 class CycleMetadata:
     def __init__(self, *, provider: pyda_lsa.LsaProvider | None = None):
         self._provider = provider
-        self._da = pyda.SimpleClient(provider=provider or context.lsa_provider)
+        self._da: pyda.SimpleClient | None = None
 
         self._beam_in_cache: dict[str, int] = {}
         self._beam_out_cache: dict[str, int] = {}
@@ -55,10 +55,19 @@ class CycleMetadata:
         return self._flattop_start_cache[cycle]
 
     def _get(self, cycle: str, device_property: str, field: str) -> int:
+        self._init_da()
+        assert self._da is not None
         return self._da.get(
             endpoint=pyda_lsa.LsaEndpoint.from_str(f"{device_property}#{field}"),
             context=pyda_lsa.LsaCycleContext(cycle=cycle),
         ).data["value"]
+
+    def _init_da(self) -> None:
+        # lazy initialization of the DA client
+        if self._da is None:
+            self._da = pyda.SimpleClient(
+                provider=self._provider or context.japc_provider
+            )
 
 
 cycle_metadata = CycleMetadata()
