@@ -12,14 +12,12 @@ from op_app_context import context
 from pyda_lsa import LsaCycleContext, LsaEndpoint
 from qtpy import QtCore
 
+from ..contexts import app_context
 from ..trim._cycle_metadata import cycle_metadata
 from ..trim._settings import LocalTrimSettings
 from ..utils import ThreadWorker, time_execution
 
 log = logging.getLogger(__package__)
-
-
-TRIM_THRESHOLD = 2e-5
 
 
 class LocalTrim(QtCore.QObject):
@@ -30,7 +28,7 @@ class LocalTrim(QtCore.QObject):
         param_b_corr: str,
         settings: LocalTrimSettings,
         *,
-        trim_threshold: float = TRIM_THRESHOLD,
+        trim_threshold: float | None = None,
         parent: QtCore.QObject | None = None,
     ):
         super().__init__(parent)
@@ -39,36 +37,14 @@ class LocalTrim(QtCore.QObject):
         self._settings = settings
 
         self._lsa = pyda.SimpleClient(provider=context.lsa_provider)
-        self._trim_threshold = trim_threshold
+        self._trim_threshold = trim_threshold or app_context().TRIM_MIN_THRESHOLD
         self._trim_lock = QtCore.QMutex()
 
     @QtCore.Slot(CycleData, name="onNewPrediction")
     def onNewPrediction(self, prediction: CycleData, *_: typing.Any) -> None:
-        if not self._settings.trim_enabled[prediction.cycle]:
-            log.debug("Trim is disabled, skipping trim.")
+        if not self._check_trim_allowed(prediction):
+            log.debug(f"Trim not allowed for {prediction}.")
             return
-
-        if prediction.field_pred is None:
-            msg = f"[{prediction}] No field prediction found."
-            raise ValueError(msg)
-
-        _delta_t, delta_v = prediction.delta_applied
-        max_val = np.max(np.abs(delta_v))
-        if max_val < TRIM_THRESHOLD:
-            msg = f"Max value in delta {max_val:.2e} < {self._trim_threshold:e}. \
-                Skipping trim on {prediction}"
-
-            log.info(msg)
-            return
-
-        time_margin = (prediction.cycle_time - datetime.now()).total_seconds()
-        if time_margin < 1.0:
-            log.warning(
-                f"[{prediction}] Not enough time to send transaction, "
-                f"skipping trim (margin {time_margin:.02f}s < 1.0s."
-            )
-            return
-        log.info(f"[{prediction}] Time margin: {time_margin:.02f}s.")
 
         # trim in a new thread
         worker = ThreadWorker(self.apply_correction, prediction)
@@ -77,6 +53,35 @@ class LocalTrim(QtCore.QObject):
         )
 
         QtCore.QThreadPool.globalInstance().start(worker)
+
+    def _check_trim_allowed(self, cycle_data: CycleData) -> bool:
+        if not self._settings.trim_enabled[cycle_data.cycle]:
+            log.debug("Trim is disabled, skipping trim.")
+            return False
+
+        if cycle_data.field_pred is None:
+            msg = f"[{cycle_data}] No field prediction found."
+            raise ValueError(msg)
+
+        _delta_t, delta_v = cycle_data.delta_applied
+        max_val = np.max(np.abs(delta_v))
+        if max_val < self._trim_threshold:
+            msg = f"Max value in delta {max_val:.2e} < {self._trim_threshold:e}. \
+                Skipping trim on {cycle_data}"
+
+            log.info(msg)
+            return False
+
+        time_margin = (cycle_data.cycle_time - datetime.now()).total_seconds()
+        if time_margin < 1.0:
+            log.warning(
+                f"[{cycle_data}] Not enough time to send transaction, "
+                f"skipping trim (margin {time_margin:.02f}s < 1.0s."
+            )
+            return False
+        log.info(f"[{cycle_data}] Time margin: {time_margin:.02f}s.")
+
+        return True
 
     def apply_correction(
         self,
@@ -92,10 +97,6 @@ class LocalTrim(QtCore.QObject):
             assert cycle_data.correction_applied is not None, "No correction found."
             correction_t = cycle_data.correction_applied[0]
             correction_v = cycle_data.correction_applied[1]
-            # log shapes
-            # log.debug(
-            #     f"[{cycle_data}] Correction shape: {correction_t.shape}, {correction_v.shape}"
-            # )
 
             start = self._settings.trim_start[cycle_data.cycle]
             start = max(start, cycle_metadata.beam_in(cycle_data.cycle))

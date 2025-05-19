@@ -10,7 +10,6 @@ import pyda
 import pyda.access
 from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
-from skimage.restoration import denoise_tv_chambolle
 
 from ..contexts import app_context
 from ..trim import TrimSettings, cycle_metadata
@@ -408,6 +407,6 @@ def smooth_correction(
     xs: npt.NDArray[np.float64],
     correction: npt.NDArray[np.float64],
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
-    correction = denoise_tv_chambolle(correction, weight=0.1)
+    # correction = denoise_tv_chambolle(correction, weight=0.1)
     correction = smooth_with_tolerance_interp(correction, atol=5e-6)
     return xs, correction
