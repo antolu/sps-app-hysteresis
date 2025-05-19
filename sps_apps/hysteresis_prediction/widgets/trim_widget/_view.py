@@ -192,6 +192,9 @@ class TrimSettingsWidget(QtWidgets.QWidget):
 
     @QtCore.Slot(ToggleButton.State)
     def onEnableTrim(self, state: ToggleButton.State) -> None:
+        log.debug(
+            f"[{self.model.cycle}] Trim enabled: {state == ToggleButton.State.STATE1}"
+        )
         self.model.settings.trim_enabled[self.model.cycle] = (
             state == ToggleButton.State.STATE1
         )

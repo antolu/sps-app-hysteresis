@@ -57,7 +57,7 @@ class LocalTrim(QtCore.QObject):
 
     def _check_trim_allowed(self, cycle_data: CycleData) -> bool:
         if not self._settings.trim_enabled[cycle_data.cycle]:
-            log.debug("Trim is disabled, skipping trim.")
+            log.debug(f"[{cycle_data.cycle}] Trim is disabled, skipping trim.")
             return False
 
         if cycle_data.field_pred is None:
