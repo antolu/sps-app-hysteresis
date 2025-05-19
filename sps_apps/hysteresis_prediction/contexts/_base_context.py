@@ -60,6 +60,12 @@ class ApplicationContext:
     TIMESTAMP: typing.Final[datetime.datetime]
     LOGDIR = "."
 
+    TRIM_MIN_THRESHOLD = 5e-5  # tesla
+    """ Minimum dB to actually trim"""
+
+    TRIM_CLIP_THRESHOLD = 1e-3  # dp/p
+    """ Maximum change allowed in relative """
+
     def __init__(
         self,
         device: typing.Literal["MBI", "QF", "QD"],
