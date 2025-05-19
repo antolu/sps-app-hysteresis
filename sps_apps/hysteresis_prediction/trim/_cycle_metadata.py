@@ -66,7 +66,7 @@ class CycleMetadata:
         # lazy initialization of the DA client
         if self._da is None:
             self._da = pyda.SimpleClient(
-                provider=self._provider or context.japc_provider
+                provider=self._provider or context.lsa_provider
             )
 
 
