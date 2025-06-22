@@ -73,6 +73,7 @@
     <addaction name="separator"/>
     <addaction name="actionAutoregressive"/>
     <addaction name="actionProgrammed_current"/>
+    <addaction name="actionEddy_currents"/>
    </widget>
    <addaction name="menu_file"/>
    <addaction name="menu_view"/>
@@ -177,7 +178,7 @@
     <bool>true</bool>
    </property>
    <property name="checked">
-    <bool>true</bool>
+    <bool>false</bool>
    </property>
    <property name="text">
     <string>Autoregressive</string>
@@ -192,6 +193,17 @@
    </property>
    <property name="text">
     <string>Programmed current</string>
+   </property>
+  </action>
+  <action name="actionEddy_currents">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Eddy currents</string>
    </property>
   </action>
  </widget>

@@ -24,7 +24,6 @@ NS = int(1e9)
 
 log = logging.getLogger(__name__)
 
-EDDY_CURRENT_COMPENSATION = True
 _thread: QtCore.QThread | None = None
 
 
@@ -47,6 +46,7 @@ class InferenceFlags:
         self._do_inference = False
         self._autoregressive = False
         self._use_programmed_current = True
+        self._eddy_current = True
 
     def set_do_inference(self, state: bool) -> None:  # noqa: FBT001
         self._do_inference = state
@@ -72,6 +72,17 @@ class InferenceFlags:
     @use_programmed_current.setter
     def use_programmed_current(self, value: bool) -> None:
         self.set_use_programmed_current(state=value)
+
+    def set_eddy_current(self, state: bool) -> None:  # noqa: FBT001
+        self._eddy_current = state
+
+    @property
+    def eddy_current(self) -> bool:
+        return self._eddy_current
+
+    @eddy_current.setter
+    def eddy_current(self, value: bool) -> None:
+        self._eddy_current = value
 
 
 class Inference(InferenceFlags, EventBuilderAbc):
@@ -269,7 +280,7 @@ class Inference(InferenceFlags, EventBuilderAbc):
             return predict_cycle(
                 cycle=last_cycle,
                 predictor=self._predictor,
-                e_predictor=self._e_predictor if EDDY_CURRENT_COMPENSATION else None,
+                e_predictor=self._e_predictor if self._eddy_current else None,
                 use_programmed_current=self._use_programmed_current,
             )
 
@@ -285,7 +296,7 @@ class Inference(InferenceFlags, EventBuilderAbc):
             return predict_cycle(
                 cycle=last_cycle,
                 predictor=self._predictor,
-                e_predictor=self._e_predictor if EDDY_CURRENT_COMPENSATION else None,
+                e_predictor=self._e_predictor if self._eddy_current else None,
                 use_programmed_current=self._use_programmed_current,
             )
 
@@ -331,7 +342,7 @@ class Inference(InferenceFlags, EventBuilderAbc):
         return predict_cycle(
             cycle=last_cycle,
             predictor=self._predictor,
-            e_predictor=self._e_predictor if EDDY_CURRENT_COMPENSATION else None,
+            e_predictor=self._e_predictor if self._eddy_current else None,
             use_programmed_current=self._use_programmed_current,
         )
 

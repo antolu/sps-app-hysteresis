@@ -76,12 +76,16 @@ class Ui_main_window(object):
         self.actionReset_state.setObjectName("actionReset_state")
         self.actionAutoregressive = QtWidgets.QAction(main_window)
         self.actionAutoregressive.setCheckable(True)
-        self.actionAutoregressive.setChecked(True)
+        self.actionAutoregressive.setChecked(False)
         self.actionAutoregressive.setObjectName("actionAutoregressive")
         self.actionProgrammed_current = QtWidgets.QAction(main_window)
         self.actionProgrammed_current.setCheckable(True)
         self.actionProgrammed_current.setChecked(True)
         self.actionProgrammed_current.setObjectName("actionProgrammed_current")
+        self.actionEddy_currents = QtWidgets.QAction(main_window)
+        self.actionEddy_currents.setCheckable(True)
+        self.actionEddy_currents.setChecked(True)
+        self.actionEddy_currents.setObjectName("actionEddy_currents")
         self.menu_file.addAction(self.action_Load_Model)
         self.menu_file.addSeparator()
         self.menu_file.addAction(self.action_exit)
@@ -101,6 +105,7 @@ class Ui_main_window(object):
         self.menuTools.addSeparator()
         self.menuTools.addAction(self.actionAutoregressive)
         self.menuTools.addAction(self.actionProgrammed_current)
+        self.menuTools.addAction(self.actionEddy_currents)
         self.menu_bar.addAction(self.menu_file.menuAction())
         self.menu_bar.addAction(self.menu_view.menuAction())
         self.menu_bar.addAction(self.menuTools.menuAction())
@@ -139,6 +144,7 @@ class Ui_main_window(object):
         self.actionReset_state.setText(_translate("main_window", "Reset &state"))
         self.actionAutoregressive.setText(_translate("main_window", "Autoregressive"))
         self.actionProgrammed_current.setText(_translate("main_window", "Programmed current"))
+        self.actionEddy_currents.setText(_translate("main_window", "Eddy currents"))
 from accwidgets.app_frame import ApplicationFrame
 from sps_apps.hysteresis_prediction.widgets.plot_settings_widget import PlotSettingsWidget
 from sps_apps.hysteresis_prediction.widgets.plot_widget import PlotWidget
