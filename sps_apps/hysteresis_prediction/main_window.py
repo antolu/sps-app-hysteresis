@@ -167,7 +167,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self._data._predict.set_prediction_mode(mode)  # noqa: SLF001
 
         # Reset reference when mode changes
-        self._data.onResetReference.emit("")
+        self._data.onResetReference("all")
         log.info("Reference reset due to prediction mode change")
 
     def on_load_model_triggered(self) -> None:
