@@ -112,7 +112,7 @@ python build_ui.py
 ruff check .
 
 # Run type checking
-mypy sps_apps/hysteresis_prediction/
+mypy sps_app_hysteresis/
 
 # Run tests
 pytest tests/
@@ -121,7 +121,7 @@ pytest tests/
 ### Project Structure
 
 ```
-sps_apps/hysteresis_prediction/
+sps_app_hysteresis/
 ├── application.py          # Main application entry point
 ├── main_window.py         # Primary GUI window
 ├── contexts/              # Device-specific configurations

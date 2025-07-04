@@ -58,20 +58,19 @@ changelog = "https://gitlab.cern.ch/dsb/applications/sps-app-hysteresis"
 
 # keep this for dynamic versioning
 [tool.setuptools_scm]
-write_to = "sps_apps/hysteresis_prediction/_version.py"
+write_to = "sps_app_hysteresis/_version.py"
 local_scheme = "no-local-version"
 
 [tool.setuptools.dynamic]
 readme = { file = ["README.md"], content-type = "text/markdown" }
 
 [tool.setuptools.packages.find]
-include = ["sps_apps.hysteresis_prediction*"]
-namespaces = true
+include = ["sps_app_hysteresis*"]
 exclude = ["tests", "tests.*", "build"]
 
 
 [project.scripts]
-app-hysteresis = "sps_apps.hysteresis_prediction.application:main"
+app-hysteresis = "sps_app_hysteresis.application:main"
 
 [tool.black]
 target-version = ["py311"]
@@ -96,7 +95,7 @@ exclude = '''
 [tool.ruff]
 
 exclude = [
-    "sps_apps/hysteresis_prediction/generated",
+    "sps_app_hysteresis/generated",
     ".bzr",
     ".direnv",
     ".eggs",

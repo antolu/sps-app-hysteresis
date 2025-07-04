@@ -83,7 +83,7 @@ class PlotModel(QtCore.QObject):
                     cycle_data.cycle_timestamp, np.vstack((field_pred[0, :], delta))
                 )
 
-        except Exception:  # noqa: broad-except
+        except Exception:
             log.exception("An exception occurred while publishing new measured data.")
             return
 
@@ -92,7 +92,7 @@ class PlotModel(QtCore.QObject):
             self._current_prog_source.new_value(
                 cycle_data.cycle_timestamp, cycle_data.current_prog
             )
-        except Exception:  # noqa: broad-except
+        except Exception:
             log.exception("An exception occurred while publishing new programmed data.")
             return
 
@@ -111,7 +111,7 @@ class PlotModel(QtCore.QObject):
                     cycle_data.cycle_timestamp,
                     np.vstack([predicted[0, :], delta]),
                 )
-        except Exception:  # noqa: broad-except
+        except Exception:
             log.exception("An exception occurred while publishing new predicted data.")
             return
 

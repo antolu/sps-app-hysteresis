@@ -66,11 +66,11 @@ app-hysteresis -d QD --lsa-server sps --logdir /tmp/logs
 
 ### Important Directories
 
-- `sps_apps/hysteresis_prediction/` - Main application code
+- `sps_app_hysteresis/` - Main application code
 - `resources/ui/` - Qt Designer UI files (.ui)
-- `sps_apps/hysteresis_prediction/generated/` - Auto-generated Python UI files
-- `sps_apps/hysteresis_prediction/local/event_building/` - Real-time event processing
-- `sps_apps/hysteresis_prediction/widgets/` - Custom GUI components
+- `sps_app_hysteresis/generated/` - Auto-generated Python UI files
+- `sps_app_hysteresis/local/event_building/` - Real-time event processing
+- `sps_app_hysteresis/widgets/` - Custom GUI components
 
 ### Data Flow Architecture
 

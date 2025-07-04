@@ -162,5 +162,5 @@ class Ui_main_window(object):
         self.actionMode_Hysteresis_Only.setText(_translate("main_window", "Hysteresis Only"))
         self.actionMode_Eddy_Current_Only.setText(_translate("main_window", "Eddy Current Only"))
 from accwidgets.app_frame import ApplicationFrame
-from sps_apps.hysteresis_prediction.widgets.plot_settings_widget import PlotSettingsWidget
-from sps_apps.hysteresis_prediction.widgets.plot_widget import PlotWidget
+from sps_app_hysteresis.widgets.plot_settings_widget import PlotSettingsWidget
+from sps_app_hysteresis.widgets.plot_widget import PlotWidget

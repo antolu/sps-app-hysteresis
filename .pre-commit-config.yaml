@@ -1,4 +1,4 @@
-exclude: (sps_apps/hysteresis_prediction/generated/.*|docs/.*|test_scripts/.*)
+exclude: (sps_app_hysteresis/generated/.*|docs/.*|test_scripts/.*)
 repos:
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: "v0.9.9"

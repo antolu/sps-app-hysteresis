@@ -5,7 +5,7 @@ import datetime
 import hystcomp_utils.cycle_data
 import numpy as np
 
-from sps_apps.hysteresis_prediction.local.track_precycle import (
+from sps_app_hysteresis.local.track_precycle import (
     TrackPrecycleEventBuilder,
 )
 

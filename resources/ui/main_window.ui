@@ -248,13 +248,13 @@
   <customwidget>
    <class>PlotSettingsWidget</class>
    <extends>QWidget</extends>
-   <header>sps_apps.hysteresis_prediction.widgets.plot_settings_widget</header>
+   <header>sps_app_hysteresis.widgets.plot_settings_widget</header>
    <container>1</container>
   </customwidget>
   <customwidget>
    <class>PlotWidget</class>
    <extends>QWidget</extends>
-   <header>sps_apps.hysteresis_prediction.widgets.plot_widget.h</header>
+   <header>sps_app_hysteresis.widgets.plot_widget</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

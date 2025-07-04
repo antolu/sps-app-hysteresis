@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 
 HERE = Path(__file__).parent
-PACKAGE_DIR = "sps_apps/hysteresis_prediction"
+PACKAGE_DIR = "sps_app_hysteresis"
 UI_DIR = HERE / "resources" / "ui"
 GENERATED_DIR = HERE / PACKAGE_DIR / "generated"
 
