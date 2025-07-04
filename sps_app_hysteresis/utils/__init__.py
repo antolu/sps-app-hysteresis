@@ -8,6 +8,7 @@ from ._threadutil import (
 )
 from ._time import from_timestamp, time_execution
 from ._ui import load_cursor, mute_signals
+from .cycle_metadata import CycleMetadata, cycle_metadata
 
 for _mod in (
     from_timestamp,
@@ -19,12 +20,16 @@ for _mod in (
     mute_signals,
     ThreadWorker,
     ColorPool,
+    CycleMetadata,
+    cycle_metadata,
 ):
     replace_modname(_mod, __name__)
 
 __all__ = [
     "ColorPool",
+    "CycleMetadata",
     "ThreadWorker",
+    "cycle_metadata",
     "from_timestamp",
     "load_cursor",
     "mute_signals",

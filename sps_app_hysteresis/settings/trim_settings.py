@@ -8,7 +8,7 @@ from op_app_context import context
 from op_app_context import settings as app_settings
 from qtpy import QtCore
 
-from ._cycle_metadata import cycle_metadata
+from ..utils.cycle_metadata import cycle_metadata
 
 log = logging.getLogger(__package__)
 

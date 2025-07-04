@@ -1,7 +1,7 @@
 import typing
 
 from .._mod_replace import replace_modname
-from ..local.trim import LocalTrimSettings, OnlineTrimSettings
+from ..settings import LocalTrimSettings, OnlineTrimSettings
 from ._base_context import (
     ApplicationContext,
     EddyCurrentModel,

@@ -12,7 +12,7 @@ import dataclasses
 import datetime
 import typing
 
-from ..local.trim import TrimSettings
+from ..settings import TrimSettings
 
 
 @dataclasses.dataclass
