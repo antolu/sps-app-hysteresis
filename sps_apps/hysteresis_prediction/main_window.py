@@ -132,9 +132,9 @@ class MainWindow(Ui_main_window, ApplicationFrame):
                     self.actionAutoregressive.isChecked()
                 )
             )
-            self.actionEddy_current.triggered.connect(
+            self.actionEddy_currents.triggered.connect(
                 lambda x: self._data._predict.set_eddy_current(  # noqa: SLF001
-                    self.actionEddy_current.isChecked()
+                    self.actionEddy_currents.isChecked()
                 )
             )
             self.actionReset_state.triggered.connect(self._data.resetState.emit)

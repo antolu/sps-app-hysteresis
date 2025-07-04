@@ -37,7 +37,7 @@ class Ui_PlotSettingsWidget(object):
         self.gridLayout.addWidget(self.labelCycleTime, 2, 0, 1, 1)
         self.Led = Led(parent=self.frame_2)
         self.Led.setToolTip("")
-        self.Led.setProperty("status", Led.Off)
+        self.Led.setProperty("status", Led.Status.OFF)
         self.Led.setObjectName("Led")
         self.gridLayout.addWidget(self.Led, 0, 1, 4, 1)
         self.labelUser = QtWidgets.QLabel(parent=self.frame_2)

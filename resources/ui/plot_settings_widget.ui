@@ -54,7 +54,7 @@
          <string/>
         </property>
         <property name="status" stdset="0">
-         <enum>Led::Off</enum>
+         <enum>Led::Status.OFF</enum>
         </property>
        </widget>
       </item>
