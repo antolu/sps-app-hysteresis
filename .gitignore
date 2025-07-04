@@ -2,7 +2,7 @@ IDEs
 .idea
 .vscode/
 test_scripts/
-sps_apps/hysteresis_prediction/_version.py
+sps_app_hysteresis/_version.py
 
 # Cached training results
 *.pkl
