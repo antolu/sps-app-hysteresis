@@ -73,7 +73,16 @@
     <addaction name="separator"/>
     <addaction name="actionAutoregressive"/>
     <addaction name="actionProgrammed_current"/>
-    <addaction name="actionEddy_currents"/>
+    <addaction name="separator"/>
+    <addaction name="menuPrediction_Mode"/>
+   </widget>
+   <widget class="QMenu" name="menuPrediction_Mode">
+    <property name="title">
+     <string>Prediction Mode</string>
+    </property>
+    <addaction name="actionMode_Combined"/>
+    <addaction name="actionMode_Hysteresis_Only"/>
+    <addaction name="actionMode_Eddy_Current_Only"/>
    </widget>
    <addaction name="menu_file"/>
    <addaction name="menu_view"/>
@@ -195,7 +204,7 @@
     <string>Programmed current</string>
    </property>
   </action>
-  <action name="actionEddy_currents">
+  <action name="actionMode_Combined">
    <property name="checkable">
     <bool>true</bool>
    </property>
@@ -203,7 +212,29 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Eddy currents</string>
+    <string>Combined (Hysteresis + Eddy Current)</string>
+   </property>
+  </action>
+  <action name="actionMode_Hysteresis_Only">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Hysteresis Only</string>
+   </property>
+  </action>
+  <action name="actionMode_Eddy_Current_Only">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Eddy Current Only</string>
    </property>
   </action>
  </widget>

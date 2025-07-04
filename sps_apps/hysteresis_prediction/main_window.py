@@ -14,6 +14,7 @@ from .flow import LocalDataFlow
 from .generated.main_window_ui import Ui_main_window
 from .history import PredictionHistory
 from .io import IO
+from .local._inference import PredictionMode
 from .widgets import ModelLoadDialog, PlotModel
 from .widgets.history_widget import HistoryWidget
 from .widgets.trim_widget import TrimModel, TrimWidgetView
@@ -132,15 +133,42 @@ class MainWindow(Ui_main_window, ApplicationFrame):
                     self.actionAutoregressive.isChecked()
                 )
             )
-            self.actionEddy_currents.triggered.connect(
-                lambda x: self._data._predict.set_eddy_current(  # noqa: SLF001
-                    self.actionEddy_currents.isChecked()
-                )
-            )
+            # Set up prediction mode radio buttons
+            self._setup_prediction_mode_actions()
             self.actionReset_state.triggered.connect(self._data.resetState.emit)
 
         self.actionPrediction_Analysis.triggered.connect(self._history_widget.show)
         self.action_Trim_View.triggered.connect(self._trim_widget.show)
+
+    def _setup_prediction_mode_actions(self) -> None:
+        """Set up the prediction mode radio button group."""
+        # Create action group to make radio buttons mutually exclusive
+        self._prediction_mode_group = QtWidgets.QActionGroup(self)
+        self._prediction_mode_group.addAction(self.actionMode_Combined)
+        self._prediction_mode_group.addAction(self.actionMode_Hysteresis_Only)
+        self._prediction_mode_group.addAction(self.actionMode_Eddy_Current_Only)
+
+        # Connect actions to handlers
+        self.actionMode_Combined.triggered.connect(
+            lambda: self._on_prediction_mode_changed(PredictionMode.COMBINED)
+        )
+        self.actionMode_Hysteresis_Only.triggered.connect(
+            lambda: self._on_prediction_mode_changed(PredictionMode.HYSTERESIS_ONLY)
+        )
+        self.actionMode_Eddy_Current_Only.triggered.connect(
+            lambda: self._on_prediction_mode_changed(PredictionMode.EDDY_CURRENT_ONLY)
+        )
+
+    def _on_prediction_mode_changed(self, mode: PredictionMode) -> None:
+        """Handle prediction mode changes."""
+        log.info(f"Prediction mode changed to: {mode.value}")
+
+        # Set the prediction mode
+        self._data._predict.set_prediction_mode(mode)  # noqa: SLF001
+
+        # Reset reference when mode changes
+        self._data.onResetReference.emit("")
+        log.info("Reference reset due to prediction mode change")
 
     def on_load_model_triggered(self) -> None:
         dialog = ModelLoadDialog(parent=self)
