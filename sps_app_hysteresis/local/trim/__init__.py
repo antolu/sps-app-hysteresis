@@ -1,4 +1,4 @@
-from .._mod_replace import replace_modname
+from ..._mod_replace import replace_modname
 from ._cycle_metadata import cycle_metadata
 from ._settings import LocalTrimSettings, OnlineTrimSettings, TrimSettings
 

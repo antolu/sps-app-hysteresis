@@ -10,11 +10,11 @@ from op_app_context import context
 from qtpy import QtGui, QtWidgets
 
 from .contexts import app_context
-from .flow import LocalDataFlow
 from .generated.main_window_ui import Ui_main_window
 from .history import PredictionHistory
 from .io import IO
 from .local._inference import PredictionMode
+from .pipeline import LocalDataFlow
 from .widgets import ModelLoadDialog, PlotModel
 from .widgets.history_widget import HistoryWidget
 from .widgets.trim_widget import TrimModel, TrimWidgetView

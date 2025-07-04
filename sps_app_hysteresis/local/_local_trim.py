@@ -14,9 +14,9 @@ from pyda_lsa.data import TrimFlags
 from qtpy import QtCore
 
 from ..contexts import app_context
-from ..trim._cycle_metadata import cycle_metadata
-from ..trim._settings import LocalTrimSettings
 from ..utils import ThreadWorker, time_execution
+from .trim._cycle_metadata import cycle_metadata
+from .trim._settings import LocalTrimSettings
 
 log = logging.getLogger(__package__)
 

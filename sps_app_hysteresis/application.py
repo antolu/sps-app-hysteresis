@@ -12,9 +12,9 @@ from rich.logging import RichHandler
 from . import __version__
 from ._rbac import PyrbacAuthenticationListener
 from .contexts import app_context, set_context
-from .flow import LocalFlowWorker, UcapFlowWorker
 from .io.metrics import TensorboardWriter, TextWriter
 from .main_window import MainWindow
+from .pipeline import LocalFlowWorker, UcapFlowWorker
 
 torch.set_float32_matmul_precision("high")
 

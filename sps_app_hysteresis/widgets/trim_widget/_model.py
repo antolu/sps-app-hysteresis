@@ -8,7 +8,7 @@ import logging
 
 from qtpy import QtCore
 
-from ...trim import TrimSettings
+from ...local.trim import TrimSettings
 
 log = logging.getLogger(__package__)
 

@@ -12,8 +12,8 @@ from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
 
 from ..contexts import app_context
-from ..trim import TrimSettings, cycle_metadata
 from .event_building import EventBuilderAbc
+from .trim import TrimSettings, cycle_metadata
 
 log = logging.getLogger(__name__)
 

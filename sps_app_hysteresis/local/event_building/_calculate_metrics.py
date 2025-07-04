@@ -16,7 +16,7 @@ import hystcomp_utils.cycle_data
 import numpy as np
 from qtpy import QtCore
 
-from ...trim import cycle_metadata
+from ...local.trim import cycle_metadata
 from ._event_builder_abc import EventBuilderAbc
 
 if typing.TYPE_CHECKING:

@@ -9,7 +9,7 @@ from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
 from transformertf.data import downsample as downsample_tf
 
-from ...flow import DataFlow
+from ...pipeline import DataFlow
 from ._sources import AcquiredDataType, CurrentFieldSource
 
 log = logging.getLogger(__package__)
