@@ -67,7 +67,7 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
                 f"Received trigger for cycle without data: {selector}. "
                 "Perhaps cycle predictions are disabled?"
             )
-            log.warning(msg)
+            log.debug(msg)
             return
 
         cycle_data = self._cycle_data_buffer[selector]
