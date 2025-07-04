@@ -9,7 +9,7 @@ from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
 from transformertf.data import downsample as downsample_tf
 
-from ...pipeline import DataFlow
+from ...pipeline import Pipeline
 from ._sources import AcquiredDataType, CurrentFieldSource
 
 log = logging.getLogger(__package__)
@@ -18,7 +18,7 @@ log = logging.getLogger(__package__)
 class PlotModel(QtCore.QObject):
     def __init__(
         self,
-        data: DataFlow,
+        data: Pipeline,
         parent: QtCore.QObject | None = None,
         downsample: int = 100,
     ) -> None:

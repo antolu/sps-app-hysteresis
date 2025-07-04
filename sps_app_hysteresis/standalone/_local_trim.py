@@ -14,19 +14,19 @@ from pyda_lsa.data import TrimFlags
 from qtpy import QtCore
 
 from ..contexts import app_context
-from ..settings import LocalTrimSettings
+from ..settings import StandaloneTrimSettings
 from ..utils import ThreadWorker, cycle_metadata, time_execution
 
 log = logging.getLogger(__package__)
 
 
-class LocalTrim(QtCore.QObject):
+class StandaloneTrim(QtCore.QObject):
     trimApplied = QtCore.Signal(CycleData, np.ndarray, datetime, str)
 
     def __init__(
         self,
         param_b_corr: str,
-        settings: LocalTrimSettings,
+        settings: StandaloneTrimSettings,
         *,
         trim_threshold: float | None = None,
         parent: QtCore.QObject | None = None,

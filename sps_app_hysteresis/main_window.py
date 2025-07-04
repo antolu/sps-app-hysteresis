@@ -13,8 +13,8 @@ from .contexts import app_context
 from .generated.main_window_ui import Ui_main_window
 from .history import PredictionHistory
 from .io import IO
-from .local._inference import PredictionMode
-from .pipeline import LocalDataFlow
+from .pipeline import StandalonePipeline
+from .standalone._inference import PredictionMode
 from .widgets import ModelLoadDialog, PlotModel
 from .widgets.history_widget import HistoryWidget
 from .widgets.trim_widget import TrimModel, TrimWidgetView
@@ -27,7 +27,7 @@ __all__ = ["MainWindow"]
 class MainWindow(Ui_main_window, ApplicationFrame):
     def __init__(
         self,
-        data_flow: LocalDataFlow,
+        pipeline: StandalonePipeline,
         parent: QtWidgets.QWidget | None = None,
     ):
         ApplicationFrame.__init__(self, parent)
@@ -48,7 +48,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         timing_bar = TimingBar(self, model=timing_model)
         self.timing_bar = timing_bar
 
-        self._data = data_flow
+        self._data = pipeline
 
         plot_model = PlotModel(self._data, parent=self)
         self.widgetPlot.model = plot_model

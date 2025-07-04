@@ -36,7 +36,7 @@ class ParameterNames:
 
 
 @dataclasses.dataclass
-class UcapParameterNames:
+class RemoteParameterNames:
     CYCLE_WARNING: str
     CYCLE_CORRECTION: str
     CYCLE_MEASURED: str
@@ -57,7 +57,7 @@ class ApplicationContext:
     B_MEAS_AVAIL: typing.Final[bool]
 
     PARAMS: typing.Final[ParameterNames]
-    UCAP_PARAMS: typing.Final[UcapParameterNames | None]
+    REMOTE_PARAMS: typing.Final[RemoteParameterNames | None]
 
     EDDY_CURRENT_MODEL: typing.Final[EddyCurrentModel]
 
@@ -81,7 +81,7 @@ class ApplicationContext:
         trim_settings: TrimSettings,
         eddy_current_model: EddyCurrentModel,
         *,
-        ucap_params: UcapParameterNames | None = None,
+        remote_params: RemoteParameterNames | None = None,
         b_meas_avail: bool | None = None,
     ):
         self.DEVICE = device
@@ -91,8 +91,8 @@ class ApplicationContext:
         self.B_MEAS_AVAIL = (
             self.PARAMS.B_MEAS is not None if b_meas_avail is None else b_meas_avail
         )
-        self.UCAP_PARAMS = ucap_params
+        self.REMOTE_PARAMS = remote_params
 
-        self.ONLINE = ucap_params is not None
+        self.ONLINE = remote_params is not None
 
         self.TIMESTAMP = datetime.datetime.now()

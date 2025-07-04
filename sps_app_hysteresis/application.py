@@ -14,7 +14,7 @@ from ._rbac import PyrbacAuthenticationListener
 from .contexts import app_context, set_context
 from .io.metrics import TensorboardWriter, TextWriter
 from .main_window import MainWindow
-from .pipeline import LocalFlowWorker, UcapFlowWorker
+from .pipeline import RemotePipelineWorker, StandalonePipelineWorker
 
 torch.set_float32_matmul_precision("high")
 
@@ -181,22 +181,22 @@ def main() -> None:
     data_thread = QtCore.QThread()
     if not args.online:
         assert not app_context().ONLINE
-        flow_worker = LocalFlowWorker(
+        flow_worker = StandalonePipelineWorker(
             buffer_size=args.buffer_size,
             provider=context.japc_provider,
             meas_b_avail=app_context().B_MEAS_AVAIL,
         )
     else:
-        ucap_params = app_context().UCAP_PARAMS
-        if ucap_params is None:
-            msg = "UCAP parameters not available for this device."
+        remote_params = app_context().REMOTE_PARAMS
+        if remote_params is None:
+            msg = "Remote parameters not available for this device."
             raise ValueError(msg)
-        flow_worker = UcapFlowWorker(
+        flow_worker = RemotePipelineWorker(
             provider=context.japc_provider,
         )
 
     flow_worker.moveToThread(data_thread)
-    flow_worker.init_data_flow()
+    flow_worker.init_pipeline()
 
     data_thread.started.connect(flow_worker.start)
 
@@ -211,7 +211,7 @@ def main() -> None:
         else TensorboardWriter(output_dir=app_context().LOGDIR)
     )
 
-    flow_worker.data_flow.onMetricsAvailable.connect(writer.onNewMetrics)
+    flow_worker.pipeline.onMetricsAvailable.connect(writer.onNewMetrics)
 
     main_window: MainWindow | None = None
 
@@ -222,7 +222,7 @@ def main() -> None:
     data_thread.finished.connect(exit_if_fail)
     data_thread.start()
 
-    main_window = MainWindow(data_flow=flow_worker.data_flow, parent=None)
+    main_window = MainWindow(pipeline=flow_worker.pipeline, parent=None)
     main_window.show()
 
     if service is not None and listener is not None:

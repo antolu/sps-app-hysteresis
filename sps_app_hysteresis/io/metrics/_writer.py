@@ -15,7 +15,7 @@ import pathlib
 import tensorboardX
 
 from ...contexts import app_context
-from ...local.event_building._calculate_metrics import Metrics
+from ...standalone.event_building._calculate_metrics import Metrics
 
 log = logging.getLogger(__package__)
 

@@ -1,14 +1,14 @@
 import typing
 
 from .._mod_replace import replace_modname
-from ..settings import LocalTrimSettings, OnlineTrimSettings
+from ..settings import OnlineTrimSettings, StandaloneTrimSettings
 from ._base_context import (
     ApplicationContext,
     EddyCurrentModel,
     ParameterNames,
-    UcapParameterNames,
+    RemoteParameterNames,
 )
-from ._params import MBI_EDDY_CURRENT_MODEL, MBI_PARAMS, MBI_UCAP_PARAMS
+from ._params import MBI_EDDY_CURRENT_MODEL, MBI_PARAMS, MBI_REMOTE_PARAMS
 
 for _mod in [ApplicationContext, ParameterNames, MBI_PARAMS]:
     replace_modname(_mod, __name__)
@@ -17,29 +17,29 @@ for _mod in [ApplicationContext, ParameterNames, MBI_PARAMS]:
 class ContextRecipe(typing.TypedDict):
     device: typing.Literal["MBI", "QF", "QD"]
     param_names: ParameterNames
-    trim_settings: type[LocalTrimSettings | OnlineTrimSettings]
-    ucap_param_names: typing.NotRequired[UcapParameterNames]
+    trim_settings: type[StandaloneTrimSettings | OnlineTrimSettings]
+    remote_param_names: typing.NotRequired[RemoteParameterNames]
     eddy_current_model: EddyCurrentModel
 
 
 _context_recipes: dict[str, ContextRecipe] = {
-    "MBI_local": {
+    "MBI_standalone": {
         "device": "MBI",
         "param_names": MBI_PARAMS,
-        "trim_settings": LocalTrimSettings,
+        "trim_settings": StandaloneTrimSettings,
         "eddy_current_model": MBI_EDDY_CURRENT_MODEL,
     },
     "MBI_online": {
         "device": "MBI",
         "param_names": MBI_PARAMS,
         "trim_settings": OnlineTrimSettings,
-        "ucap_param_names": MBI_UCAP_PARAMS,
+        "remote_param_names": MBI_REMOTE_PARAMS,
         "eddy_current_model": MBI_EDDY_CURRENT_MODEL,
     },
     # "QF": {
     #     "device": "QF",
     #     "param_names": MBI_PARAMS,
-    #     "trim_settings": LocalTrimSettings,
+    #     "trim_settings": StandaloneTrimSettings,
     # },
     # "QD": {
     #     "device": "QD",
@@ -55,7 +55,7 @@ def set_context(
     *,
     online: bool = False,
 ) -> ApplicationContext:
-    recipe = _context_recipes[f"{device}_{'online' if online else 'local'}"]
+    recipe = _context_recipes[f"{device}_{'online' if online else 'standalone'}"]
 
     trim_settings_cls = recipe["trim_settings"]
     if online:
@@ -66,24 +66,26 @@ def set_context(
         trim_settings = trim_settings_cls(
             device=recipe["param_names"].TRIM_SETTINGS or ""
         )
-        ucap_params = recipe.get("ucap_param_names")
-        if ucap_params is None:
-            msg = "Online context requested, but no UCAP parameter names provided"
+        remote_params = recipe.get("remote_param_names")
+        if remote_params is None:
+            msg = "Online context requested, but no remote parameter names provided"
             raise ValueError(msg)
     else:
-        if trim_settings_cls != LocalTrimSettings:
-            msg = "Local context requested, but recipe is not for local context"
+        if trim_settings_cls != StandaloneTrimSettings:
+            msg = (
+                "Standalone context requested, but recipe is not for standalone context"
+            )
             raise ValueError(msg)
-        trim_settings_cls = typing.cast(type[LocalTrimSettings], trim_settings_cls)
+        trim_settings_cls = typing.cast(type[StandaloneTrimSettings], trim_settings_cls)
         trim_settings = trim_settings_cls(prefix=device)
 
-        ucap_params = None
+        remote_params = None
 
     context = ApplicationContext(
         device=device,
         param_names=recipe["param_names"],
         trim_settings=trim_settings,
-        ucap_params=ucap_params,
+        remote_params=remote_params,
         eddy_current_model=recipe["eddy_current_model"],
     )
     global _app_context  # noqa: PLW0603

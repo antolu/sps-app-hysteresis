@@ -125,7 +125,7 @@ sps_app_hysteresis/
 ├── application.py          # Main application entry point
 ├── main_window.py         # Primary GUI window
 ├── contexts/              # Device-specific configurations
-├── flow/                  # Data flow and acquisition
+├── pipeline/              # Data pipeline and acquisition
 ├── widgets/               # Custom GUI widgets
 ├── local/                 # Local prediction and event building
 ├── trim/                  # Trim calculation and settings

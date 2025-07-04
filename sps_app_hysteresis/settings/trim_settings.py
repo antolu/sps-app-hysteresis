@@ -53,7 +53,7 @@ class TrimSettings(QtCore.QObject):
         raise NotImplementedError
 
 
-class LocalTrimSettingsContainer(typing.MutableMapping[str, bool | float]):
+class StandaloneTrimSettingsContainer(typing.MutableMapping[str, bool | float]):
     def __init__(
         self,
         parent: TrimSettings,
@@ -107,7 +107,7 @@ class LocalTrimSettingsContainer(typing.MutableMapping[str, bool | float]):
         return len(self.settings.value(self.key, {}))
 
 
-class LocalTrimSettings(TrimSettings):
+class StandaloneTrimSettings(TrimSettings):
     def __init__(self, parent: QtCore.QObject | None = None, *, prefix: str):
         super().__init__(parent)
 
@@ -123,7 +123,7 @@ class LocalTrimSettings(TrimSettings):
 
     @property
     def trim_enabled(self) -> typing.MutableMapping[str, bool]:
-        return LocalTrimSettingsContainer(  # type: ignore[return-value]
+        return StandaloneTrimSettingsContainer(  # type: ignore[return-value]
             self,
             app_settings.settings,
             key=f"{self.prefix}/trim_enabled",
@@ -132,7 +132,7 @@ class LocalTrimSettings(TrimSettings):
 
     @property
     def trim_start(self) -> typing.MutableMapping[str, float]:
-        return LocalTrimSettingsContainer(
+        return StandaloneTrimSettingsContainer(
             self,
             app_settings.settings,
             key=f"{self.prefix}/trim_start",
@@ -141,7 +141,7 @@ class LocalTrimSettings(TrimSettings):
 
     @property
     def trim_end(self) -> typing.MutableMapping[str, float]:
-        return LocalTrimSettingsContainer(
+        return StandaloneTrimSettingsContainer(
             self,
             app_settings.settings,
             key=f"{self.prefix}/trim_end",
@@ -150,7 +150,7 @@ class LocalTrimSettings(TrimSettings):
 
     @property
     def gain(self) -> typing.MutableMapping[str, float]:
-        return LocalTrimSettingsContainer(
+        return StandaloneTrimSettingsContainer(
             self, app_settings.settings, key=f"{self.prefix}/gain", default=1.0
         )
 

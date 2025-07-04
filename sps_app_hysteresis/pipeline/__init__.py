@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 from .._mod_replace import replace_modname
-from ._data_flow import DataFlow, FlowWorker
-from ._local import LocalDataFlow, LocalFlowWorker
-from ._ucap import UcapDataFlow, UcapFlowWorker
+from ._pipeline import Pipeline, PipelineWorker
+from ._remote import RemotePipeline, RemotePipelineWorker
+from ._standalone import StandalonePipeline, StandalonePipelineWorker
 
 for _mod in (
-    DataFlow,
-    FlowWorker,
-    UcapFlowWorker,
-    UcapDataFlow,
-    LocalFlowWorker,
-    LocalDataFlow,
+    Pipeline,
+    PipelineWorker,
+    RemotePipelineWorker,
+    RemotePipeline,
+    StandalonePipelineWorker,
+    StandalonePipeline,
 ):
     replace_modname(_mod, __name__)
 
@@ -20,10 +20,10 @@ del _mod
 
 
 __all__ = [
-    "DataFlow",
-    "FlowWorker",
-    "LocalDataFlow",
-    "LocalFlowWorker",
-    "UcapDataFlow",
-    "UcapFlowWorker",
+    "Pipeline",
+    "PipelineWorker",
+    "RemotePipeline",
+    "RemotePipelineWorker",
+    "StandalonePipeline",
+    "StandalonePipelineWorker",
 ]

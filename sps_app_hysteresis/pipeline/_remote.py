@@ -15,9 +15,9 @@ import pyda.providers
 import pyda_japc
 from qtpy import QtCore
 
-from ..contexts import UcapParameterNames, app_context
-from ..local.event_building import JapcEndpoint, StartCycleEventBuilder
-from ._data_flow import DataFlow, FlowWorker
+from ..contexts import RemoteParameterNames, app_context
+from ..standalone.event_building import JapcEndpoint, StartCycleEventBuilder
+from ._pipeline import Pipeline, PipelineWorker
 
 log = logging.getLogger(__name__)
 ENDPOINT_RE = re.compile(
@@ -38,7 +38,7 @@ RESET_REFERENCE = (
 SET_GAIN = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.ECO/Gain"
 
 
-class UcapFlowWorker(FlowWorker):
+class RemotePipelineWorker(PipelineWorker):
     def __init__(
         self,
         *,
@@ -49,13 +49,13 @@ class UcapFlowWorker(FlowWorker):
 
         self._provider = provider
 
-    def _init_data_flow_impl(self) -> None:
-        self._data_flow = UcapDataFlow(
+    def _init_pipeline_impl(self) -> None:
+        self._pipeline = RemotePipeline(
             provider=self._provider,
         )
 
 
-class UcapDataFlow(DataFlow, QtCore.QObject):
+class RemotePipeline(Pipeline, QtCore.QObject):
     _onCycleForewarning = QtCore.Signal(hystcomp_utils.cycle_data.CycleData)
     _onCorrectionCalculated = QtCore.Signal(hystcomp_utils.cycle_data.CycleData)
     _onCycleMeasured = QtCore.Signal(hystcomp_utils.cycle_data.CycleData)
@@ -82,21 +82,21 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
             provider=self._provider,
         )
 
-        ucap_params = app_context().UCAP_PARAMS
-        if ucap_params is None:
-            msg = "UCAP_PARAMS not defined in app_context."
+        remote_params = app_context().REMOTE_PARAMS
+        if remote_params is None:
+            msg = "REMOTE_PARAMS not defined in app_context."
             raise ValueError(msg)
 
-        self._ucap_params = typing.cast(UcapParameterNames, ucap_params)
+        self._remote_params = typing.cast(RemoteParameterNames, remote_params)
 
         self._should_stop = False
         self._handles: list[pyda.clients.asyncio.AsyncIOSubscription] = []
 
     def _setup_subscriptions(self) -> list[pyda.clients.asyncio.AsyncIOSubscription]:
         matches = [
-            ENDPOINT_RE.match(self._ucap_params.CYCLE_WARNING),
-            ENDPOINT_RE.match(self._ucap_params.CYCLE_CORRECTION),
-            ENDPOINT_RE.match(self._ucap_params.CYCLE_MEASURED),
+            ENDPOINT_RE.match(self._remote_params.CYCLE_WARNING),
+            ENDPOINT_RE.match(self._remote_params.CYCLE_CORRECTION),
+            ENDPOINT_RE.match(self._remote_params.CYCLE_MEASURED),
         ]
         return [
             self._da.subscribe(
@@ -106,9 +106,9 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
             for match, endpoint in zip(
                 matches,
                 [
-                    self._ucap_params.CYCLE_WARNING,
-                    self._ucap_params.CYCLE_CORRECTION,
-                    self._ucap_params.CYCLE_MEASURED,
+                    self._remote_params.CYCLE_WARNING,
+                    self._remote_params.CYCLE_CORRECTION,
+                    self._remote_params.CYCLE_MEASURED,
                 ],
                 strict=False,
             )
@@ -131,11 +131,11 @@ class UcapDataFlow(DataFlow, QtCore.QObject):
                 log.error(f"Error in subscription: {response.exception}")
                 continue
 
-            if str(response.query.endpoint) == self._ucap_params.CYCLE_WARNING:
+            if str(response.query.endpoint) == self._remote_params.CYCLE_WARNING:
                 await self.handle_cycle_forewarning(response)
-            elif str(response.query.endpoint) == self._ucap_params.CYCLE_CORRECTION:
+            elif str(response.query.endpoint) == self._remote_params.CYCLE_CORRECTION:
                 await self.handle_cycle_correction_calculated(response)
-            elif str(response.query.endpoint) == self._ucap_params.CYCLE_MEASURED:
+            elif str(response.query.endpoint) == self._remote_params.CYCLE_MEASURED:
                 await self.handle_cycle_measured(response)
             else:
                 log.warning(f"Received unknown endpoint: {response.query.endpoint}")

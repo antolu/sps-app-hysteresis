@@ -1,3 +1,3 @@
-from .trim_settings import LocalTrimSettings, OnlineTrimSettings, TrimSettings
+from .trim_settings import OnlineTrimSettings, StandaloneTrimSettings, TrimSettings
 
-__all__ = ["LocalTrimSettings", "OnlineTrimSettings", "TrimSettings"]
+__all__ = ["OnlineTrimSettings", "StandaloneTrimSettings", "TrimSettings"]

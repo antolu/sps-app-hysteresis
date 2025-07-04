@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ._base_context import EddyCurrentModel, ParameterNames, UcapParameterNames
+from ._base_context import EddyCurrentModel, ParameterNames, RemoteParameterNames
 
 MBI_PARAMS = ParameterNames(
     TRIGGER="SX.CZERO-CTML/CycleWarning",
@@ -18,7 +18,7 @@ MBI_PARAMS = ParameterNames(
 )
 
 
-MBI_UCAP_PARAMS = UcapParameterNames(
+MBI_REMOTE_PARAMS = RemoteParameterNames(
     CYCLE_WARNING="rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.ECO/CycleDataFCY",
     CYCLE_CORRECTION=(
         "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.ECO/CycleDataCorrection"

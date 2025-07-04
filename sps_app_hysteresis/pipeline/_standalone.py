@@ -10,8 +10,8 @@ from PyQt6.QtCore import QObject
 from qtpy import QtCore
 
 from ..contexts import app_context
-from ..local import CalculateCorrection, Inference, LocalTrim
-from ..local.event_building import (
+from ..standalone import CalculateCorrection, Inference, StandaloneTrim
+from ..standalone.event_building import (
     AddMeasurementReferencesEventBuilder,
     AddMeasurementsEventBuilder,
     AddProgrammedEventBuilder,
@@ -24,13 +24,13 @@ from ..local.event_building import (
     TrackFullEcoEventBuilder,
     TrackReferenceChangedEventBuilder,
 )
-from ..local.track_precycle import TrackPrecycleEventBuilder
-from ._data_flow import DataFlow, FlowWorker
+from ..standalone.track_precycle import TrackPrecycleEventBuilder
+from ._pipeline import Pipeline, PipelineWorker
 
 log = logging.getLogger(__name__)
 
 
-class LocalFlowWorker(FlowWorker):
+class StandalonePipelineWorker(PipelineWorker):
     def __init__(
         self,
         provider: pyda_japc.JapcProvider,
@@ -40,14 +40,14 @@ class LocalFlowWorker(FlowWorker):
         parent: QtCore.QObject | None = None,
     ) -> None:
         super().__init__(parent=parent)
-        self._data_flow: LocalDataFlow | None = None
+        self._pipeline: StandalonePipeline | None = None
 
         self._provider = provider
         self._buffer_size = buffer_size
         self._meas_b_avail = meas_b_avail
 
-    def _init_data_flow_impl(self) -> None:
-        self._data_flow = LocalDataFlow(
+    def _init_pipeline_impl(self) -> None:
+        self._pipeline = StandalonePipeline(
             meas_b_avail=self._meas_b_avail,
             provider=self._provider,
             buffer_size=self._buffer_size,
@@ -55,14 +55,14 @@ class LocalFlowWorker(FlowWorker):
         )
 
     @property
-    def data_flow(self) -> LocalDataFlow:
-        if self._data_flow is None:
-            msg = "Data flow not initialized. Call init_data_flow() first."
+    def pipeline(self) -> StandalonePipeline:
+        if self._pipeline is None:
+            msg = "Pipeline not initialized. Call init_pipeline() first."
             raise ValueError(msg)
-        return self._data_flow
+        return self._pipeline
 
 
-class LocalDataFlow(DataFlow, QtCore.QObject):
+class StandalonePipeline(Pipeline, QtCore.QObject):
     _resetState = QtCore.Signal()
     _trimApplied = QtCore.Signal(CycleData, np.ndarray, datetime.datetime, str)
 
@@ -145,7 +145,7 @@ class LocalDataFlow(DataFlow, QtCore.QObject):
         )
         self._calculate_metrics = CalculateMetricsConverter(parent=parent)
 
-        self._trim = LocalTrim(
+        self._trim = StandaloneTrim(
             param_b_corr="SPSBEAM/BHYS",
             settings=app_context().TRIM_SETTINGS,
             parent=parent,
