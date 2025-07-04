@@ -6,7 +6,7 @@ import logging
 import numpy as np
 import pyda_japc
 from hystcomp_utils.cycle_data import CycleData
-from PyQt5.QtCore import QObject
+from PyQt6.QtCore import QObject
 from qtpy import QtCore
 
 from ..contexts import app_context

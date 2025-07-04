@@ -86,7 +86,7 @@
     <string>Exit</string>
    </property>
    <property name="menuRole">
-    <enum>QAction::QuitRole</enum>
+    <enum>QAction::MenuRole::QuitRole</enum>
    </property>
   </action>
   <action name="action_about">
@@ -94,7 +94,7 @@
     <string>About</string>
    </property>
    <property name="menuRole">
-    <enum>QAction::AboutRole</enum>
+    <enum>QAction::MenuRole::AboutRole</enum>
    </property>
   </action>
   <action name="action_minimize">
@@ -310,4 +310,8 @@
    </hints>
   </connection>
  </connections>
+ <slots>
+  <slot>showAboutDialog()</slot>
+  <slot>toggleFullScreen()</slot>
+ </slots>
 </ui>

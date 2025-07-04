@@ -42,7 +42,7 @@ def setup_logger(logging_level: int = 0) -> None:
         log.setLevel(logging.WARNING)
 
     logging.getLogger("matplotlib").setLevel(logging.WARNING)
-    logging.getLogger("PyQt5.uic").setLevel(logging.WARNING)
+    logging.getLogger("PyQt6.uic").setLevel(logging.WARNING)
     logging.getLogger("py4j").setLevel(logging.WARNING)
     logging.getLogger("cern").setLevel(logging.WARNING)
 
