@@ -37,7 +37,7 @@ class Ui_main_window(object):
         self.menu_view.setObjectName("menu_view")
         self.menuTools = QtWidgets.QMenu(parent=self.menu_bar)
         self.menuTools.setObjectName("menuTools")
-        self.menuPrediction_Mode = QtWidgets.QMenu(self.menu_bar)
+        self.menuPrediction_Mode = QtWidgets.QMenu(parent=self.menu_bar)
         self.menuPrediction_Mode.setObjectName("menuPrediction_Mode")
         main_window.setMenuBar(self.menu_bar)
         self.status_bar = QtWidgets.QStatusBar(parent=main_window)
@@ -83,15 +83,15 @@ class Ui_main_window(object):
         self.actionProgrammed_current.setCheckable(True)
         self.actionProgrammed_current.setChecked(True)
         self.actionProgrammed_current.setObjectName("actionProgrammed_current")
-        self.actionMode_Combined = QtWidgets.QAction(main_window)
+        self.actionMode_Combined = QtGui.QAction(parent=main_window)
         self.actionMode_Combined.setCheckable(True)
         self.actionMode_Combined.setChecked(True)
         self.actionMode_Combined.setObjectName("actionMode_Combined")
-        self.actionMode_Hysteresis_Only = QtWidgets.QAction(main_window)
+        self.actionMode_Hysteresis_Only = QtGui.QAction(parent=main_window)
         self.actionMode_Hysteresis_Only.setCheckable(True)
         self.actionMode_Hysteresis_Only.setChecked(False)
         self.actionMode_Hysteresis_Only.setObjectName("actionMode_Hysteresis_Only")
-        self.actionMode_Eddy_Current_Only = QtWidgets.QAction(main_window)
+        self.actionMode_Eddy_Current_Only = QtGui.QAction(parent=main_window)
         self.actionMode_Eddy_Current_Only.setCheckable(True)
         self.actionMode_Eddy_Current_Only.setChecked(False)
         self.actionMode_Eddy_Current_Only.setObjectName("actionMode_Eddy_Current_Only")
@@ -125,18 +125,16 @@ class Ui_main_window(object):
         self.menu_bar.addAction(self.menu_help.menuAction())
 
         self.retranslateUi(main_window)
-        self.action_about.triggered.connect(main_window.showAboutDialog)  # type: ignore
-        self.action_exit.triggered.connect(main_window.close)  # type: ignore
-        self.action_minimize.triggered.connect(main_window.showMinimized)  # type: ignore
-        self.action_maximize.triggered.connect(main_window.showMaximized)  # type: ignore
-        self.action_fullscreen.triggered.connect(main_window.toggleFullScreen)  # type: ignore
+        self.action_about.triggered.connect(main_window.showAboutDialog) # type: ignore
+        self.action_exit.triggered.connect(main_window.close) # type: ignore
+        self.action_minimize.triggered.connect(main_window.showMinimized) # type: ignore
+        self.action_maximize.triggered.connect(main_window.showMaximized) # type: ignore
+        self.action_fullscreen.triggered.connect(main_window.toggleFullScreen) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(main_window)
 
     def retranslateUi(self, main_window):
         _translate = QtCore.QCoreApplication.translate
-        main_window.setWindowTitle(
-            _translate("main_window", "SPS Hysteresis Prediction")
-        )
+        main_window.setWindowTitle(_translate("main_window", "SPS Hysteresis Prediction"))
         self.menu_file.setTitle(_translate("main_window", "&File"))
         self.menu_help.setTitle(_translate("main_window", "&Help"))
         self.menu_view.setTitle(_translate("main_window", "&View"))
@@ -147,49 +145,22 @@ class Ui_main_window(object):
         self.action_minimize.setText(_translate("main_window", "Minimize"))
         self.action_maximize.setText(_translate("main_window", "Maximize"))
         self.action_fullscreen.setText(_translate("main_window", "Toggle Fullscreen"))
-        self.action_fullscreen.setToolTip(
-            _translate("main_window", "Toggle Fullscreen")
-        )
-        self.actionShow_Plot_Settings.setText(
-            _translate("main_window", "Show Plot Settings")
-        )
+        self.action_fullscreen.setToolTip(_translate("main_window", "Toggle Fullscreen"))
+        self.actionShow_Plot_Settings.setText(_translate("main_window", "Show Plot Settings"))
         self.actionShow_Plot_Settings.setShortcut(_translate("main_window", "Ctrl+T"))
         self.action_Load_Model.setText(_translate("main_window", "&Load Model"))
-        self.actionPrediction_Analysis.setText(
-            _translate("main_window", "Prediction &Analysis")
-        )
+        self.actionPrediction_Analysis.setText(_translate("main_window", "Prediction &Analysis"))
         self.action_Trim_View.setText(_translate("main_window", "&Trim View"))
-        self.actionContinuous_Data_Export.setText(
-            _translate("main_window", "Continuous Data Export")
-        )
-        self.actionContinuous_Data_Export.setToolTip(
-            _translate(
-                "main_window",
-                "Enable / Disable continuous data export. This will write cycle data to disk when new measured data arrives.",
-            )
-        )
+        self.actionContinuous_Data_Export.setText(_translate("main_window", "Continuous Data Export"))
+        self.actionContinuous_Data_Export.setToolTip(_translate("main_window", "Enable / Disable continuous data export. This will write cycle data to disk when new measured data arrives."))
         self.action_Clear_Buffer.setText(_translate("main_window", "&Clear Buffer"))
-        self.action_Clear_Reference.setText(
-            _translate("main_window", "&Clear Reference")
-        )
+        self.action_Clear_Reference.setText(_translate("main_window", "&Clear Reference"))
         self.actionReset_state.setText(_translate("main_window", "Reset &state"))
         self.actionAutoregressive.setText(_translate("main_window", "Autoregressive"))
-        self.actionProgrammed_current.setText(
-            _translate("main_window", "Programmed current")
-        )
-        self.actionMode_Combined.setText(
-            _translate("main_window", "Combined (Hysteresis + Eddy Current)")
-        )
-        self.actionMode_Hysteresis_Only.setText(
-            _translate("main_window", "Hysteresis Only")
-        )
-        self.actionMode_Eddy_Current_Only.setText(
-            _translate("main_window", "Eddy Current Only")
-        )
-
-
+        self.actionProgrammed_current.setText(_translate("main_window", "Programmed current"))
+        self.actionMode_Combined.setText(_translate("main_window", "Combined (Hysteresis + Eddy Current)"))
+        self.actionMode_Hysteresis_Only.setText(_translate("main_window", "Hysteresis Only"))
+        self.actionMode_Eddy_Current_Only.setText(_translate("main_window", "Eddy Current Only"))
 from accwidgets.app_frame import ApplicationFrame
-from sps_apps.hysteresis_prediction.widgets.plot_settings_widget import (
-    PlotSettingsWidget,
-)
+from sps_apps.hysteresis_prediction.widgets.plot_settings_widget import PlotSettingsWidget
 from sps_apps.hysteresis_prediction.widgets.plot_widget import PlotWidget
