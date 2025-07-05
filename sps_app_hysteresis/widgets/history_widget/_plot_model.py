@@ -1,23 +1,40 @@
+"""
+Refactored plot model using the adapter pattern.
+
+This simplified plot model focuses purely on managing plot visibility
+and communicating with the plot widgets, while delegating data transformation
+to the PlotDataAdapter.
+"""
+
 from __future__ import annotations
 
-import enum
 import logging
+from typing import TYPE_CHECKING
 
-import numpy as np
 import pyqtgraph as pg
 from hystcomp_utils.cycle_data import CycleData
-from qtpy import QtCore, QtGui
+from qtpy import QtCore
 
-from ...utils import ColorPool
 from ._dataclass import PlotItem
+from ._plot_adapter import PlotDataAdapter, PlotType
+
+if TYPE_CHECKING:
+    from ._unified_model import CycleListModel
 
 log = logging.getLogger(__package__)
 
 
-class PredictionPlotModel(QtCore.QObject):
-    newReference = QtCore.Signal(PlotItem)
-    """ Triggered when a new reference is set """
+class UnifiedPlotModel(QtCore.QObject):
+    """
+    Plot model that manages plot visibility using the adapter pattern.
 
+    This model:
+    - Uses adapter for data transformations
+    - Focuses on plot management
+    - Has clear separation of concerns
+    """
+
+    # Plot addition signals
     measuredCurrentAdded = QtCore.Signal(pg.PlotCurveItem)
     measuredFieldAdded = QtCore.Signal(pg.PlotCurveItem)
     predictedFieldAdded = QtCore.Signal(pg.PlotCurveItem)
@@ -25,6 +42,7 @@ class PredictionPlotModel(QtCore.QObject):
     refMeasuredFieldAdded = QtCore.Signal(pg.PlotCurveItem)
     refPredictedFieldAdded = QtCore.Signal(pg.PlotCurveItem)
 
+    # Plot removal signals
     measuredCurrentRemoved = QtCore.Signal(pg.PlotCurveItem)
     measuredFieldRemoved = QtCore.Signal(pg.PlotCurveItem)
     predictedFieldRemoved = QtCore.Signal(pg.PlotCurveItem)
@@ -32,339 +50,366 @@ class PredictionPlotModel(QtCore.QObject):
     refMeasuredFieldRemoved = QtCore.Signal(pg.PlotCurveItem)
     refPredictedFieldRemoved = QtCore.Signal(pg.PlotCurveItem)
 
+    # Axis control signals
     setXRange = QtCore.Signal(float, float)
-    """ Set X range of all plots """
     setYRange = QtCore.Signal(float, float)
-    """ Set Y range of field plots (not current) """
 
-    def __init__(self, parent: QtCore.QObject | None = None):
+    # Reference signals
+    newReference = QtCore.Signal(PlotItem)
+
+    def __init__(
+        self, cycle_model: CycleListModel, parent: QtCore.QObject | None = None
+    ) -> None:
         super().__init__(parent=parent)
 
-        self._plotted_items: set[PlotItem] = set()
+        self._cycle_model = cycle_model
+        self._adapter = PlotDataAdapter()
 
+        # Track which items are currently plotted
+        self._plotted_items: set[PlotItem] = set()
+        self._current_reference: PlotItem | None = None
+
+        # Connect to the unified model
+        self._connect_model_signals()
+
+    def _connect_model_signals(self) -> None:
+        """Connect to signals from the unified cycle model."""
+        self._cycle_model.plotItemAdded.connect(self.show_plot_item)
+        self._cycle_model.plotItemUpdated.connect(self.update_plot_item)
+        self._cycle_model.plotItemRemoved.connect(self.hide_plot_item)
+        self._cycle_model.referenceChanged.connect(self.set_reference)
+
+    @QtCore.Slot(PlotItem)
+    def show_plot_item(self, plot_item: PlotItem) -> None:
+        """Show plots for the given item."""
+        if plot_item in self._plotted_items:
+            log.debug(f"[{plot_item.cycle_data}] Already shown, skipping.")
+            return
+
+        log.debug(f"[{plot_item.cycle_data}] Creating plots.")
+
+        try:
+            # Generate all possible curves for this item
+            curves = self._adapter.create_plot_curves(plot_item)
+
+            # Store curves in the plot item for later removal
+            self._store_curves_in_item(plot_item, curves)
+
+            # Emit signals to add curves to appropriate plots
+            self._emit_addition_signals(curves)
+
+            # Track this item as plotted
+            self._plotted_items.add(plot_item)
+            plot_item.is_shown = True
+
+            # Update axes if this is the first item
+            if len(self._plotted_items) == 1:
+                self.reset_axes()
+
+        except Exception:
+            log.exception(f"Failed to create plots for {plot_item.cycle_data}")
+
+    @QtCore.Slot(PlotItem)
+    def update_plot_item(self, plot_item: PlotItem) -> None:
+        """Update plots for an existing item."""
+        if plot_item not in self._plotted_items:
+            log.debug(f"[{plot_item.cycle_data}] Not shown, skipping update.")
+            return
+
+        log.debug(f"[{plot_item.cycle_data}] Updating plots.")
+
+        # Remove old plots and create new ones
+        self.hide_plot_item(plot_item)
+        self.show_plot_item(plot_item)
+
+    @QtCore.Slot(PlotItem)
+    def hide_plot_item(self, plot_item: PlotItem) -> None:
+        """Hide plots for the given item."""
+        if plot_item not in self._plotted_items:
+            return
+
+        log.debug(f"[{plot_item.cycle_data}] Removing plots.")
+
+        # Remove all curves from plots
+        self._remove_all_curves(plot_item)
+
+        # Return color to pool
+        if plot_item.color is not None:
+            self._adapter.return_color(plot_item.color)
+            plot_item.color = None
+
+        # Update tracking
+        self._plotted_items.remove(plot_item)
+        plot_item.is_shown = False
+
+    @QtCore.Slot()
+    def hide_all(self) -> None:
+        """Hide all currently shown plots."""
+        for plot_item in self._plotted_items.copy():
+            self.hide_plot_item(plot_item)
+
+    @QtCore.Slot(object)  # CycleData
+    def set_reference(self, cycle_data: CycleData) -> None:
+        """Set the reference cycle and update plot widths."""
+        # Find the plot item for this cycle
+        plot_item = None
+        for item in self._plotted_items:
+            if item.cycle_data.cycle_timestamp == cycle_data.cycle_timestamp:
+                plot_item = item
+                break
+
+        if plot_item is None:
+            log.debug(f"Reference cycle {cycle_data.cycle} not currently plotted.")
+            return
+
+        old_reference = self._current_reference
+        self._current_reference = plot_item
+
+        # Update line widths
+        self._update_reference_widths(old_reference, plot_item)
+
+        # Emit signal
+        self.newReference.emit(plot_item)
+
+        log.debug(f"[{cycle_data}] Set as plotting reference.")
+
+    @QtCore.Slot()
+    def reset_axes(self) -> None:
+        """Reset plot axes based on currently shown data."""
+        if not self._plotted_items:
+            return
+
+        # Calculate appropriate ranges
+        x_min, x_max = self._calculate_x_range()
+        y_min, y_max = self._calculate_y_range()
+
+        self.setXRange.emit(x_min, x_max)
+        self.setYRange.emit(y_min, y_max)
+
+    def _store_curves_in_item(
+        self, plot_item: PlotItem, curves: dict[PlotType, pg.PlotCurveItem]
+    ) -> None:
+        """Store curve references in the plot item for later removal."""
+        plot_item.raw_current_plt = curves.get(PlotType.MEASURED_CURRENT)
+        plot_item.raw_meas_plt = curves.get(PlotType.MEASURED_FIELD)
+        plot_item.raw_pred_plt = curves.get(PlotType.PREDICTED_FIELD)
+        plot_item.delta_plt = curves.get(PlotType.DELTA_FIELD)
+        plot_item.ref_meas_plt = curves.get(PlotType.REF_MEASURED_DIFF)
+        plot_item.ref_pred_plt = curves.get(PlotType.REF_PREDICTED_DIFF)
+
+    def _emit_addition_signals(self, curves: dict[PlotType, pg.PlotCurveItem]) -> None:
+        """Emit appropriate signals to add curves to plots."""
+        signal_map = {
+            PlotType.MEASURED_CURRENT: self.measuredCurrentAdded,
+            PlotType.MEASURED_FIELD: self.measuredFieldAdded,
+            PlotType.PREDICTED_FIELD: self.predictedFieldAdded,
+            PlotType.DELTA_FIELD: self.deltaFieldAdded,
+            PlotType.REF_MEASURED_DIFF: self.refMeasuredFieldAdded,
+            PlotType.REF_PREDICTED_DIFF: self.refPredictedFieldAdded,
+        }
+
+        for plot_type, curve in curves.items():
+            if plot_type in signal_map:
+                signal_map[plot_type].emit(curve)
+
+    def _remove_all_curves(self, plot_item: PlotItem) -> None:
+        """Remove all curves for a plot item from the plots."""
+        curve_signal_map = [
+            (plot_item.raw_current_plt, self.measuredCurrentRemoved),
+            (plot_item.raw_meas_plt, self.measuredFieldRemoved),
+            (plot_item.raw_pred_plt, self.predictedFieldRemoved),
+            (plot_item.delta_plt, self.deltaFieldRemoved),
+            (plot_item.ref_meas_plt, self.refMeasuredFieldRemoved),
+            (plot_item.ref_pred_plt, self.refPredictedFieldRemoved),
+        ]
+
+        for curve, signal in curve_signal_map:
+            if curve is not None:
+                signal.emit(curve)
+
+        # Clear curve references
+        plot_item.raw_current_plt = None
+        plot_item.raw_meas_plt = None
+        plot_item.raw_pred_plt = None
+        plot_item.delta_plt = None
+        plot_item.ref_meas_plt = None
+        plot_item.ref_pred_plt = None
+
+    def _update_reference_widths(
+        self, old_reference: PlotItem | None, new_reference: PlotItem
+    ) -> None:
+        """Update line widths when reference changes."""
+        # Make new reference curves thicker
+        for curve in self._get_all_curves(new_reference):
+            if curve is not None:
+                self._adapter.update_curve_width(curve, 4)
+
+        # Make old reference curves normal width
+        if old_reference is not None:
+            for curve in self._get_all_curves(old_reference):
+                if curve is not None:
+                    self._adapter.update_curve_width(curve, 2)
+
+    def _get_all_curves(self, plot_item: PlotItem) -> list[pg.PlotCurveItem | None]:
+        """Get all curve references from a plot item."""
+        return [
+            plot_item.raw_current_plt,
+            plot_item.raw_meas_plt,
+            plot_item.raw_pred_plt,
+            plot_item.delta_plt,
+            plot_item.ref_meas_plt,
+            plot_item.ref_pred_plt,
+        ]
+
+    def _calculate_x_range(self) -> tuple[float, float]:
+        """Calculate appropriate X range for all plotted items."""
+        if not self._plotted_items:
+            return 0.0, 1.0
+
+        # Use the number of samples from any plotted item
+        first_item = next(iter(self._plotted_items))
+        num_samples = first_item.cycle_data.num_samples
+        return 0.0, float(num_samples)
+
+    def _calculate_y_range(self) -> tuple[float, float]:
+        """Calculate appropriate Y range for field plots."""
+        if not self._plotted_items:
+            return 0.0, 2.1
+
+        y_values = []
+        for item in self._plotted_items:
+            if item.cycle_data.field_pred is not None:
+                field_data = item.cycle_data.field_pred[1, :]
+                y_values.extend([field_data.min(), field_data.max()])
+
+        if not y_values:
+            return 0.0, 2.1
+
+        y_min, y_max = min(y_values), max(y_values)
+        margin = (y_max - y_min) * 0.1  # 10% margin
+        return y_min - margin, y_max + margin
+
+
+# Alternative plot model implementation
+class PredictionPlotModel(QtCore.QObject):
+    """
+    Plot model for prediction visualization.
+
+    This provides the standard API for managing prediction plots.
+    """
+
+    # Same signals as the original for compatibility
+    newReference = QtCore.Signal(PlotItem)
+    measuredCurrentAdded = QtCore.Signal(pg.PlotCurveItem)
+    measuredFieldAdded = QtCore.Signal(pg.PlotCurveItem)
+    predictedFieldAdded = QtCore.Signal(pg.PlotCurveItem)
+    deltaFieldAdded = QtCore.Signal(pg.PlotCurveItem)
+    refMeasuredFieldAdded = QtCore.Signal(pg.PlotCurveItem)
+    refPredictedFieldAdded = QtCore.Signal(pg.PlotCurveItem)
+    measuredCurrentRemoved = QtCore.Signal(pg.PlotCurveItem)
+    measuredFieldRemoved = QtCore.Signal(pg.PlotCurveItem)
+    predictedFieldRemoved = QtCore.Signal(pg.PlotCurveItem)
+    deltaFieldRemoved = QtCore.Signal(pg.PlotCurveItem)
+    refMeasuredFieldRemoved = QtCore.Signal(pg.PlotCurveItem)
+    refPredictedFieldRemoved = QtCore.Signal(pg.PlotCurveItem)
+    setXRange = QtCore.Signal(float, float)
+    setYRange = QtCore.Signal(float, float)
+
+    def __init__(self, parent: QtCore.QObject | None = None) -> None:
+        super().__init__(parent=parent)
+
+        # Implementation using adapter pattern
+        self._plotted_items: set[PlotItem] = set()
         self._reference: PlotItem | None = None
-        self._color_pool = ColorPool()
+        self._adapter = PlotDataAdapter()
 
     @QtCore.Slot(PlotItem)
     def showCycle(self, item: PlotItem) -> None:
-        """
-        Add a *new* item to the plot.
-
-        The item is sent to the plotAdded signal if it is successfully plotted.
-
-        If the reference is not set, the main plot will not be created,
-        and left as None. It will be automatically updated by the
-        :meth:`set_reference`, and :meth:`update_item` methods.
-
-        :param item: The item to add to the plot.
-        """
-        if item.color is None:
-            color = self._color_pool.get_color()
-            item.color = color
-
-        width = 4 if item == self._reference else 2
-
-        if item.cycle_data.current_meas is not None and item.raw_current_plt is None:
-            item.raw_current_plt = _make_curve_item(
-                *_make_meas_curve(item.cycle_data, item.cycle_data.current_meas),
-                item.color,
-                width=width,
-            )
-            log.debug(f"[{item.cycle_data}] Creating current plot.")
-            self.measuredCurrentAdded.emit(item.raw_current_plt)
-        elif item.cycle_data.current_meas is None:
-            log.debug(f"[{item.cycle_data}] No current data, skipping.")
-
-        if item.cycle_data.field_meas is not None and item.raw_meas_plt is None:
-            item.raw_meas_plt = _make_curve_item(
-                *_make_meas_curve(item.cycle_data, item.cycle_data.field_meas),
-                item.color,
-                width=width,
-            )
-            log.debug(f"[{item.cycle_data}] Creating field plot.")
-            self.measuredFieldAdded.emit(item.raw_meas_plt)
-        elif item.cycle_data.field_meas is None:
-            log.debug(f"[{item.cycle_data}] No meas data, skipping.")
-
-        if item.cycle_data.field_pred is not None and item.raw_pred_plt is None:
-            item.raw_pred_plt = _make_curve_item(
-                *_make_pred_curve(item, use=PredictionItem.Prediction), item.color
-            )
-            self.predictedFieldAdded.emit(item.raw_pred_plt)
-        elif item.cycle_data.field_pred is None:
-            log.debug(f"[{item.cycle_data}] No pred data, skipping.")
-
-        if item.cycle_data.delta_applied is not None and item.delta_plt is None:
-            item.delta_plt = _make_curve_item(
-                item.cycle_data.delta_applied[0],
-                item.cycle_data.delta_applied[1] * 1e4,
-                item.color,
-                width=width,
-            )
-            log.debug(f"[{item.cycle_data}] Creating delta plot.")
-            self.deltaFieldAdded.emit(item.delta_plt)
-
-        if (
-            item.ref_meas_plt is None
-            and item.cycle_data.field_meas_ref is not None
-            and item.cycle_data.field_meas is not None
-        ):
-            item.ref_meas_plt = _make_curve_item(
-                *_make_meas_curve(
-                    item.cycle_data,
-                    (item.cycle_data.field_meas_ref - item.cycle_data.field_meas) * 1e4,
-                ),
-                item.color,
-                width=width,
-            )
-
-            log.debug(f"[{item.cycle_data}] Creating ref meas plot.")
-            self.refMeasuredFieldAdded.emit(item.ref_meas_plt)
-        elif item.cycle_data.field_meas_ref is None:
-            log.debug(f"[{item.cycle_data}] No ref meas data, skipping.")
-
-        if (
-            item.ref_pred_plt is None
-            and item.cycle_data.field_ref is not None
-            and item.cycle_data.field_pred is not None
-        ):
-            ref_x, ref_y = _make_pred_curve(item, use=PredictionItem.Reference)
-            _, pred_y = _make_pred_curve(item, use=PredictionItem.Prediction)
-
-            item.ref_pred_plt = _make_curve_item(
-                ref_x, (ref_y - pred_y) * 1e4, item.color, width=width
-            )
-
-            log.debug(f"[{item.cycle_data}] Creating ref pred plot.")
-            self.refPredictedFieldAdded.emit(item.ref_pred_plt)
-        elif item.cycle_data.field_ref is None:
-            log.debug(f"[{item.cycle_data}] No ref pred data, skipping.")
-
-        self._plotted_items.add(item)
-
-        item.is_shown = True
-        if not item.is_shown and len(self._plotted_items) == 1:
-            # first item, set axes
-            # self.setReference(item)
-            self.resetAxes()
-
-    def updateCycle(self, item: PlotItem) -> None:
-        if not item.is_shown:
-            log.debug(f"Item {item} not shown, not updating.")
+        """Show a cycle."""
+        if item in self._plotted_items:
             return
 
-        log.debug(f"[{item.cycle_data}] Updating plots with.")
+        try:
+            curves = self._adapter.create_plot_curves(item)
+            self._store_curves_in_item(item, curves)
+            self._emit_addition_signals(curves)
+            self._plotted_items.add(item)
+            item.is_shown = True
+        except Exception:
+            log.exception(f"Failed to create plots for {item.cycle_data}")
+
+    @QtCore.Slot(PlotItem)
+    def updateCycle(self, item: PlotItem) -> None:
+        """Update a cycle."""
+        if item not in self._plotted_items:
+            return
+        self.removeCycle(item)
         self.showCycle(item)
 
     @QtCore.Slot(PlotItem)
     def removeCycle(self, item: PlotItem) -> None:
-        """
-        Remove an existing item from the plot.
-
-        The item is sent to the plotRemoved Signal if it was plotted,
-        and to the plotRemoved_dpp Signal. The plot is then removed
-        from the index, and the color returned to the pool.
-
-        The plot change is communicated to the plot widget with the
-        plotRemoved signals.
-        """
+        """Remove a cycle."""
         if item not in self._plotted_items:
             return
 
-        log.debug(f"Removing plot for cycle {item.cycle_data.cycle_time}")
-
-        if item.ref_pred_plt is not None:
-            log.debug(f"[{item.cycle_data}] Removing ref pred plot.")
-            self.refPredictedFieldRemoved.emit(item.ref_pred_plt)
-            item.ref_pred_plt = None
-
-        if item.raw_pred_plt is not None:
-            log.debug(f"[{item.cycle_data}] Removing pred plot.")
-            self.predictedFieldRemoved.emit(item.raw_pred_plt)
-            item.raw_pred_plt = None
-
-        if item.raw_meas_plt is not None:
-            log.debug(f"[{item.cycle_data}] Removing meas plot.")
-            self.measuredFieldRemoved.emit(item.raw_meas_plt)
-            item.raw_meas_plt = None
-
-        if item.raw_current_plt is not None:
-            log.debug(f"[{item.cycle_data}] Removing current plot.")
-            self.measuredCurrentRemoved.emit(item.raw_current_plt)
-            item.raw_current_plt = None
-
-        if item.delta_plt is not None:
-            log.debug(f"[{item.cycle_data}] Removing delta plot.")
-            self.deltaFieldRemoved.emit(item.delta_plt)
-            item.delta_plt = None
-
-        if item.ref_meas_plt is not None:
-            log.debug(f"[{item.cycle_data}] Removing ref meas plot.")
-            self.refMeasuredFieldRemoved.emit(item.ref_meas_plt)
-            item.ref_meas_plt = None
-
+        self._remove_all_curves(item)
         if item.color is not None:
-            log.debug(f"Returning color {item.color} to pool.")
-            self._color_pool.return_color(item.color)
+            self._adapter.return_color(item.color)
             item.color = None
-
         self._plotted_items.remove(item)
         item.is_shown = False
 
     @QtCore.Slot()
     def removeAll(self) -> None:
-        """
-        Trigger a full removal of all plots.
-        """
+        """Remove all cycles."""
         for item in self._plotted_items.copy():
             self.removeCycle(item)
 
-    @QtCore.Slot(PlotItem)
-    def setReference(self, item: PlotItem) -> None:
-        """
-        Set the reference item. Makes the reference curve wider, and plots it if not shown.
+    def _store_curves_in_item(
+        self, plot_item: PlotItem, curves: dict[PlotType, pg.PlotCurveItem]
+    ) -> None:
+        """Store curve references in the plot item for later removal."""
+        plot_item.raw_current_plt = curves.get(PlotType.MEASURED_CURRENT)
+        plot_item.raw_meas_plt = curves.get(PlotType.MEASURED_FIELD)
+        plot_item.raw_pred_plt = curves.get(PlotType.PREDICTED_FIELD)
+        plot_item.delta_plt = curves.get(PlotType.DELTA_FIELD)
+        plot_item.ref_meas_plt = curves.get(PlotType.REF_MEASURED_DIFF)
+        plot_item.ref_pred_plt = curves.get(PlotType.REF_PREDICTED_DIFF)
 
-        :param item: The item to use as reference.
-        """
-        log.debug(f"[{item.cycle_data}] Setting plotting reference.")
-        current_reference = self._reference
+    def _emit_addition_signals(self, curves: dict[PlotType, pg.PlotCurveItem]) -> None:
+        """Emit appropriate signals to add curves to plots."""
+        signal_map = {
+            PlotType.MEASURED_CURRENT: self.measuredCurrentAdded,
+            PlotType.MEASURED_FIELD: self.measuredFieldAdded,
+            PlotType.PREDICTED_FIELD: self.predictedFieldAdded,
+            PlotType.DELTA_FIELD: self.deltaFieldAdded,
+            PlotType.REF_MEASURED_DIFF: self.refMeasuredFieldAdded,
+            PlotType.REF_PREDICTED_DIFF: self.refPredictedFieldAdded,
+        }
 
-        if not item.is_shown:
-            log.debug(f"New reference {item.cycle_data} not shown, plotting now.")
-            self.showCycle(item)
+        for plot_type, curve in curves.items():
+            if plot_type in signal_map:
+                signal_map[plot_type].emit(curve)
 
-        if current_reference is item:
-            return
+    def _remove_all_curves(self, plot_item: PlotItem) -> None:
+        """Remove all curves for a plot item from the plots."""
+        curve_signal_map = [
+            (plot_item.raw_current_plt, self.measuredCurrentRemoved),
+            (plot_item.raw_meas_plt, self.measuredFieldRemoved),
+            (plot_item.raw_pred_plt, self.predictedFieldRemoved),
+            (plot_item.delta_plt, self.deltaFieldRemoved),
+            (plot_item.ref_meas_plt, self.refMeasuredFieldRemoved),
+            (plot_item.ref_pred_plt, self.refPredictedFieldRemoved),
+        ]
 
-        self._reference = item
-        log.debug(f"Updating reference w.r.t. {item.cycle_data}")
+        for curve, signal in curve_signal_map:
+            if curve is not None:
+                signal.emit(curve)
 
-        # make reference curve wider
-        for attr in (
-            "ref_pred_plt",
-            "ref_meas_plt",
-            "delta_plt",
-            "raw_pred_plt",
-            "raw_meas_plt",
-            "raw_current_plt",
-        ):
-            if getattr(item, attr) is not None:
-                self.setCurveWidth(getattr(item, attr), 4)
-
-            if (
-                current_reference is not None
-                and getattr(current_reference, attr) is not None
-            ):
-                self.setCurveWidth(getattr(current_reference, attr), 2)
-
-        self.newReference.emit(item)
-
-    @staticmethod
-    def setCurveWidth(pg_curve: pg.PlotCurveItem, width: int) -> None:
-        """
-        Set the width of a curve.
-
-        :param pg_curve: The curve to set the width of.
-        :param width: The width to set.
-        """
-        pg_curve.setPen(width=width, color=pg_curve.opts["pen"].color())
-
-    @QtCore.Slot()
-    def resetAxes(self) -> None:
-        if len(self._plotted_items) == 0:
-            return
-
-        max_val = max(
-            item.cycle_data.field_pred[1, :].max()
-            for item in self._plotted_items
-            if item.cycle_data.field_pred is not None
-        )
-        min_val = min(
-            item.cycle_data.field_pred[1, :].min()
-            for item in self._plotted_items
-            if item.cycle_data.field_pred is not None
-        )
-
-        self.setYRange.emit(min_val - 0.1, max_val + 0.1)
-        self.setXRange.emit(0, next(iter(self._plotted_items)).cycle_data.num_samples)
-
-
-def calc_downsample(high: np.ndarray, low: np.ndarray) -> int:
-    return int(np.ceil(len(high) / len(low)))
-
-
-class PredictionItem(enum.Enum):
-    Prediction = enum.auto()
-    Reference = enum.auto()
-
-
-def _make_pred_curve(
-    item: PlotItem, *, use: PredictionItem
-) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Create a curve for the dp/p plot.
-
-    :param item: The item to create the curve for.
-    """
-    data = item.cycle_data
-    if use is PredictionItem.Reference:
-        if data.field_ref is None:
-            msg = f"[{data}] No reference field data found."
-            raise ValueError(msg)
-
-        value = data.field_ref
-    else:
-        if data.field_pred is None:
-            msg = f"[{data}] No field prediction found."
-            raise ValueError(msg)
-
-        value = data.field_pred
-
-    time_axis = _make_time_axis(item)
-    field_pred = value[1, :]
-    x = time_axis[:: calc_downsample(time_axis, value[1, :])]
-
-    field_pred = np.interp(time_axis, x, field_pred)
-
-    return time_axis, field_pred
-
-
-def _make_curve_item(
-    x: np.ndarray, y: np.ndarray, color: QtGui.QColor, width: int = 2
-) -> pg.PlotCurveItem:
-    """
-    Create a new curve item.
-
-    :param x: The x data.
-    :param y: The y data.
-    :param color: The color of the curve.
-    """
-    return pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(color=color, width=width))
-
-
-def _make_meas_curve(item: PlotItem, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    x = _make_time_axis(item)
-    y = y.flatten()
-
-    return x, y
-
-
-def _update_curve(x: np.ndarray, y: np.ndarray, curve: pg.PlotCurveItem) -> None:
-    """
-    Update the data of a curve.
-
-    :param x: The x data.
-    :param y: The y data.
-    :param curve: The curve to update.
-    """
-    curve.setData(x=x, y=y)
-
-
-def _make_time_axis(item: PlotItem | CycleData) -> np.ndarray:
-    cycle = item.cycle_data if isinstance(item, PlotItem) else item
-    x = np.arange(0, cycle.num_samples + 1)
-
-    if str(len(x)).endswith("1"):
-        x = x[:-1]
-
-    return x
+        # Clear curve references
+        plot_item.raw_current_plt = None
+        plot_item.raw_meas_plt = None
+        plot_item.raw_pred_plt = None
+        plot_item.delta_plt = None
+        plot_item.ref_meas_plt = None
+        plot_item.ref_pred_plt = None
