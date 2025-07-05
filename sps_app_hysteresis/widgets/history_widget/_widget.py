@@ -10,7 +10,8 @@ from qtpy import QtCore, QtGui, QtWidgets
 from ...generated.reference_selector_dialog_ui import Ui_ReferenceSelectorDialog
 from ...history import PredictionHistory
 from ...utils import mute_signals
-from ._view import HistoryPlotWidget
+from ._unified_model import CycleListModel
+from ._view import HistoryPlotWidget, UnifiedHistoryPlotWidget
 
 log = logging.getLogger(__package__)
 
@@ -140,20 +141,42 @@ class HistoryWidget(QtWidgets.QWidget):
     @QtCore.Slot()
     def onResetAxes(self) -> None:
         if self.tabWidget.currentWidget() is not None:
-            typing.cast(HistoryPlotWidget, self.tabWidget.currentWidget()).resetAxes()
+            typing.cast(
+                UnifiedHistoryPlotWidget, self.tabWidget.currentWidget()
+            ).resetAxes()
 
     @property
-    def currentWidget(self) -> HistoryPlotWidget:
+    def currentWidget(self) -> UnifiedHistoryPlotWidget:
         current_widget = self.tabWidget.currentWidget()
         if current_widget is None:
             msg = "No tab selected."
             raise RuntimeError(msg)
 
-        return typing.cast(HistoryPlotWidget, current_widget)
+        return typing.cast(UnifiedHistoryPlotWidget, current_widget)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def onItemClicked(self, index: QtCore.QModelIndex) -> None:
         self.currentWidget.itemClicked(index)
+
+    def _create_unified_model(self, history_model) -> CycleListModel:
+        """Create a CycleListModel from a HistoryListModel."""
+        # Create the unified model with same max length
+        cycle_model = CycleListModel(max_len=history_model.max_len, parent=self)
+
+        # Copy existing data from history model
+        for cycle_data in history_model.buffered_data:
+            cycle_model.append(cycle_data)
+
+        # Copy reference if set
+        if history_model.reference is not None:
+            cycle_model.set_reference(history_model.reference)
+
+        # Connect signals to keep models in sync
+        history_model.itemAdded.connect(cycle_model.append)
+        history_model.itemUpdated.connect(cycle_model.update)
+        history_model.referenceChanged.connect(cycle_model.set_reference)
+
+        return cycle_model
 
     def show_or_create_tab(self, name: str) -> None:
         # check if tab is already open and selected
@@ -164,8 +187,13 @@ class HistoryWidget(QtWidgets.QWidget):
         if name not in self._tabs:
             msg = f"Creating new tab for {name}"
             log.debug(msg)
-            widget = HistoryPlotWidget(
-                self._history.model(name),
+            # Create unified model from history model
+            history_model = self._history.model(name)
+            cycle_model = self._create_unified_model(history_model)
+
+            # Use the new unified widget instead of the old one
+            widget = UnifiedHistoryPlotWidget(
+                cycle_model,
                 self,
                 plot_measured=self.measured_available,
             )
@@ -195,11 +223,11 @@ class HistoryWidget(QtWidgets.QWidget):
             self.tabWidget.setCurrentWidget(self._tabs[name])
             self.tabWidget.currentChanged.connect(self.onTabChanged)
 
-        self.listView.setModel(self.currentWidget.lmodel)
+        self.listView.setModel(self.currentWidget.cycle_model)
 
     @QtCore.Slot(int)
     def onTabChanged(self, index: int) -> None:
-        self.listView.setModel(self.tabWidget.widget(index).lmodel)
+        self.listView.setModel(self.tabWidget.widget(index).cycle_model)
 
         name = self.tabWidget.tabText(index)
         log.debug(f"Switched to tab {name}")

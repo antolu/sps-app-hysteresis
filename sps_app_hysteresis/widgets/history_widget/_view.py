@@ -8,7 +8,8 @@ from qtpy import QtCore, QtGui, QtWidgets
 from ...generated.prediction_history_widget_ui import Ui_PredictionAnalysisWidget
 from ...history import HistoryListModel
 from ._model import PredictionListModel
-from ._plot_model import PredictionPlotModel
+from ._plot_model import PredictionPlotModel, UnifiedPlotModel
+from ._unified_model import CycleListModel
 
 log = logging.getLogger(__package__)
 
@@ -278,4 +279,87 @@ class HistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         self.windowClosed.emit()
+        event.accept()
+
+
+class UnifiedHistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
+    """
+    Unified history plot widget using CycleListModel and UnifiedPlotModel.
+
+    This simplified version eliminates the HistoryListModel→PredictionListModel
+    chain and uses the unified architecture directly.
+    """
+
+    def __init__(
+        self,
+        cycle_model: CycleListModel,
+        parent: QtWidgets.QWidget | None = None,
+        *,
+        plot_measured: bool = True,
+    ) -> None:
+        super().__init__(parent=parent)
+        self.setupUi(self)
+        self.plot_measured = plot_measured
+
+        # Use the unified model directly - much simpler!
+        self.cycle_model = cycle_model
+
+        # Plot container handles the actual plotting widgets
+        self.plots = PlotContainer(parent=self.widget, plot_measured=plot_measured)
+
+        # Unified plot model using adapter pattern
+        self.plot_model = UnifiedPlotModel(cycle_model=self.cycle_model, parent=self)
+
+        # Connect the signals
+        self._connect_plot_model()
+
+    def _connect_plot_model(self) -> None:
+        """Connect plot model signals to plot container."""
+        # Plot addition signals - direct connections, no complex chains!
+        self.plot_model.measuredCurrentAdded.connect(self.plots.addMeasuredCurrentPlot)
+        self.plot_model.measuredFieldAdded.connect(self.plots.addMeasuredFieldPlot)
+        self.plot_model.predictedFieldAdded.connect(self.plots.addPredictedFieldPlot)
+        self.plot_model.deltaFieldAdded.connect(self.plots.addDeltaPlot)
+        self.plot_model.refMeasuredFieldAdded.connect(
+            self.plots.addMeasuredFieldRefDiffPlot
+        )
+        self.plot_model.refPredictedFieldAdded.connect(
+            self.plots.addPredictedFieldRefDiffPlot
+        )
+
+        # Plot removal signals
+        self.plot_model.measuredCurrentRemoved.connect(
+            self.plots.removeMeasuredCurrentPlot
+        )
+        self.plot_model.measuredFieldRemoved.connect(self.plots.removeMeasuredFieldPlot)
+        self.plot_model.predictedFieldRemoved.connect(
+            self.plots.removePredictedFieldPlot
+        )
+        self.plot_model.deltaFieldRemoved.connect(self.plots.removeDeltaPlot)
+        self.plot_model.refMeasuredFieldRemoved.connect(
+            self.plots.removeMeasuredFieldRefDiffPlot
+        )
+        self.plot_model.refPredictedFieldRemoved.connect(
+            self.plots.removePredictedFieldRefDiffPlot
+        )
+
+        # Axis control
+        self.plot_model.setXRange.connect(self.plots.setXRange)
+
+    @QtCore.Slot(QtCore.QModelIndex)
+    def itemClicked(self, index: QtCore.QModelIndex) -> None:
+        """Handle list item click - much simpler now!"""
+        # The unified model handles everything - no complex coordination needed
+        self.cycle_model.clicked(index)
+        log.debug(f"Item clicked at row {index.row()}")
+
+    @QtCore.Slot()
+    def resetAxes(self) -> None:
+        """Reset plot axes."""
+        self.plot_model.reset_axes()
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        """Handle widget close."""
+        # Clean up plots
+        self.plot_model.hide_all()
         event.accept()

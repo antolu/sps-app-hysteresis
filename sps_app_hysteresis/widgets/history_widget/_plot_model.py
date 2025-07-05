@@ -24,7 +24,78 @@ if TYPE_CHECKING:
 log = logging.getLogger(__package__)
 
 
-class UnifiedPlotModel(QtCore.QObject):
+class BasePlotModel(QtCore.QObject):
+    """
+    Base class with shared plot management methods.
+
+    Contains common functionality for managing plot curves and signals.
+    """
+
+    # These signals must be defined in subclasses
+    measuredCurrentAdded: QtCore.Signal
+    measuredFieldAdded: QtCore.Signal
+    predictedFieldAdded: QtCore.Signal
+    deltaFieldAdded: QtCore.Signal
+    refMeasuredFieldAdded: QtCore.Signal
+    refPredictedFieldAdded: QtCore.Signal
+    measuredCurrentRemoved: QtCore.Signal
+    measuredFieldRemoved: QtCore.Signal
+    predictedFieldRemoved: QtCore.Signal
+    deltaFieldRemoved: QtCore.Signal
+    refMeasuredFieldRemoved: QtCore.Signal
+    refPredictedFieldRemoved: QtCore.Signal
+
+    def _store_curves_in_item(
+        self, plot_item: PlotItem, curves: dict[PlotType, pg.PlotCurveItem]
+    ) -> None:
+        """Store curve references in the plot item for later removal."""
+        plot_item.raw_current_plt = curves.get(PlotType.MEASURED_CURRENT)
+        plot_item.raw_meas_plt = curves.get(PlotType.MEASURED_FIELD)
+        plot_item.raw_pred_plt = curves.get(PlotType.PREDICTED_FIELD)
+        plot_item.delta_plt = curves.get(PlotType.DELTA_FIELD)
+        plot_item.ref_meas_plt = curves.get(PlotType.REF_MEASURED_DIFF)
+        plot_item.ref_pred_plt = curves.get(PlotType.REF_PREDICTED_DIFF)
+
+    def _emit_addition_signals(self, curves: dict[PlotType, pg.PlotCurveItem]) -> None:
+        """Emit appropriate signals to add curves to plots."""
+        signal_map = {
+            PlotType.MEASURED_CURRENT: self.measuredCurrentAdded,
+            PlotType.MEASURED_FIELD: self.measuredFieldAdded,
+            PlotType.PREDICTED_FIELD: self.predictedFieldAdded,
+            PlotType.DELTA_FIELD: self.deltaFieldAdded,
+            PlotType.REF_MEASURED_DIFF: self.refMeasuredFieldAdded,
+            PlotType.REF_PREDICTED_DIFF: self.refPredictedFieldAdded,
+        }
+
+        for plot_type, curve in curves.items():
+            if plot_type in signal_map:
+                signal_map[plot_type].emit(curve)
+
+    def _remove_all_curves(self, plot_item: PlotItem) -> None:
+        """Remove all curves for a plot item from the plots."""
+        curve_signal_map = [
+            (plot_item.raw_current_plt, self.measuredCurrentRemoved),
+            (plot_item.raw_meas_plt, self.measuredFieldRemoved),
+            (plot_item.raw_pred_plt, self.predictedFieldRemoved),
+            (plot_item.delta_plt, self.deltaFieldRemoved),
+            (plot_item.ref_meas_plt, self.refMeasuredFieldRemoved),
+            (plot_item.ref_pred_plt, self.refPredictedFieldRemoved),
+        ]
+
+        for curve, signal in curve_signal_map:
+            if curve is not None:
+                signal.emit(curve)
+
+        # Clear curve references
+        plot_item.raw_current_plt = None
+        plot_item.raw_meas_plt = None
+        plot_item.raw_pred_plt = None
+        plot_item.delta_plt = None
+        plot_item.ref_meas_plt = None
+        plot_item.ref_pred_plt = None
+
+
+class UnifiedPlotModel(BasePlotModel):
     """
     Plot model that manages plot visibility using the adapter pattern.
 
@@ -186,55 +257,6 @@ class UnifiedPlotModel(QtCore.QObject):
         self.setXRange.emit(x_min, x_max)
         self.setYRange.emit(y_min, y_max)
 
-    def _store_curves_in_item(
-        self, plot_item: PlotItem, curves: dict[PlotType, pg.PlotCurveItem]
-    ) -> None:
-        """Store curve references in the plot item for later removal."""
-        plot_item.raw_current_plt = curves.get(PlotType.MEASURED_CURRENT)
-        plot_item.raw_meas_plt = curves.get(PlotType.MEASURED_FIELD)
-        plot_item.raw_pred_plt = curves.get(PlotType.PREDICTED_FIELD)
-        plot_item.delta_plt = curves.get(PlotType.DELTA_FIELD)
-        plot_item.ref_meas_plt = curves.get(PlotType.REF_MEASURED_DIFF)
-        plot_item.ref_pred_plt = curves.get(PlotType.REF_PREDICTED_DIFF)
-
-    def _emit_addition_signals(self, curves: dict[PlotType, pg.PlotCurveItem]) -> None:
-        """Emit appropriate signals to add curves to plots."""
-        signal_map = {
-            PlotType.MEASURED_CURRENT: self.measuredCurrentAdded,
-            PlotType.MEASURED_FIELD: self.measuredFieldAdded,
-            PlotType.PREDICTED_FIELD: self.predictedFieldAdded,
-            PlotType.DELTA_FIELD: self.deltaFieldAdded,
-            PlotType.REF_MEASURED_DIFF: self.refMeasuredFieldAdded,
-            PlotType.REF_PREDICTED_DIFF: self.refPredictedFieldAdded,
-        }
-
-        for plot_type, curve in curves.items():
-            if plot_type in signal_map:
-                signal_map[plot_type].emit(curve)
-
-    def _remove_all_curves(self, plot_item: PlotItem) -> None:
-        """Remove all curves for a plot item from the plots."""
-        curve_signal_map = [
-            (plot_item.raw_current_plt, self.measuredCurrentRemoved),
-            (plot_item.raw_meas_plt, self.measuredFieldRemoved),
-            (plot_item.raw_pred_plt, self.predictedFieldRemoved),
-            (plot_item.delta_plt, self.deltaFieldRemoved),
-            (plot_item.ref_meas_plt, self.refMeasuredFieldRemoved),
-            (plot_item.ref_pred_plt, self.refPredictedFieldRemoved),
-        ]
-
-        for curve, signal in curve_signal_map:
-            if curve is not None:
-                signal.emit(curve)
-
-        # Clear curve references
-        plot_item.raw_current_plt = None
-        plot_item.raw_meas_plt = None
-        plot_item.raw_pred_plt = None
-        plot_item.delta_plt = None
-        plot_item.ref_meas_plt = None
-        plot_item.ref_pred_plt = None
-
     def _update_reference_widths(
         self, old_reference: PlotItem | None, new_reference: PlotItem
     ) -> None:
@@ -291,7 +313,7 @@ class UnifiedPlotModel(QtCore.QObject):
 
 
 # Alternative plot model implementation
-class PredictionPlotModel(QtCore.QObject):
+class PredictionPlotModel(BasePlotModel):
     """
     Plot model for prediction visualization.
 
@@ -364,52 +386,3 @@ class PredictionPlotModel(QtCore.QObject):
         """Remove all cycles."""
         for item in self._plotted_items.copy():
             self.removeCycle(item)
-
-    def _store_curves_in_item(
-        self, plot_item: PlotItem, curves: dict[PlotType, pg.PlotCurveItem]
-    ) -> None:
-        """Store curve references in the plot item for later removal."""
-        plot_item.raw_current_plt = curves.get(PlotType.MEASURED_CURRENT)
-        plot_item.raw_meas_plt = curves.get(PlotType.MEASURED_FIELD)
-        plot_item.raw_pred_plt = curves.get(PlotType.PREDICTED_FIELD)
-        plot_item.delta_plt = curves.get(PlotType.DELTA_FIELD)
-        plot_item.ref_meas_plt = curves.get(PlotType.REF_MEASURED_DIFF)
-        plot_item.ref_pred_plt = curves.get(PlotType.REF_PREDICTED_DIFF)
-
-    def _emit_addition_signals(self, curves: dict[PlotType, pg.PlotCurveItem]) -> None:
-        """Emit appropriate signals to add curves to plots."""
-        signal_map = {
-            PlotType.MEASURED_CURRENT: self.measuredCurrentAdded,
-            PlotType.MEASURED_FIELD: self.measuredFieldAdded,
-            PlotType.PREDICTED_FIELD: self.predictedFieldAdded,
-            PlotType.DELTA_FIELD: self.deltaFieldAdded,
-            PlotType.REF_MEASURED_DIFF: self.refMeasuredFieldAdded,
-            PlotType.REF_PREDICTED_DIFF: self.refPredictedFieldAdded,
-        }
-
-        for plot_type, curve in curves.items():
-            if plot_type in signal_map:
-                signal_map[plot_type].emit(curve)
-
-    def _remove_all_curves(self, plot_item: PlotItem) -> None:
-        """Remove all curves for a plot item from the plots."""
-        curve_signal_map = [
-            (plot_item.raw_current_plt, self.measuredCurrentRemoved),
-            (plot_item.raw_meas_plt, self.measuredFieldRemoved),
-            (plot_item.raw_pred_plt, self.predictedFieldRemoved),
-            (plot_item.delta_plt, self.deltaFieldRemoved),
-            (plot_item.ref_meas_plt, self.refMeasuredFieldRemoved),
-            (plot_item.ref_pred_plt, self.refPredictedFieldRemoved),
-        ]
-
-        for curve, signal in curve_signal_map:
-            if curve is not None:
-                signal.emit(curve)
-
-        # Clear curve references
-        plot_item.raw_current_plt = None
-        plot_item.raw_meas_plt = None
-        plot_item.raw_pred_plt = None
-        plot_item.delta_plt = None
-        plot_item.ref_meas_plt = None
-        plot_item.ref_pred_plt = None
