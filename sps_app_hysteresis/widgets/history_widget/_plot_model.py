@@ -95,7 +95,7 @@ class BasePlotModel(QtCore.QObject):
         plot_item.ref_pred_plt = None
 
 
-class UnifiedPlotModel(BasePlotModel):
+class CyclePlotModel(BasePlotModel):
     """
     Plot model that manages plot visibility using the adapter pattern.
 

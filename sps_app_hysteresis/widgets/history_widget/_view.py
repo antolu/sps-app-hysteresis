@@ -7,7 +7,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 
 from ...generated.prediction_history_widget_ui import Ui_PredictionAnalysisWidget
 from ._cycle_model import CycleListModel
-from ._plot_model import UnifiedPlotModel
+from ._plot_model import CyclePlotModel
 
 log = logging.getLogger(__package__)
 
@@ -209,7 +209,7 @@ class PlotContainer(QtCore.QObject):
         self.measuredCurrentPlot.vb.setXRange(x, y)
 
 
-class UnifiedHistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
+class HistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
     """
     History plot widget for displaying cycle data and predictions.
 
@@ -235,7 +235,7 @@ class UnifiedHistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.plots = PlotContainer(parent=self.widget, plot_measured=plot_measured)
 
         # Plot model using adapter pattern
-        self.plot_model = UnifiedPlotModel(cycle_model=self.cycle_model, parent=self)
+        self.plot_model = CyclePlotModel(cycle_model=self.cycle_model, parent=self)
 
         # Connect the signals
         self._connect_plot_model()
@@ -290,7 +290,3 @@ class UnifiedHistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         # Clean up plots
         self.plot_model.hide_all()
         event.accept()
-
-
-# Provide backward compatibility alias
-HistoryPlotWidget = UnifiedHistoryPlotWidget
