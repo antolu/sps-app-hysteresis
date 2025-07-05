@@ -10,7 +10,6 @@ from qtpy import QtCore, QtGui, QtWidgets
 from ...generated.reference_selector_dialog_ui import Ui_ReferenceSelectorDialog
 from ...history import PredictionHistory
 from ...utils import mute_signals
-from ._unified_model import CycleListModel
 from ._view import HistoryPlotWidget
 
 log = logging.getLogger(__package__)
@@ -156,26 +155,6 @@ class HistoryWidget(QtWidgets.QWidget):
     def onItemClicked(self, index: QtCore.QModelIndex) -> None:
         self.currentWidget.itemClicked(index)
 
-    def _create_unified_model(self, history_model) -> CycleListModel:
-        """Create a CycleListModel from a HistoryListModel."""
-        # Create the unified model with same max length
-        cycle_model = CycleListModel(max_len=history_model.max_len, parent=self)
-
-        # Copy existing data from history model
-        for cycle_data in history_model.buffered_data:
-            cycle_model.append(cycle_data)
-
-        # Copy reference if set
-        if history_model.reference is not None:
-            cycle_model.set_reference(history_model.reference)
-
-        # Connect signals to keep models in sync
-        history_model.itemAdded.connect(cycle_model.append)
-        history_model.itemUpdated.connect(cycle_model.update)
-        history_model.referenceChanged.connect(cycle_model.set_reference)
-
-        return cycle_model
-
     def show_or_create_tab(self, name: str) -> None:
         # check if tab is already open and selected
         if name in self._tabs and self.tabWidget.currentWidget() == self._tabs[name]:
@@ -185,9 +164,8 @@ class HistoryWidget(QtWidgets.QWidget):
         if name not in self._tabs:
             msg = f"Creating new tab for {name}"
             log.debug(msg)
-            # Create unified model from history model
-            history_model = self._history.model(name)
-            cycle_model = self._create_unified_model(history_model)
+            # Get the cycle model directly - no migration needed!
+            cycle_model = self._history.model(name)
 
             # Use the unified widget (HistoryPlotWidget now points to UnifiedHistoryPlotWidget)
             widget = HistoryPlotWidget(

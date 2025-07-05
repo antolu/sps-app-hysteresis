@@ -1,9 +1,9 @@
 from .._mod_replace import replace_modname
+from ..widgets.history_widget._unified_model import CycleListModel
 from ._history import PredictionHistory
-from ._list_model import HistoryListModel
 from ._reference_cycles import ReferenceCycles
 
-for _mod in (PredictionHistory, HistoryListModel, ReferenceCycles):
+for _mod in (PredictionHistory, CycleListModel, ReferenceCycles):
     replace_modname(_mod, __name__)
 
 

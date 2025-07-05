@@ -213,8 +213,8 @@ class UnifiedHistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
     """
     Unified history plot widget using CycleListModel and UnifiedPlotModel.
 
-    This simplified version eliminates the HistoryListModel→PredictionListModel
-    chain and uses the unified architecture directly.
+    This unified version uses CycleListModel directly throughout the entire
+    application, eliminating code duplication and complex model chains.
     """
 
     def __init__(

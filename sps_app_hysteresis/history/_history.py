@@ -5,7 +5,7 @@ import logging
 from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
 
-from ._list_model import HistoryListModel
+from ..widgets.history_widget._unified_model import CycleListModel
 from ._reference_cycles import ReferenceCycles
 
 log = logging.getLogger(__package__)
@@ -16,7 +16,7 @@ class PredictionHistory(QtCore.QObject):
         super().__init__(parent)
 
         # map from cycle name to list model
-        self._history: dict[str, HistoryListModel] = {}
+        self._history: dict[str, CycleListModel] = {}
         self._references = ReferenceCycles(parent=self)
 
         self._references.referenceChanged.connect(self.onReferenceChanged)
@@ -31,7 +31,7 @@ class PredictionHistory(QtCore.QObject):
         should be added to the history.
         """
         if cycle_data.cycle not in self._history:
-            self._history[cycle_data.cycle] = HistoryListModel()
+            self._history[cycle_data.cycle] = CycleListModel(parent=self)
 
         self._history[cycle_data.cycle].append(cycle_data)
 
@@ -55,16 +55,16 @@ class PredictionHistory(QtCore.QObject):
             msg = f"Cycle {cycle_data.cycle} not found in history, cannot update."
             log.error(msg)
 
-    def model(self, cycle: str) -> HistoryListModel:
+    def model(self, cycle: str) -> CycleListModel:
         # create new model if cycle does not exist, to always keep track of history
         if cycle not in self._history:
-            self._history[cycle] = HistoryListModel()
+            self._history[cycle] = CycleListModel(parent=self)
 
         return self._history[cycle]
 
     @QtCore.Slot(CycleData)
     def onReferenceChanged(self, cycle_data: CycleData) -> None:
         if cycle_data.cycle not in self._history:
-            self._history[cycle_data.cycle] = HistoryListModel()
+            self._history[cycle_data.cycle] = CycleListModel(parent=self)
 
         self._history[cycle_data.cycle].set_reference(cycle_data)
