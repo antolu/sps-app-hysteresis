@@ -6,8 +6,8 @@ import pyqtgraph as pg
 from qtpy import QtCore, QtGui, QtWidgets
 
 from ...generated.prediction_history_widget_ui import Ui_PredictionAnalysisWidget
+from ._cycle_model import CycleListModel
 from ._plot_model import UnifiedPlotModel
-from ._unified_model import CycleListModel
 
 log = logging.getLogger(__package__)
 
@@ -211,10 +211,10 @@ class PlotContainer(QtCore.QObject):
 
 class UnifiedHistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
     """
-    Unified history plot widget using CycleListModel and UnifiedPlotModel.
+    History plot widget for displaying cycle data and predictions.
 
-    This unified version uses CycleListModel directly throughout the entire
-    application, eliminating code duplication and complex model chains.
+    This widget uses CycleListModel and plot model to display
+    historical cycle data with interactive plotting capabilities.
     """
 
     def __init__(
@@ -228,13 +228,13 @@ class UnifiedHistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.setupUi(self)
         self.plot_measured = plot_measured
 
-        # Use the unified model directly - much simpler!
+        # Store the cycle model reference
         self.cycle_model = cycle_model
 
         # Plot container handles the actual plotting widgets
         self.plots = PlotContainer(parent=self.widget, plot_measured=plot_measured)
 
-        # Unified plot model using adapter pattern
+        # Plot model using adapter pattern
         self.plot_model = UnifiedPlotModel(cycle_model=self.cycle_model, parent=self)
 
         # Connect the signals
@@ -242,7 +242,7 @@ class UnifiedHistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
 
     def _connect_plot_model(self) -> None:
         """Connect plot model signals to plot container."""
-        # Plot addition signals - direct connections, no complex chains!
+        # Plot addition signals
         self.plot_model.measuredCurrentAdded.connect(self.plots.addMeasuredCurrentPlot)
         self.plot_model.measuredFieldAdded.connect(self.plots.addMeasuredFieldPlot)
         self.plot_model.predictedFieldAdded.connect(self.plots.addPredictedFieldPlot)
@@ -275,8 +275,8 @@ class UnifiedHistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
 
     @QtCore.Slot(QtCore.QModelIndex)
     def itemClicked(self, index: QtCore.QModelIndex) -> None:
-        """Handle list item click - much simpler now!"""
-        # The unified model handles everything - no complex coordination needed
+        """Handle list item click."""
+        # The cycle model handles the click event
         self.cycle_model.clicked(index)
         log.debug(f"Item clicked at row {index.row()}")
 

@@ -164,10 +164,10 @@ class HistoryWidget(QtWidgets.QWidget):
         if name not in self._tabs:
             msg = f"Creating new tab for {name}"
             log.debug(msg)
-            # Get the cycle model directly - no migration needed!
+            # Get the cycle model for this user
             cycle_model = self._history.model(name)
 
-            # Use the unified widget (HistoryPlotWidget now points to UnifiedHistoryPlotWidget)
+            # Create the history plot widget
             widget = HistoryPlotWidget(
                 cycle_model,
                 self,

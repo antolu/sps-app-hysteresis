@@ -5,7 +5,7 @@ import logging
 from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
 
-from ..widgets.history_widget._unified_model import CycleListModel
+from ..widgets.history_widget._cycle_model import CycleListModel
 from ._reference_cycles import ReferenceCycles
 
 log = logging.getLogger(__package__)

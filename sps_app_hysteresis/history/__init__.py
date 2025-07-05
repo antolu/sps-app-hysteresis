@@ -1,5 +1,5 @@
 from .._mod_replace import replace_modname
-from ..widgets.history_widget._unified_model import CycleListModel
+from ..widgets.history_widget._cycle_model import CycleListModel
 from ._history import PredictionHistory
 from ._reference_cycles import ReferenceCycles
 

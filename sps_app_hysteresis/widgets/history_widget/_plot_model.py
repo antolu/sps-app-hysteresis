@@ -1,9 +1,9 @@
 """
-Refactored plot model using the adapter pattern.
+Plot model for managing cycle history plots.
 
-This simplified plot model focuses purely on managing plot visibility
-and communicating with the plot widgets, while delegating data transformation
-to the PlotDataAdapter.
+This plot model manages plot visibility and communicates with the plot widgets,
+delegating data transformation to the PlotDataAdapter for clean separation
+of concerns.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from ._dataclass import PlotItem
 from ._plot_adapter import PlotDataAdapter, PlotType
 
 if TYPE_CHECKING:
-    from ._unified_model import CycleListModel
+    from ._cycle_model import CycleListModel
 
 log = logging.getLogger(__package__)
 
@@ -140,11 +140,11 @@ class UnifiedPlotModel(BasePlotModel):
         self._plotted_items: set[PlotItem] = set()
         self._current_reference: PlotItem | None = None
 
-        # Connect to the unified model
+        # Connect to the cycle model
         self._connect_model_signals()
 
     def _connect_model_signals(self) -> None:
-        """Connect to signals from the unified cycle model."""
+        """Connect to signals from the cycle model."""
         self._cycle_model.plotItemAdded.connect(self.show_plot_item)
         self._cycle_model.plotItemUpdated.connect(self.update_plot_item)
         self._cycle_model.plotItemRemoved.connect(self.hide_plot_item)

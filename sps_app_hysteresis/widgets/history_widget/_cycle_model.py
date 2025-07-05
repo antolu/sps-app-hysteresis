@@ -1,5 +1,5 @@
 """
-Unified model for cycle data management.
+Model for cycle data management.
 
 This model provides a single source of truth for cycle data
 with integrated plot metadata management.
@@ -21,7 +21,7 @@ log = logging.getLogger(__package__)
 
 class CycleListModel(QtCore.QAbstractListModel):
     """
-    Unified model for cycle data with list management and plot metadata.
+    Model for cycle data with list management and plot metadata.
 
     This provides comprehensive cycle data management with integrated
     plot metadata support.

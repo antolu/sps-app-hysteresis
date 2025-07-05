@@ -222,8 +222,8 @@ class ColorPool:
     """
     Simple color pool for managing plot colors.
 
-    This is a simplified version that could be imported from utils
-    if it already exists in the codebase.
+    This provides a cycle of distinct colors for plotting multiple
+    data series with good visual separation.
     """
 
     def __init__(self) -> None:

@@ -1,7 +1,7 @@
 from ..._mod_replace import replace_modname
+from ._cycle_model import CycleListModel
 from ._plot_adapter import PlotDataAdapter, PlotType
 from ._plot_model import BasePlotModel, PredictionPlotModel, UnifiedPlotModel
-from ._unified_model import CycleListModel
 from ._view import HistoryPlotWidget, UnifiedHistoryPlotWidget
 from ._widget import HistoryWidget
 
