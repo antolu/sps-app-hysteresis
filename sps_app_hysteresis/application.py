@@ -1,7 +1,7 @@
 import logging
 import os.path
 import sys
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 
 import pyrbac
 import torch
@@ -14,7 +14,7 @@ from ._rbac import PyrbacAuthenticationListener
 from .contexts import app_context, set_context
 from .io.metrics import TensorboardWriter, TextWriter
 from .main_window import MainWindow
-from .pipeline import RemotePipeline, StandalonePipeline
+from .pipeline import Pipeline, RemotePipeline, StandalonePipeline
 
 torch.set_float32_matmul_precision("high")
 
@@ -84,7 +84,8 @@ def set_module_logging(pattern: str, log_level: int = logging.WARNING) -> None:
             logging.getLogger(name).setLevel(log_level)
 
 
-def main() -> None:
+def create_argument_parser() -> ArgumentParser:
+    """Create and configure the command line argument parser."""
     parser = ArgumentParser()
     parser.add_argument("-v", dest="verbose", action="count", default=0)
     parser.add_argument(
@@ -127,14 +128,16 @@ def main() -> None:
         default="txt",
         help="Metrics writer to use.",
     )
+    return parser
 
-    args = parser.parse_args()
-    setup_logger(args.verbose)
 
-    # Set up logging to a file in the log directory
-    if not os.path.exists(args.logdir):
-        os.makedirs(args.logdir, exist_ok=True)
-    log_file = os.path.join(args.logdir, "application.log")
+def setup_file_logging(logdir: str | None) -> None:
+    """Set up logging to a file in the specified directory."""
+    if logdir is None:
+        return
+    if not os.path.exists(logdir):
+        os.makedirs(logdir, exist_ok=True)
+    log_file = os.path.join(logdir, "application.log")
     add_file_handler(
         logging.getLogger(),
         log_file,
@@ -145,20 +148,35 @@ def main() -> None:
         ),
     )
 
+
+def create_qt_application() -> QtWidgets.QApplication:
+    """Create and configure the Qt application."""
     application = QtWidgets.QApplication([])
     application.setApplicationVersion(__version__)
     application.setOrganizationName("CERN")
     application.setOrganizationDomain("cern.ch")
     application.setApplicationName("SPS Hysteresis Prediction")
+    return application
 
+
+def configure_application_context(
+    args: Namespace, application: QtWidgets.QApplication
+) -> None:
+    """Configure application context and settings."""
     from op_app_context import context, settings  # noqa: PLC0415
 
     context.lsa_server = args.lsa_server
     settings.configure_application(application)
 
     set_context(args.device, online=args.online)
-
     app_context().LOGDIR = args.logdir
+
+
+def setup_rbac_authentication() -> (
+    tuple[pyrbac.LoginService, PyrbacAuthenticationListener] | tuple[None, None]
+):
+    """Set up RBAC authentication and return service and listener."""
+    from op_app_context import context  # noqa: PLC0415
 
     try:
         token = pyrbac.AuthenticationClient().login_location()
@@ -175,26 +193,36 @@ def main() -> None:
         logging.getLogger(__name__).warning(
             "No RBAC by location, you will have to login manually."
         )
-        service = None
-        listener = None
+        return None, None
+    else:
+        return service, listener
 
-    data_thread = QtCore.QThread()
+
+def create_pipeline(args: Namespace) -> Pipeline:
+    """Create the appropriate pipeline based on online/offline mode."""
+    from op_app_context import context  # noqa: PLC0415
+
     if not args.online:
         assert not app_context().ONLINE
-        pipeline = StandalonePipeline(
+        return StandalonePipeline(
             buffer_size=args.buffer_size,
             provider=context.japc_provider,
             meas_b_avail=app_context().B_MEAS_AVAIL,
         )
-    else:
-        remote_params = app_context().REMOTE_PARAMS
-        if remote_params is None:
-            msg = "Remote parameters not available for this device."
-            raise ValueError(msg)
-        pipeline = RemotePipeline(
-            provider=context.japc_provider,
-        )
+    remote_params = app_context().REMOTE_PARAMS
+    if remote_params is None:
+        msg = "Remote parameters not available for this device."
+        raise ValueError(msg)
+    return RemotePipeline(
+        provider=context.japc_provider,
+    )
 
+
+def setup_pipeline_threading(
+    pipeline: Pipeline, application: QtWidgets.QApplication
+) -> QtCore.QThread:
+    """Set up pipeline threading and signal connections."""
+    data_thread = QtCore.QThread()
     pipeline.moveToThread(data_thread)
 
     data_thread.started.connect(pipeline.start)
@@ -204,13 +232,32 @@ def main() -> None:
     application.aboutToQuit.connect(data_thread.quit)
     application.aboutToQuit.connect(data_thread.wait)
 
-    writer = (
+    return data_thread
+
+
+def create_metrics_writer(args: Namespace) -> TextWriter | TensorboardWriter:
+    """Create the appropriate metrics writer based on configuration."""
+    return (
         TextWriter(output_dir=app_context().LOGDIR)
         if args.metrics_writer == "txt"
         else TensorboardWriter(output_dir=app_context().LOGDIR)
     )
 
-    pipeline.onMetricsAvailable.connect(writer.onNewMetrics)
+
+def main() -> None:
+    parser = create_argument_parser()
+    args = parser.parse_args()
+    setup_logger(args.verbose)
+    setup_file_logging(args.logdir)
+
+    application = create_qt_application()
+    configure_application_context(args, application)
+    service, listener = setup_rbac_authentication()
+    pipeline = create_pipeline(args)
+    data_thread = setup_pipeline_threading(pipeline, application)
+    writer = create_metrics_writer(args)
+    if isinstance(pipeline, StandalonePipeline):
+        pipeline.onMetricsAvailable.connect(writer.onNewMetrics)
 
     main_window: MainWindow | None = None
 
@@ -224,9 +271,9 @@ def main() -> None:
     main_window = MainWindow(pipeline=pipeline, parent=None)
     main_window.show()
 
-    if service is not None and listener is not None:
+    if service is not None and listener is not None and main_window is not None:
         listener.register_token_obtained_callback(
-            main_window.rba_widget.model.update_token
+            main_window.rba_widget.model.update_token  # type: ignore[attr-defined]
         )
 
     sys.exit(exec_app_interruptable(application))
