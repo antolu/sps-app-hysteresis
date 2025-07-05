@@ -14,7 +14,7 @@ from ._rbac import PyrbacAuthenticationListener
 from .contexts import app_context, set_context
 from .io.metrics import TensorboardWriter, TextWriter
 from .main_window import MainWindow
-from .pipeline import RemotePipelineWorker, StandalonePipelineWorker
+from .pipeline import RemotePipeline, StandalonePipeline
 
 torch.set_float32_matmul_precision("high")
 
@@ -181,7 +181,7 @@ def main() -> None:
     data_thread = QtCore.QThread()
     if not args.online:
         assert not app_context().ONLINE
-        flow_worker = StandalonePipelineWorker(
+        pipeline = StandalonePipeline(
             buffer_size=args.buffer_size,
             provider=context.japc_provider,
             meas_b_avail=app_context().B_MEAS_AVAIL,
@@ -191,17 +191,16 @@ def main() -> None:
         if remote_params is None:
             msg = "Remote parameters not available for this device."
             raise ValueError(msg)
-        flow_worker = RemotePipelineWorker(
+        pipeline = RemotePipeline(
             provider=context.japc_provider,
         )
 
-    flow_worker.moveToThread(data_thread)
-    flow_worker.init_pipeline()
+    pipeline.moveToThread(data_thread)
 
-    data_thread.started.connect(flow_worker.start)
+    data_thread.started.connect(pipeline.start)
 
-    # quit the worker when the application is about to quit
-    application.aboutToQuit.connect(flow_worker.stop)
+    # quit the pipeline when the application is about to quit
+    application.aboutToQuit.connect(pipeline.stop)
     application.aboutToQuit.connect(data_thread.quit)
     application.aboutToQuit.connect(data_thread.wait)
 
@@ -211,7 +210,7 @@ def main() -> None:
         else TensorboardWriter(output_dir=app_context().LOGDIR)
     )
 
-    flow_worker.pipeline.onMetricsAvailable.connect(writer.onNewMetrics)
+    pipeline.onMetricsAvailable.connect(writer.onNewMetrics)
 
     main_window: MainWindow | None = None
 
@@ -222,7 +221,7 @@ def main() -> None:
     data_thread.finished.connect(exit_if_fail)
     data_thread.start()
 
-    main_window = MainWindow(pipeline=flow_worker.pipeline, parent=None)
+    main_window = MainWindow(pipeline=pipeline, parent=None)
     main_window.show()
 
     if service is not None and listener is not None:

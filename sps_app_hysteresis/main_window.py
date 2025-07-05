@@ -13,7 +13,7 @@ from .contexts import app_context
 from .generated.main_window_ui import Ui_main_window
 from .history import PredictionHistory
 from .io import IO
-from .pipeline import StandalonePipeline
+from .pipeline import Pipeline, StandalonePipeline
 from .standalone._inference import PredictionMode
 from .widgets import ModelLoadDialog, PlotModel
 from .widgets.history_widget import HistoryWidget
@@ -27,7 +27,7 @@ __all__ = ["MainWindow"]
 class MainWindow(Ui_main_window, ApplicationFrame):
     def __init__(
         self,
-        pipeline: StandalonePipeline,
+        pipeline: Pipeline,
         parent: QtWidgets.QWidget | None = None,
     ):
         ApplicationFrame.__init__(self, parent)
@@ -110,9 +110,10 @@ class MainWindow(Ui_main_window, ApplicationFrame):
                 "Model successfully loaded.\nPredictions will now start.",
             )
         )
-        self._data.onModelLoaded.connect(
-            lambda: self._data._predict.set_do_inference(True)  # noqa: SLF001
-        )
+        if isinstance(self._data, StandalonePipeline):
+            self._data.onModelLoaded.connect(
+                lambda: self._data._predict.set_do_inference(True)  # noqa: SLF001
+            )
 
         assert self.rba_widget is not None
         self.rba_widget.model.login_succeeded.connect(context.set_rbac_token)
@@ -121,7 +122,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self.actionShow_Plot_Settings.triggered.connect(self.toggle_plot_settings)
         self.actionContinuous_Data_Export.toggled.connect(self._io.set_enabled)
 
-        if not app_context().ONLINE:
+        if not app_context().ONLINE and isinstance(self._data, StandalonePipeline):
             self.action_Load_Model.triggered.connect(self.on_load_model_triggered)
             self.actionProgrammed_current.triggered.connect(
                 lambda x: self._data._predict.set_use_programmed_current(  # noqa: SLF001
@@ -163,14 +164,18 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         """Handle prediction mode changes."""
         log.info(f"Prediction mode changed to: {mode.value}")
 
-        # Set the prediction mode
-        self._data._predict.set_prediction_mode(mode)  # noqa: SLF001
+        # Set the prediction mode (only for standalone pipelines)
+        if isinstance(self._data, StandalonePipeline):
+            self._data._predict.set_prediction_mode(mode)  # noqa: SLF001
 
         # Reset reference when mode changes
         self._data.onResetReference("all")
         log.info("Reference reset due to prediction mode change")
 
     def on_load_model_triggered(self) -> None:
+        if not isinstance(self._data, StandalonePipeline):
+            return
+
         dialog = ModelLoadDialog(parent=self)
         dialog.loadLocalCheckpoint.connect(self._data._predict.loadLocalModel)  # noqa: SLF001
         dialog.loadMlpCheckpoint.connect(self._data._predict.loadMlpModel)  # noqa: SLF001

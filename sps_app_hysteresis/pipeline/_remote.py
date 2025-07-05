@@ -17,7 +17,7 @@ from qtpy import QtCore
 
 from ..contexts import RemoteParameterNames, app_context
 from ..standalone.event_building import JapcEndpoint, StartCycleEventBuilder
-from ._pipeline import Pipeline, PipelineWorker
+from ._pipeline import Pipeline
 
 log = logging.getLogger(__name__)
 ENDPOINT_RE = re.compile(
@@ -36,23 +36,6 @@ RESET_REFERENCE = (
     "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.ECO/ResetReference"
 )
 SET_GAIN = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.ECO/Gain"
-
-
-class RemotePipelineWorker(PipelineWorker):
-    def __init__(
-        self,
-        *,
-        provider: pyda_japc.JapcProvider,
-        parent: QtCore.QObject | None = None,
-    ) -> None:
-        super().__init__(parent=parent)
-
-        self._provider = provider
-
-    def _init_pipeline_impl(self) -> None:
-        self._pipeline = RemotePipeline(
-            provider=self._provider,
-        )
 
 
 class RemotePipeline(Pipeline, QtCore.QObject):

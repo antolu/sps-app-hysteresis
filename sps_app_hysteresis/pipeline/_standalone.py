@@ -25,41 +25,9 @@ from ..standalone.event_building import (
     TrackReferenceChangedEventBuilder,
 )
 from ..standalone.track_precycle import TrackPrecycleEventBuilder
-from ._pipeline import Pipeline, PipelineWorker
+from ._pipeline import Pipeline
 
 log = logging.getLogger(__name__)
-
-
-class StandalonePipelineWorker(PipelineWorker):
-    def __init__(
-        self,
-        provider: pyda_japc.JapcProvider,
-        *,
-        buffer_size: int = 60000,
-        meas_b_avail: bool = True,
-        parent: QtCore.QObject | None = None,
-    ) -> None:
-        super().__init__(parent=parent)
-        self._pipeline: StandalonePipeline | None = None
-
-        self._provider = provider
-        self._buffer_size = buffer_size
-        self._meas_b_avail = meas_b_avail
-
-    def _init_pipeline_impl(self) -> None:
-        self._pipeline = StandalonePipeline(
-            meas_b_avail=self._meas_b_avail,
-            provider=self._provider,
-            buffer_size=self._buffer_size,
-            parent=self.parent(),
-        )
-
-    @property
-    def pipeline(self) -> StandalonePipeline:
-        if self._pipeline is None:
-            msg = "Pipeline not initialized. Call init_pipeline() first."
-            raise ValueError(msg)
-        return self._pipeline
 
 
 class StandalonePipeline(Pipeline, QtCore.QObject):
