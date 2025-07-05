@@ -24,6 +24,10 @@ class PredictionListModel(QtCore.QAbstractListModel):
     """
     Model for list of predicted cycles.
 
+    DEPRECATED: Use CycleListModel instead. This class wraps HistoryListModel
+    and adds plot metadata, but CycleListModel provides the same functionality
+    in a single, more efficient implementation.
+
     On click, the cycle is plotted and highlighted with a
     unique color.
     """

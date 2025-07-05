@@ -212,6 +212,14 @@ class PlotContainer(QtCore.QObject):
 
 
 class HistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
+    """
+    DEPRECATED: Use UnifiedHistoryPlotWidget instead.
+
+    This widget uses the old HistoryListModel→PredictionListModel→PredictionPlotModel
+    chain which has been replaced by the more efficient CycleListModel→UnifiedPlotModel
+    architecture.
+    """
+
     def __init__(
         self,
         history: HistoryListModel,
