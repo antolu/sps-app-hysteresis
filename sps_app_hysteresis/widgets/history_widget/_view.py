@@ -6,9 +6,7 @@ import pyqtgraph as pg
 from qtpy import QtCore, QtGui, QtWidgets
 
 from ...generated.prediction_history_widget_ui import Ui_PredictionAnalysisWidget
-from ...history import HistoryListModel
-from ._model import PredictionListModel
-from ._plot_model import PredictionPlotModel, UnifiedPlotModel
+from ._plot_model import UnifiedPlotModel
 from ._unified_model import CycleListModel
 
 log = logging.getLogger(__package__)
@@ -211,85 +209,6 @@ class PlotContainer(QtCore.QObject):
         self.measuredCurrentPlot.vb.setXRange(x, y)
 
 
-class HistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
-    """
-    DEPRECATED: Use UnifiedHistoryPlotWidget instead.
-
-    This widget uses the old HistoryListModel→PredictionListModel→PredictionPlotModel
-    chain which has been replaced by the more efficient CycleListModel→UnifiedPlotModel
-    architecture.
-    """
-
-    def __init__(
-        self,
-        history: HistoryListModel,
-        parent: QtWidgets.QWidget | None = None,
-        *,
-        plot_measured: bool = True,
-    ) -> None:
-        super().__init__(parent=parent)
-        self.setupUi(self)
-        self.plot_measured = plot_measured
-
-        self.lmodel = PredictionListModel(data_source=history, parent=self)
-
-        self.plots = PlotContainer(parent=self.widget, plot_measured=plot_measured)
-        self.pmodel = PredictionPlotModel(parent=self)
-
-        self._connect_list_model()
-        self._connect_plot_model()
-
-    def _connect_list_model(self) -> None:
-        self.lmodel.itemAdded.connect(self.pmodel.showCycle)
-        self.lmodel.itemUpdated.connect(self.pmodel.updateCycle)
-        self.lmodel.itemRemoved.connect(self.pmodel.removeCycle)
-        self.lmodel.modelReset.connect(self.pmodel.removeAll)
-        # self.lmodel.referenceChanged.connect(self.pmodel.setReference)
-
-    def _connect_plot_model(self) -> None:
-        self.pmodel.measuredCurrentAdded.connect(self.plots.addMeasuredCurrentPlot)
-        self.pmodel.measuredCurrentRemoved.connect(self.plots.removeMeasuredCurrentPlot)
-        self.pmodel.measuredFieldAdded.connect(self.plots.addMeasuredFieldPlot)
-        self.pmodel.measuredFieldRemoved.connect(self.plots.removeMeasuredFieldPlot)
-        self.pmodel.predictedFieldAdded.connect(self.plots.addPredictedFieldPlot)
-        self.pmodel.predictedFieldRemoved.connect(self.plots.removePredictedFieldPlot)
-        self.pmodel.refMeasuredFieldAdded.connect(
-            self.plots.addMeasuredFieldRefDiffPlot
-        )
-        self.pmodel.refMeasuredFieldRemoved.connect(
-            self.plots.removeMeasuredFieldRefDiffPlot
-        )
-        self.pmodel.refPredictedFieldAdded.connect(
-            self.plots.addPredictedFieldRefDiffPlot
-        )
-        self.pmodel.refPredictedFieldRemoved.connect(
-            self.plots.removePredictedFieldRefDiffPlot
-        )
-        self.pmodel.deltaFieldAdded.connect(self.plots.addDeltaPlot)
-        self.pmodel.deltaFieldRemoved.connect(self.plots.removeDeltaPlot)
-
-        self.pmodel.setXRange.connect(self.plots.setXRange)
-
-    @QtCore.Slot(QtCore.QModelIndex)
-    def itemClicked(self, index: QtCore.QModelIndex) -> None:
-        item = self.lmodel.itemAt(index)
-        if item.is_shown:
-            log.debug(f"[{item.cycle_data}] Hiding plots after click")
-            self.pmodel.removeCycle(item)
-        else:
-            log.debug(f"[{item.cycle_data}] Showing plots after click")
-            self.pmodel.showCycle(item)
-        self.lmodel.clicked(index)
-
-    @QtCore.Slot()
-    def resetAxes(self) -> None:
-        self.model.plot_model.resetAxes.emit()
-
-    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
-        self.windowClosed.emit()
-        event.accept()
-
-
 class UnifiedHistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
     """
     Unified history plot widget using CycleListModel and UnifiedPlotModel.
@@ -371,3 +290,7 @@ class UnifiedHistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         # Clean up plots
         self.plot_model.hide_all()
         event.accept()
+
+
+# Provide backward compatibility alias
+HistoryPlotWidget = UnifiedHistoryPlotWidget

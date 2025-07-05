@@ -11,7 +11,7 @@ from ...generated.reference_selector_dialog_ui import Ui_ReferenceSelectorDialog
 from ...history import PredictionHistory
 from ...utils import mute_signals
 from ._unified_model import CycleListModel
-from ._view import HistoryPlotWidget, UnifiedHistoryPlotWidget
+from ._view import HistoryPlotWidget
 
 log = logging.getLogger(__package__)
 
@@ -141,18 +141,16 @@ class HistoryWidget(QtWidgets.QWidget):
     @QtCore.Slot()
     def onResetAxes(self) -> None:
         if self.tabWidget.currentWidget() is not None:
-            typing.cast(
-                UnifiedHistoryPlotWidget, self.tabWidget.currentWidget()
-            ).resetAxes()
+            typing.cast(HistoryPlotWidget, self.tabWidget.currentWidget()).resetAxes()
 
     @property
-    def currentWidget(self) -> UnifiedHistoryPlotWidget:
+    def currentWidget(self) -> HistoryPlotWidget:
         current_widget = self.tabWidget.currentWidget()
         if current_widget is None:
             msg = "No tab selected."
             raise RuntimeError(msg)
 
-        return typing.cast(UnifiedHistoryPlotWidget, current_widget)
+        return typing.cast(HistoryPlotWidget, current_widget)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def onItemClicked(self, index: QtCore.QModelIndex) -> None:
@@ -191,8 +189,8 @@ class HistoryWidget(QtWidgets.QWidget):
             history_model = self._history.model(name)
             cycle_model = self._create_unified_model(history_model)
 
-            # Use the new unified widget instead of the old one
-            widget = UnifiedHistoryPlotWidget(
+            # Use the unified widget (HistoryPlotWidget now points to UnifiedHistoryPlotWidget)
+            widget = HistoryPlotWidget(
                 cycle_model,
                 self,
                 plot_measured=self.measured_available,
