@@ -376,6 +376,7 @@ class Inference(InferenceFlags, EventBuilderAbc):
             predictor=self._predictor,
             e_predictor=self._e_predictor,
             use_programmed_current=self._use_programmed_current,
+            prediction_mode=self._prediction_mode,
         )
 
     @property
@@ -410,6 +411,7 @@ def predict_cycle(
     :return: The predicted field of the cycle. Time axis in seconds, field in T.
     """
     if prediction_mode == PredictionMode.EDDY_CURRENT_ONLY:
+        log.debug(f"[{cycle}]: Using EDDY_CURRENT_ONLY prediction mode.")
         # Only use eddy current predictions
         if e_predictor is None:
             msg = "Eddy current predictor is required for EDDY_CURRENT_ONLY mode"
@@ -422,6 +424,7 @@ def predict_cycle(
         return np.vstack((t_e_pred, b_e_pred.flatten()))
 
     if prediction_mode == PredictionMode.HYSTERESIS_ONLY:
+        log.debug(f"[{cycle}]: Using HYSTERESIS_ONLY prediction mode.")
         # Only use hysteresis predictions
         t_pred, b_pred = predictor.predict_cycle(
             cycle=cycle,
@@ -429,6 +432,8 @@ def predict_cycle(
             use_programmed_current=use_programmed_current,
         )
         return np.vstack((t_pred, b_pred))
+
+    log.debug(f"[{cycle}]: Using COMBINED prediction mode.")
 
     # PredictionMode.COMBINED
     # Use both hysteresis and eddy current predictions
