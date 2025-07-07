@@ -15,7 +15,6 @@ from ._event_builder_abc import (
 from ._pyda import JapcEndpoint
 from ._start_cycle import StartCycleEventBuilder
 from ._track_dyneco import TrackDynEcoEventBuilder
-from ._track_fulleco import TrackFullEcoEventBuilder
 from ._track_reference_changed import TrackReferenceChangedEventBuilder
 
 for _mod in (
@@ -30,7 +29,6 @@ for _mod in (
     AddMeasurementReferencesEventBuilder,
     CycleStampedAddMeasurementsEventBuilder,
     CycleStampGroupedTriggeredEventBuilder,
-    TrackFullEcoEventBuilder,
     TrackDynEcoEventBuilder,
     StartCycleEventBuilder,
     JapcEndpoint,

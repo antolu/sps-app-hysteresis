@@ -21,7 +21,6 @@ from ..standalone.event_building import (
     CycleStampedAddMeasurementsEventBuilder,
     StartCycleEventBuilder,
     TrackDynEcoEventBuilder,
-    TrackFullEcoEventBuilder,
     TrackReferenceChangedEventBuilder,
 )
 from ..standalone.track_precycle import TrackPrecycleEventBuilder
@@ -52,6 +51,7 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
             param_b_prog=param_names.B_PROG,
             param_i_prog=param_names.I_PROG,
             param_b_correction=param_names.B_CORRECTION,
+            param_fulleco_iref=param_names.I_PROG_FULLECO,
             provider=provider,
             parent=parent,
         )
@@ -96,12 +96,6 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
             provider=provider,
             parent=parent,
         )
-        self._track_fulleco = TrackFullEcoEventBuilder(
-            param_fulleco_iref=param_names.I_PROG_FULLECO,
-            param_fulleco_trigger=param_names.FULLECO_TRIGGER,
-            provider=provider,
-            parent=parent,
-        )
         self._track_precycle = TrackPrecycleEventBuilder(
             precycle_sequence=["SPS.USER.LHCPILOT", "SPS.USER.MD1"], parent=parent
         )
@@ -132,7 +126,6 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
             self._add_programmed,
             self._add_measurement_post,
             self._track_dyneco,
-            self._track_fulleco,
             self._track_precycle,
             self._track_reference_changed,
         ):
@@ -156,7 +149,6 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
             self._add_programmed,
             self._add_measurement_post,
             self._track_dyneco,
-            self._track_fulleco,
             self._track_precycle,
             self._track_reference_changed,
         ):
@@ -218,11 +210,11 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
             )
 
         self._correction.cycleDataAvailable.connect(self._track_dyneco.onNewCycleData)
-        self._correction.cycleDataAvailable.connect(self._track_fulleco.onNewCycleData)
+        # FULLECO cycles (economy_mode=FULL) should go directly to economy buffer after correction
+        self._correction.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)
         self._correction.cycleDataAvailable.connect(self._trim.onNewPrediction)
         self._trim.trimApplied.connect(self._trimApplied.emit)
         self._track_dyneco.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)
-        self._track_fulleco.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)
         self._track_reference_changed.resetReference.connect(self.onResetReference)
 
         self._resetState.connect(self._predict.reset_state)
