@@ -244,7 +244,7 @@ class ColorPool:
     def get_color(self) -> QtGui.QColor:
         """Get an available color from the pool."""
         for color in self._available_colors:
-            if color not in self._used_colors:
+            if self._color_available(color):
                 self._used_colors.add(color)
                 return color
 
@@ -253,6 +253,11 @@ class ColorPool:
             len(self._used_colors) % len(self._available_colors)
         ]
 
+    def _color_available(self, color: QtGui.QColor) -> bool:
+        """Check if a color is available in the pool."""
+        color_s = str(color.getRgb())
+        return color in self._available_colors and color_s not in self._used_colors
+
     def return_color(self, color: QtGui.QColor) -> None:
         """Return a color to the pool."""
-        self._used_colors.discard(color)
+        self._used_colors.discard(str(color.getRgb()))
