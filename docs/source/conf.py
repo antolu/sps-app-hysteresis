@@ -6,15 +6,15 @@ import typing
 
 import sphinx.util.logging
 
-import sps_apps.hysteresis_prediction
+import sps_app_hysteresis
 
 if typing.TYPE_CHECKING:
     import sphinx.application
 
 
-project = "sps_apps.hysteresis_prediction"
+project = "sps_app_hysteresis"
 author = "Anton Lu"
-version = sps_apps.hysteresis_prediction.__version__
+version = sps_app_hysteresis.__version__
 
 copyright = "{0}, CERN".format(datetime.datetime.now().year)
 
@@ -86,20 +86,17 @@ def hijack_module_name_replacement() -> None:
     # Working in sphinx environment, not replacing due to
     # https://github.com/sphinx-doc/sphinx/issues/11031
     logger.info("Disabling __module__ rewrite")
-    import sps_apps.hysteresis_prediction._mod_replace
+    import sps_app_hysteresis._mod_replace
 
     for mod_name in list(sys.modules):
-        if mod_name == "sps_apps.hysteresis_prediction._mod_replace":
+        if mod_name == "sps_app_hysteresis._mod_replace":
             continue
-        if (
-            mod_name == "sps_apps.hysteresis_prediction"
-            or mod_name.startswith("sps_apps.hysteresis_prediction.")
+        if mod_name == "sps_app_hysteresis" or mod_name.startswith(
+            "sps_app_hysteresis."
         ):
             del sys.modules[mod_name]
 
-    sps_apps.hysteresis_prediction._mod_replace.replace_modname = (
-        lambda *_: None
-    )
+    sps_app_hysteresis._mod_replace.replace_modname = lambda *_: None
 
 
 hijack_module_name_replacement()
