@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import typing
 
-from hystcomp_utils.cycle_data import CycleData
+from hystcomp_utils.cycle_data import CycleData, EconomyMode
 from qtpy import QtCore
 
 log = logging.getLogger(__package__)
@@ -20,7 +20,7 @@ class ReferenceCycles(QtCore.QObject):
 
     @QtCore.Slot(CycleData)
     def onNewCycleData(self, cycle_data: CycleData) -> None:
-        if cycle_data.cycle.endswith("ECO"):
+        if cycle_data.economy_mode is not EconomyMode.NONE:
             log.debug(f"[{cycle_data}] Cycles in economy modes are not tracked")
             return
 

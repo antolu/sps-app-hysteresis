@@ -8,7 +8,7 @@ import typing
 import mlp_client
 import numpy as np
 import pyda.access
-from hystcomp_utils.cycle_data import CycleData
+from hystcomp_utils.cycle_data import CycleData, EconomyMode
 from qtpy import QtCore, QtWidgets
 from sps_mlp_hystcomp import (
     EddyCurrentPredictor,
@@ -289,7 +289,7 @@ class Inference(InferenceFlags, EventBuilderAbc):
         last_cycle = buffer[-1]
 
         if self._prev_state is None:  # no way we can be in ECO cycle
-            if last_cycle.cycle.endswith("ECO"):
+            if last_cycle.economy_mode is EconomyMode.DYNAMIC:
                 msg = (
                     f"[{last_cycle}]: ECO cycle detected, but previous state is not set."
                     f"This should not happen."
@@ -314,7 +314,7 @@ class Inference(InferenceFlags, EventBuilderAbc):
                 prediction_mode=self._prediction_mode,
             )
 
-        if last_cycle.cycle.endswith("ECO"):
+        if last_cycle.economy_mode is EconomyMode.DYNAMIC:
             msg = f"[{last_cycle}]: ECO cycle detected, using previous state to predict again."
             log.debug(msg)
 
