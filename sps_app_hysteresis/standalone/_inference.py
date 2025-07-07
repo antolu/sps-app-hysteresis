@@ -374,7 +374,7 @@ class Inference(InferenceFlags, EventBuilderAbc):
         return predict_cycle(
             cycle=last_cycle,
             predictor=self._predictor,
-            e_predictor=self._e_predictor if self._eddy_current else None,
+            e_predictor=self._e_predictor,
             use_programmed_current=self._use_programmed_current,
         )
 
@@ -393,7 +393,7 @@ class Inference(InferenceFlags, EventBuilderAbc):
 
 def predict_cycle(
     cycle: CycleData,
-    predictor: EddyCurrentPredictor | PETEPredictor | TFTPredictor,
+    predictor: PETEPredictor | TFTPredictor,
     e_predictor: EddyCurrentPredictor | None = None,
     *,
     use_programmed_current: bool = True,
