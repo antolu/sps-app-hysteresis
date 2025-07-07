@@ -302,7 +302,6 @@ class Inference(InferenceFlags, EventBuilderAbc):
             self._predictor.set_cycled_initial_state(
                 buffer[:-1],
                 use_programmed_current=self._use_programmed_current,
-                prediction_mode=self._prediction_mode,
             )
             self._prev_state = self._predictor.state
             self._prev_e_state = self._e_predictor.state
@@ -440,6 +439,9 @@ def predict_cycle(
     )
 
     if e_predictor is None:
+        log.warning(
+            "Eddy current predictor is not provided, using hysteresis prediction only."
+        )
         return np.vstack((t_pred, b_pred))
 
     t_e_pred, b_e_pred = e_predictor.predict_cycle(
