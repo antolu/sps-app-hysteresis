@@ -239,13 +239,13 @@ class ColorPool:
             QtGui.QColor("#bcbd22"),  # Olive
             QtGui.QColor("#17becf"),  # Cyan
         ]
-        self._used_colors: set[QtGui.QColor] = set()
+        self._used_colors: set[str] = set()
 
     def get_color(self) -> QtGui.QColor:
         """Get an available color from the pool."""
         for color in self._available_colors:
             if self._color_available(color):
-                self._used_colors.add(color)
+                self._used_colors.add(str(color.getRgb()))
                 return color
 
         # If all colors are used, cycle through them
