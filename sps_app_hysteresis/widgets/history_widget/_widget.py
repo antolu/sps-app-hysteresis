@@ -8,11 +8,14 @@ from op_app_context import context
 from qtpy import QtCore, QtGui, QtWidgets
 
 from ...generated.reference_selector_dialog_ui import Ui_ReferenceSelectorDialog
-from ...history import PredictionHistory
 from ...utils import mute_signals
 from ._view import HistoryPlotWidget
 
 log = logging.getLogger(__package__)
+
+
+if typing.TYPE_CHECKING:
+    from ...history import PredictionHistory
 
 
 class NoHighlightDelegate(QtWidgets.QStyledItemDelegate):
