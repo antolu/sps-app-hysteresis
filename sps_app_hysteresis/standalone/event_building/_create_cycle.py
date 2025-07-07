@@ -104,7 +104,7 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
             economy_mode = (
                 hystcomp_utils.cycle_data.EconomyMode.FULL
                 if is_fulleco
-                else hystcomp_utils.cycle_data.EconomyMode.NORMAL
+                else hystcomp_utils.cycle_data.EconomyMode.NONE
             )
 
             # For FULLECO cycles, also get the FULLECO programmed current
