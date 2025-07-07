@@ -210,8 +210,6 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
             )
 
         self._correction.cycleDataAvailable.connect(self._track_dyneco.onNewCycleData)
-        # FULLECO cycles (economy_mode=FULL) should go directly to economy buffer after correction
-        self._correction.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)
         self._correction.cycleDataAvailable.connect(self._trim.onNewPrediction)
         self._trim.trimApplied.connect(self._trimApplied.emit)
         self._track_dyneco.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)
