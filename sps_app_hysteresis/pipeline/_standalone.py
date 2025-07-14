@@ -212,10 +212,26 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
         self._correction.cycleDataAvailable.connect(self._track_dyneco.onNewCycleData)
         self._correction.cycleDataAvailable.connect(self._trim.onNewPrediction)
         self._trim.trimApplied.connect(self._trimApplied.emit)
+        self._trim.flatteningApplied.connect(self._trimApplied.emit)
+        self._trim.flatteningApplied.connect(self._on_flattening_applied)
         self._track_dyneco.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)
-        self._track_reference_changed.resetReference.connect(self.onResetReference)
+        # self._track_reference_changed.resetReference.connect(self.onResetReference)
 
         self._resetState.connect(self._predict.reset_state)
+
+    @QtCore.Slot(CycleData, np.ndarray, datetime.datetime, str)
+    def _on_flattening_applied(
+        self,
+        cycle_data: CycleData,
+        delta: np.ndarray,
+        trim_time: datetime.datetime,
+        comment: str,
+    ) -> None:
+        """Handle flattening correction applied - reset reference for the cycle."""
+        log.info(
+            f"Flattening correction applied for cycle {cycle_data.cycle}. Resetting reference."
+        )
+        self.onResetReference(cycle_data.cycle)
 
     @property
     def onModelLoaded(self) -> QtCore.Signal:

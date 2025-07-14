@@ -74,6 +74,8 @@ class TrimInfoWidget(QtWidgets.QWidget):
 
 
 class TrimSettingsWidget(QtWidgets.QWidget):
+    flatteningRequested = QtCore.Signal(str, float)  # cycle, constant_field
+
     def __init__(self, model: TrimModel, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent=parent)
 
@@ -107,6 +109,9 @@ class TrimSettingsWidget(QtWidgets.QWidget):
             "Reset Reference", parent=self
         )
 
+        self.FlatteningButton = QtWidgets.QPushButton("Apply Flattening", parent=self)
+        self.FlatteningButton.setEnabled(False)
+
         layout = QtWidgets.QGridLayout(self)
         layout.addWidget(self.GainLabel, 0, 0)
         layout.addWidget(self.GainSpinBox, 0, 1)
@@ -116,12 +121,14 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         layout.addWidget(self.TrimTMaxSpinBox, 2, 1)
         layout.addWidget(self.ToggleButton, 3, 0, 1, 2)
         layout.addWidget(self.ResetReferenceButton, 4, 0, 1, 2)
+        layout.addWidget(self.FlatteningButton, 5, 0, 1, 2)
         self.setLayout(layout)
 
         self.GainSpinBox.valueChanged.connect(self.onGainChanged)
         self.TrimTMinSpinBox.valueChanged.connect(self.onMinValueChanged)
         self.TrimTMaxSpinBox.valueChanged.connect(self.onMaxValueChanged)
         self.ToggleButton.stateChanged.connect(self.onEnableTrim)
+        self.FlatteningButton.clicked.connect(self.onFlatteningRequested)
 
         # disable the trim settings until a context has been set
         self.GainSpinBox.setEnabled(False)
@@ -129,9 +136,11 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         self.TrimTMaxSpinBox.setEnabled(False)
         self.ToggleButton.setEnabled(False)
         self.ResetReferenceButton.setEnabled(False)
+        self.FlatteningButton.setEnabled(False)
 
         self.model.contextChanged.connect(self.onContextChanged)
         self._cycle: str | None = None
+        self._is_eddy_current_only: bool = False
 
     @QtCore.Slot(str)
     def onContextChanged(self, cycle: str) -> None:
@@ -140,6 +149,7 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         self.TrimTMaxSpinBox.setEnabled(True)
         self.ToggleButton.setEnabled(True)
         self.ResetReferenceButton.setEnabled(True)
+        self._update_flattening_button_state()
 
         with mute_signals(self.GainSpinBox, self.TrimTMinSpinBox, self.TrimTMaxSpinBox):
             self.TrimTMinSpinBox.setRange(
@@ -198,11 +208,38 @@ class TrimSettingsWidget(QtWidgets.QWidget):
             state == ToggleButton.State.STATE1
         )
 
+    @QtCore.Slot(bool)
+    def onPredictionModeChanged(self, is_eddy_current_only: bool) -> None:  # noqa: FBT001
+        """Update prediction mode and enable/disable flattening button accordingly."""
+        self._is_eddy_current_only = is_eddy_current_only
+        self._update_flattening_button_state()
+
+    def _update_flattening_button_state(self) -> None:
+        """Update flattening button enabled state based on prediction mode."""
+        # Only enable flattening button when in eddy current only mode and context is set
+        enabled = self._is_eddy_current_only and self._cycle is not None
+        self.FlatteningButton.setEnabled(enabled)
+
+    @QtCore.Slot()
+    def onFlatteningRequested(self) -> None:
+        """Handle flattening button click."""
+        if self._cycle is None:
+            log.error("No cycle selected for flattening correction.")
+            return
+
+        # Use constant field of 0.0 as requested
+        constant_field = 0.0
+        log.info(
+            f"Requesting flattening correction for cycle {self._cycle} with constant field {constant_field}"
+        )
+        self.flatteningRequested.emit(self._cycle, constant_field)
+
 
 class TrimWidgetView(QtWidgets.QWidget):
     _thread: QtCore.QThread | None = None
 
     referenceReset = QtCore.Signal(str)
+    flatteningRequested = QtCore.Signal(str, float)  # cycle, constant_field
 
     def __init__(self, model: TrimModel, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent=parent)
@@ -228,6 +265,9 @@ class TrimWidgetView(QtWidgets.QWidget):
         self.TrimSettingsWidget = TrimSettingsWidget(model=model, parent=self)
         self.TrimSettingsWidget.ResetReferenceButton.clicked.connect(
             self.onResetReference
+        )
+        self.TrimSettingsWidget.flatteningRequested.connect(
+            self.flatteningRequested.emit
         )
 
         self.left_frame = QtWidgets.QFrame(parent=self)
@@ -290,3 +330,8 @@ class TrimWidgetView(QtWidgets.QWidget):
 
         log.debug(f"Resetting reference for {selected_context.name}")
         self.referenceReset.emit(selected_context.name)
+
+    @QtCore.Slot(bool)
+    def onPredictionModeChanged(self, is_eddy_current_only: bool) -> None:  # noqa: FBT001
+        """Update prediction mode in the trim settings widget."""
+        self.TrimSettingsWidget.onPredictionModeChanged(is_eddy_current_only)
