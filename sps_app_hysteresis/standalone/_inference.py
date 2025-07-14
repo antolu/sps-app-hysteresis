@@ -400,7 +400,7 @@ def predict_cycle(
     use_programmed_current: bool = True,
     prediction_mode: PredictionMode = PredictionMode.COMBINED,
 ) -> np.ndarray:
-    """Predict the field for the given cycle.
+    """Predict the field for the given cycle and store separated components.
 
     :param cycle: The cycle to predict the field for.
     :param predictor: The predictor to use.
@@ -410,58 +410,83 @@ def predict_cycle(
 
     :return: The predicted field of the cycle. Time axis in seconds, field in T.
     """
-    if prediction_mode == PredictionMode.EDDY_CURRENT_ONLY:
-        log.debug(f"[{cycle}]: Using EDDY_CURRENT_ONLY prediction mode.")
-        # Only use eddy current predictions
-        if e_predictor is None:
-            msg = "Eddy current predictor is required for EDDY_CURRENT_ONLY mode"
-            raise ValueError(msg)
+    log.debug(f"[{cycle}]: Predicting field with mode {prediction_mode.value}")
 
-        t_e_pred, b_e_pred = e_predictor.predict_cycle(
-            cycle=cycle,
-            save_state=True,
-        )
-        return np.vstack((t_e_pred, b_e_pred.flatten()))
-
-    if prediction_mode == PredictionMode.HYSTERESIS_ONLY:
-        log.debug(f"[{cycle}]: Using HYSTERESIS_ONLY prediction mode.")
-        # Only use hysteresis predictions
-        t_pred, b_pred = predictor.predict_cycle(
+    # Always compute hysteresis prediction when predictor is available
+    t_hyst, b_hyst = None, None
+    if predictor is not None:
+        t_hyst, b_hyst = predictor.predict_cycle(
             cycle=cycle,
             save_state=True,
             use_programmed_current=use_programmed_current,
         )
-        return np.vstack((t_pred, b_pred))
+        cycle.field_pred_hyst = np.vstack((t_hyst, b_hyst))
+        log.debug(
+            f"[{cycle}]: Hysteresis prediction computed with shape {cycle.field_pred_hyst.shape}"
+        )
 
-    log.debug(f"[{cycle}]: Using COMBINED prediction mode.")
+    # Always compute eddy current prediction when predictor is available
+    t_eddy, b_eddy = None, None
+    if e_predictor is not None:
+        t_eddy, b_eddy = e_predictor.predict_cycle(
+            cycle=cycle,
+            save_state=True,
+        )
+        cycle.field_pred_eddy = np.vstack((t_eddy, b_eddy.flatten()))
+        log.debug(
+            f"[{cycle}]: Eddy current prediction computed with shape {cycle.field_pred_eddy.shape}"
+        )
+
+    # Set field_pred based on prediction mode for legacy support
+    if prediction_mode == PredictionMode.EDDY_CURRENT_ONLY:
+        log.debug(f"[{cycle}]: Using EDDY_CURRENT_ONLY prediction mode.")
+        if cycle.field_pred_eddy is None:
+            msg = "Eddy current predictor is required for EDDY_CURRENT_ONLY mode"
+            raise ValueError(msg)
+        cycle.field_pred = cycle.field_pred_eddy
+        return cycle.field_pred_eddy
+
+    if prediction_mode == PredictionMode.HYSTERESIS_ONLY:
+        log.debug(f"[{cycle}]: Using HYSTERESIS_ONLY prediction mode.")
+        if cycle.field_pred_hyst is None:
+            msg = "Hysteresis predictor is required for HYSTERESIS_ONLY mode"
+            raise ValueError(msg)
+        cycle.field_pred = cycle.field_pred_hyst
+        return cycle.field_pred_hyst
 
     # PredictionMode.COMBINED
-    # Use both hysteresis and eddy current predictions
-    t_pred, b_pred = predictor.predict_cycle(
-        cycle=cycle,
-        save_state=True,
-        use_programmed_current=use_programmed_current,
-    )
+    log.debug(f"[{cycle}]: Using COMBINED prediction mode.")
 
-    if e_predictor is None:
+    if cycle.field_pred_hyst is None:
+        msg = "Hysteresis predictor is required for COMBINED mode"
+        raise ValueError(msg)
+
+    if cycle.field_pred_eddy is None:
         log.warning(
             "Eddy current predictor is not provided, using hysteresis prediction only."
         )
-        return np.vstack((t_pred, b_pred))
+        cycle.field_pred = cycle.field_pred_hyst
+        return cycle.field_pred_hyst
 
-    t_e_pred, b_e_pred = e_predictor.predict_cycle(
-        cycle=cycle,
-        save_state=True,
+    # Interpolate eddy current prediction to hysteresis time grid
+    b_eddy_interp = np.interp(
+        cycle.field_pred_hyst[0],
+        cycle.field_pred_eddy[0],
+        cycle.field_pred_eddy[1],
     )
 
-    # interpolate the eddy current prediction to the same time as the
-    # main prediction
-    b_e_pred_interp = np.interp(
-        t_pred,
-        t_e_pred,
-        b_e_pred.flatten(),
+    # Combine predictions
+    combined_prediction = np.vstack((
+        cycle.field_pred_hyst[0],
+        cycle.field_pred_hyst[1] + b_eddy_interp,
+    ))
+
+    cycle.field_pred = combined_prediction
+    log.debug(
+        f"[{cycle}]: Combined prediction created with shape {cycle.field_pred.shape}"
     )
-    return np.vstack((t_pred, b_pred + b_e_pred_interp))
+
+    return combined_prediction
 
 
 @functools.lru_cache

@@ -21,8 +21,10 @@ log = logging.getLogger(__package__)
 
 
 class StandaloneTrim(QtCore.QObject):
-    trimApplied = QtCore.Signal(CycleData, np.ndarray, datetime, str)
-    flatteningApplied = QtCore.Signal(CycleData, np.ndarray, datetime, str)
+    trimApplied = QtCore.Signal(CycleData, datetime, str)
+    flatteningApplied = QtCore.Signal(
+        CycleData, np.ndarray, datetime, str
+    )  # Keep delta for flattening
 
     def __init__(
         self,
@@ -43,6 +45,13 @@ class StandaloneTrim(QtCore.QObject):
 
         # Flattening state
         self._pending_flattening: dict[str, float] = {}  # cycle -> constant_field
+
+        # Reference to correction system for eddy current reference updates
+        self._correction_system: typing.Any = None
+
+    def set_correction_system(self, correction_system: typing.Any) -> None:
+        """Set reference to correction system for eddy current reference updates."""
+        self._correction_system = correction_system
 
     @QtCore.Slot(CycleData, name="onNewPrediction")
     def onNewPrediction(self, prediction: CycleData, *_: typing.Any) -> None:
@@ -115,7 +124,7 @@ class StandaloneTrim(QtCore.QObject):
             log.warning("Already applying trim, skipping.")
             return
 
-        comment = f"Hysteresis prediction correction {str(cycle_data.cycle_time)[:-7]}"
+        comment = f"Prediction correction {str(cycle_data.cycle_time)[:-7]}"
 
         try:
             assert cycle_data.correction_applied is not None, "No correction found."
@@ -144,11 +153,7 @@ class StandaloneTrim(QtCore.QObject):
             trim_time_diff = trim_time.duration
             log.debug(f"Trim applied in {trim_time_diff:.02f}s.")
 
-            # calculating the deltas is for purely plotting purposes
-            # any real usage should still be done with the CycleData.correction_applied field
-            delta = self.calc_delta(cycle_data, start, end)
-
-            self.trimApplied.emit(cycle_data, delta, trim_time_d, comment)
+            self.trimApplied.emit(cycle_data, trim_time_d, comment)
         except:
             log.exception("Failed to apply trim to LSA.")
             raise
@@ -214,19 +219,6 @@ class StandaloneTrim(QtCore.QObject):
             raise resp_set.exception
 
         return now
-
-    def calc_delta(self, cycle_data: CycleData, start: float, end: float) -> np.ndarray:
-        assert cycle_data.delta_applied is not None, "No delta applied found."
-        delta_t, delta_v = self.cut_trim_beyond_time(
-            cycle_data.delta_applied[0],
-            cycle_data.delta_applied[1],
-            lower=start,
-            upper=end,
-        )
-
-        delta_v = self._settings.gain[cycle_data.cycle] * delta_v
-
-        return np.vstack((delta_t, delta_v))
 
     @QtCore.Slot(str, float, name="onFlatteningRequested")
     def onFlatteningRequested(self, cycle: str, constant_field: float) -> None:
