@@ -173,7 +173,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         # Set the prediction mode (only for standalone pipelines)
         if isinstance(self._data, StandalonePipeline):
-            self._data._predict.set_prediction_mode(mode)  # noqa: SLF001
+            self._data.set_prediction_mode(mode)
 
         # Update trim widget about prediction mode change
         is_eddy_current_only = mode == PredictionMode.EDDY_CURRENT_ONLY

@@ -11,6 +11,7 @@ from qtpy import QtCore
 
 from ..contexts import app_context
 from ..standalone import CalculateCorrection, Inference, StandaloneTrim
+from ..standalone._inference import PredictionMode
 from ..standalone.event_building import (
     AddMeasurementReferencesEventBuilder,
     AddMeasurementsEventBuilder,
@@ -112,6 +113,9 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
             settings=app_context().TRIM_SETTINGS,
             parent=parent,
         )
+
+        # Store current prediction mode
+        self._prediction_mode = PredictionMode.COMBINED
 
         self._connect_signals()
 
@@ -219,6 +223,12 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
 
         self._resetState.connect(self._predict.reset_state)
 
+        # Set initial prediction mode for correction system
+        self._correction.set_prediction_mode(self._prediction_mode)
+
+        # Set correction system reference for trim (for any remaining reference updates)
+        self._trim.set_correction_system(self._correction)
+
     @QtCore.Slot(CycleData, np.ndarray, datetime.datetime, str)
     def _on_flattening_applied(
         self,
@@ -272,3 +282,9 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
     @QtCore.Slot(str, float)
     def setGain(self, cycle: str, gain: float) -> None:
         app_context().TRIM_SETTINGS.gain[cycle] = gain
+
+    def set_prediction_mode(self, mode: PredictionMode) -> None:
+        """Set the prediction mode for both inference and correction systems."""
+        self._prediction_mode = mode
+        self._predict.set_prediction_mode(mode)
+        self._correction.set_prediction_mode(mode)
