@@ -260,6 +260,10 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
         return self._start_cycle.cycleDataAvailable
 
     @property
+    def onCyclePredictionCompleted(self) -> QtCore.Signal:
+        return self._predict.cycleDataAvailable
+
+    @property
     def onCycleCorrectionCalculated(self) -> QtCore.Signal:
         return self._correction.cycleDataAvailable
 
