@@ -150,6 +150,16 @@ class CycleListModel(QtCore.QAbstractListModel):
 
     def append(self, cycle_data: CycleData) -> None:
         """Add a new cycle to the model."""
+        log.debug(f"[{cycle_data}] Appending to cycle model")
+
+        # Check if this cycle already exists
+        existing_idx = self._get_cycle_index(cycle_data)
+        if existing_idx != -1:
+            log.warning(
+                f"[{cycle_data}] Cycle already exists at index {existing_idx}! This indicates duplicate add_cycle() calls."
+            )
+            return
+
         # Handle queue overflow
         if len(self._cycle_data) == self._cycle_data.maxlen:
             self._remove_oldest(keep_reference=True)
@@ -179,12 +189,11 @@ class CycleListModel(QtCore.QAbstractListModel):
 
     def update(self, cycle_data: CycleData) -> None:
         """Update an existing cycle in the model."""
+        log.debug(f"[{cycle_data}] Attempting to update cycle")
+
         idx = self._get_cycle_index(cycle_data)
         if idx == -1:
-            log.warning(
-                f"[{cycle_data}] not found in the list. Adding as new entry (race condition recovery)."
-            )
-            self.append(cycle_data)
+            log.error(f"[{cycle_data}] not found in the list. Cannot update entry.")
             return
 
         # Update data
@@ -266,6 +275,54 @@ class CycleListModel(QtCore.QAbstractListModel):
         else:
             self.plotItemRemoved.emit(plot_item)
 
+    def select_all_cycles(self) -> None:
+        """Select all cycles for plotting."""
+        if not self._cycle_data:
+            return
+
+        changed_items = []
+        for cycle_data in self._cycle_data:
+            plot_item = self._plot_metadata[cycle_data.cycle_timestamp]
+            if not plot_item.is_shown:
+                plot_item.is_shown = True
+                changed_items.append(plot_item)
+
+        # Emit signals for all changed items
+        for plot_item in changed_items:
+            self.plotItemAdded.emit(plot_item)
+
+        # Update all background colors
+        if changed_items:
+            self.dataChanged.emit(
+                self.index(0, 0),
+                self.index(len(self._cycle_data) - 1, 0),
+                [QtCore.Qt.BackgroundRole],
+            )
+
+    def select_none_cycles(self) -> None:
+        """Deselect all cycles from plotting."""
+        if not self._cycle_data:
+            return
+
+        changed_items = []
+        for cycle_data in self._cycle_data:
+            plot_item = self._plot_metadata[cycle_data.cycle_timestamp]
+            if plot_item.is_shown:
+                plot_item.is_shown = False
+                changed_items.append(plot_item)
+
+        # Emit signals for all changed items
+        for plot_item in changed_items:
+            self.plotItemRemoved.emit(plot_item)
+
+        # Update all background colors
+        if changed_items:
+            self.dataChanged.emit(
+                self.index(0, 0),
+                self.index(len(self._cycle_data) - 1, 0),
+                [QtCore.Qt.BackgroundRole],
+            )
+
     def _remove_oldest(self, *, keep_reference: bool = True) -> CycleData:
         """Remove the oldest item, optionally preserving reference."""
         if not self._cycle_data:
@@ -308,9 +365,18 @@ class CycleListModel(QtCore.QAbstractListModel):
 
     def _get_cycle_index(self, cycle_data: CycleData) -> int:
         """Get the internal index of a cycle by timestamp."""
+        target_timestamp = cycle_data.cycle_timestamp
+
+        log.debug(f"Searching for cycle [{cycle_data}]")
+        log.debug(f"Current cycles in model: {len(self._cycle_data)}")
+
         for idx, item in enumerate(self._cycle_data):
-            if item.cycle_timestamp == cycle_data.cycle_timestamp:
+            log.debug(f"  [{idx}] {item}")
+            if item.cycle_timestamp == target_timestamp:
+                log.debug(f"Found cycle [{cycle_data}] at index {idx}")
                 return idx
+
+        log.debug(f"Cycle [{cycle_data}] not found")
         return -1
 
     def _calc_real_row(self, display_row: int) -> int:
