@@ -8,6 +8,7 @@ import typing
 import mlp_client
 import numpy as np
 import pyda.access
+import scipy.signal
 from hystcomp_utils.cycle_data import CycleData, EconomyMode
 from qtpy import QtCore, QtWidgets
 from sps_mlp_hystcomp import (
@@ -354,7 +355,7 @@ class Inference(InferenceFlags, EventBuilderAbc):
             b_e_pred_interp = np.interp(
                 t_pred,
                 t_e_pred,
-                b_e_pred.flatten(),
+                b_e_pred,
             )
             return np.vstack((t_pred, b_pred + b_e_pred_interp))
 
@@ -390,6 +391,42 @@ class Inference(InferenceFlags, EventBuilderAbc):
             log.error("Model not loaded. Cannot reset state.")
 
         self._e_predictor.reset_state()
+
+
+def downsample_prediction(
+    t_data: np.ndarray, b_data: np.ndarray, target_freq: int = 50
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Downsample prediction data from 1 kHz to target frequency.
+
+    :param t_data: Time array in seconds
+    :param b_data: Field array in Tesla
+    :param target_freq: Target frequency in Hz (default: 50 Hz)
+    :return: Downsampled time and field arrays
+    """
+    if len(t_data) <= 1:
+        return t_data, b_data
+
+    # Calculate current sampling frequency
+    dt = np.mean(np.diff(t_data))
+    current_freq = 1.0 / dt
+
+    # Calculate decimation factor
+    decimation_factor = int(np.round(current_freq / target_freq))
+
+    # Ensure we have enough points for decimation
+    if decimation_factor <= 1 or len(t_data) < decimation_factor:
+        return t_data, b_data
+
+    # Decimate with anti-aliasing filter
+    b_decimated = scipy.signal.decimate(
+        b_data, decimation_factor, n=None, ftype="iir", axis=0
+    )
+    t_decimated = scipy.signal.decimate(
+        t_data, decimation_factor, n=None, ftype="iir", axis=0
+    )
+
+    return t_decimated, b_decimated
 
 
 def predict_cycle(
@@ -432,9 +469,15 @@ def predict_cycle(
             cycle=cycle,
             save_state=True,
         )
-        cycle.field_pred_eddy = np.vstack((t_eddy, b_eddy.flatten()))
+
+        # Downsample eddy current prediction from 1 kHz to 50 Hz
+        t_eddy_downsampled, b_eddy_downsampled = downsample_prediction(
+            t_eddy, b_eddy.flatten(), target_freq=50
+        )
+
+        cycle.field_pred_eddy = np.vstack((t_eddy_downsampled, b_eddy_downsampled))
         log.debug(
-            f"[{cycle}]: Eddy current prediction computed with shape {cycle.field_pred_eddy.shape}"
+            f"[{cycle}]: Eddy current prediction computed with shape {cycle.field_pred_eddy.shape} (downsampled to 50 Hz)"
         )
 
     # Set field_pred based on prediction mode for legacy support
