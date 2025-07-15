@@ -99,8 +99,8 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self._data.onCycleMeasured.connect(self._io.save_data)
 
         # connect history
-        self._data.onCyclePredictionCompleted.connect(self._history.add_cycle)
-        self._data.onCycleCorrectionCalculated.connect(self._history.update_cycle)
+        # self._data.onCyclePredictionCompleted.connect(self._history.add_cycle)
+        self._data.onCycleCorrectionCalculated.connect(self._history.add_cycle)
         self._data.onCycleStart.connect(self._history.update_cycle)
         self._data.onCycleMeasured.connect(self._history.update_cycle)
         self._data.onNewReference.connect(self._history.onReferenceChanged)
