@@ -181,7 +181,10 @@ class CycleListModel(QtCore.QAbstractListModel):
         """Update an existing cycle in the model."""
         idx = self._get_cycle_index(cycle_data)
         if idx == -1:
-            log.error(f"[{cycle_data}] not found in the list. Cannot update entry.")
+            log.warning(
+                f"[{cycle_data}] not found in the list. Adding as new entry (race condition recovery)."
+            )
+            self.append(cycle_data)
             return
 
         # Update data
