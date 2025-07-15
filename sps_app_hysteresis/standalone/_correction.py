@@ -185,16 +185,16 @@ class CalculateCorrection(EventBuilderAbc):
 
         # Reset legacy reference
         if cycle_name in self._field_ref:
-            log.info(f"{cycle_name}: Resetting field reference.")
+            log.info(f"[{cycle_name}] Resetting field reference")
             del self._field_ref[cycle_name]
 
         # Reset separated references
         if cycle_name in self._field_ref_hyst:
-            log.info(f"{cycle_name}: Resetting hysteresis field reference.")
+            log.info(f"[{cycle_name}] Resetting hysteresis field reference")
             del self._field_ref_hyst[cycle_name]
 
         if cycle_name in self._field_ref_eddy:
-            log.info(f"{cycle_name}: Resetting eddy current field reference.")
+            log.info(f"[{cycle_name}] Resetting eddy current field reference")
             del self._field_ref_eddy[cycle_name]
 
         if (
@@ -202,7 +202,7 @@ class CalculateCorrection(EventBuilderAbc):
             and cycle_name not in self._field_ref_hyst
             and cycle_name not in self._field_ref_eddy
         ):
-            log.debug(f"{cycle_name}: No field references set. Nothing to reset.")
+            log.debug(f"[{cycle_name}] No field references set. Nothing to reset")
 
     def updateEddyCurrentReference(
         self, cycle_name: str, delta_correction: npt.NDArray[np.float64]
@@ -213,7 +213,7 @@ class CalculateCorrection(EventBuilderAbc):
         :param delta_correction: Correction delta [2, n_points] where [0] is time, [1] is field values
         """
         if cycle_name not in self._field_ref_eddy:
-            log.warning(f"{cycle_name}: No eddy current reference to update.")
+            log.warning(f"[{cycle_name}] No eddy current reference to update")
             return
 
         # Update reference field values: B_ref_new[1] = B_ref_old[1] + delta_correction[1]
@@ -254,7 +254,7 @@ class CalculateCorrection(EventBuilderAbc):
         cycle_id = self._cycle_id(cycle_data)
 
         if cycle_id not in self._field_ref_eddy:
-            log.debug(f"{cycle_data}: No eddy current reference to update.")
+            log.debug(f"[{cycle_data}] No eddy current reference to update")
             return
 
         if prediction_mode == PredictionMode.EDDY_CURRENT_ONLY:
@@ -312,7 +312,7 @@ class CalculateCorrection(EventBuilderAbc):
         self, cycle_data: hystcomp_utils.cycle_data.CycleData
     ) -> None:
         if cycle_data.field_pred is None:
-            log.error(f"{cycle_data}: Prediction field not set. Cannot save reference.")
+            log.error(f"[{cycle_data}] Prediction field not set. Cannot save reference")
             return
 
         if (
@@ -355,14 +355,14 @@ class CalculateCorrection(EventBuilderAbc):
 
         # Save separated references for hysteresis and eddy current
         if id_ not in self._field_ref_hyst and cycle_data.field_pred_hyst is not None:
-            log.debug(f"{cycle_data}: Saving hysteresis field reference.")
+            log.debug(f"[{cycle_data}] Saving hysteresis field reference")
             self._field_ref_hyst.set_with_timestamp(
                 id_, cycle_data.field_pred_hyst, cycle_data.cycle_timestamp
             )
             cycle_data.field_ref_hyst = self._field_ref_hyst[id_]
 
         if id_ not in self._field_ref_eddy and cycle_data.field_pred_eddy is not None:
-            log.debug(f"{cycle_data}: Saving eddy current field reference.")
+            log.debug(f"[{cycle_data}] Saving eddy current field reference")
             self._field_ref_eddy.set_with_timestamp(
                 id_, cycle_data.field_pred_eddy, cycle_data.cycle_timestamp
             )

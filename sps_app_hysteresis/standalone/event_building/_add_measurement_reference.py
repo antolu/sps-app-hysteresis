@@ -38,14 +38,14 @@ class AddMeasurementReferencesEventBuilder(EventBuilderAbc):
         raise NotImplementedError(msg)
 
     def onNewCycleData(self, cycle_data: hystcomp_utils.cycle_data.CycleData) -> None:
-        log.debug(f"{cycle_data}: Triggered to add reference")
+        log.debug(f"[{cycle_data}] Triggered to add reference")
 
         self._maybe_save_reference(cycle_data)
 
-        log.debug(f"{cycle_data}: Adding reference field to the cycle data")
+        log.debug(f"[{cycle_data}] Adding reference field to the cycle data")
         id_ = self._cycle_id(cycle_data)
         if id_ not in self._reference_timestamps:
-            log.error(f"{cycle_data}: No reference found")
+            log.error(f"[{cycle_data}] No reference found")
             return
 
         cycle_data.field_meas_ref = self._reference_fields[id_]
@@ -53,7 +53,7 @@ class AddMeasurementReferencesEventBuilder(EventBuilderAbc):
         ref_time = datetime.datetime.fromtimestamp(
             self._reference_timestamps[id_] * NS2S
         )
-        log.debug(f"{cycle_data}: Added reference field from timestamp {ref_time}")
+        log.debug(f"[{cycle_data}] Added reference field from timestamp {ref_time}")
 
         self.cycleDataAvailable.emit(cycle_data)
 
@@ -77,17 +77,17 @@ class AddMeasurementReferencesEventBuilder(EventBuilderAbc):
         id_ = self._cycle_id(cycle_data)
         if id_ not in self._reference_timestamps:
             if cycle_data.field_meas is None:
-                log.error(f"{cycle_data}: field_meas is None")
+                log.error(f"[{cycle_data}] field_meas is None")
                 return
 
-            log.debug(f"{cycle_data}: Saving reference for the first time.")
+            log.debug(f"[{cycle_data}] Saving reference for the first time")
 
             self._reference_timestamps[id_] = cycle_data.cycle_timestamp
             self._reference_fields[id_] = cycle_data.field_meas.copy()
             return
 
         if cycle_data.reference_timestamp is None:
-            log.error(f"{cycle_data}: reference_timestamp is None")
+            log.error(f"[{cycle_data}] reference_timestamp is None")
             return
 
         if cycle_data.reference_timestamp != self._reference_timestamps[id_]:

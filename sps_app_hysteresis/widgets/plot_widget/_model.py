@@ -103,7 +103,7 @@ class PlotModel(QtCore.QObject):
             self._field_predict_source.new_value(cycle_data.cycle_timestamp, predicted)
 
             if cycle_data.field_ref is not None:
-                log.debug(f"{cycle_data}: Plotting field diff for cycle.")
+                log.debug(f"[{cycle_data}] Plotting field diff for cycle")
                 delta = (cycle_data.field_ref[1, :] - predicted[1, :]) * 1e4
                 # delta = scipy.signal.savgol_filter(delta, 5, 3)
                 delta = scipy.ndimage.gaussian_filter(delta, sigma=4)

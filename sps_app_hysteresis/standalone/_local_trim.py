@@ -210,7 +210,7 @@ class StandaloneTrim(QtCore.QObject):
                 flags=TrimFlags(
                     transient=True,
                     drive=context.lsa_server not in {"next", "dev"},
-                    propagate_to_children=context.lsa_server not in {"next", "dev"},
+                    # propagate_to_children=context.lsa_server not in {"next", "dev"},
                 ),
             ),
         )

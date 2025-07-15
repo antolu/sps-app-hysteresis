@@ -38,7 +38,7 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
     @Slot(hystcomp_utils.cycle_data.CycleData)
     @run_in_main_thread
     def onNewCycle(self, cycle_data: hystcomp_utils.cycle_data.CycleData) -> None:
-        log.debug(f"{cycle_data}: Cycle is starting. Blinking LED.")
+        log.debug(f"[{cycle_data}] Cycle is starting. Blinking LED")
         self.labelUser.setText(cycle_data.user.split(".")[-1])
         self.labelCycle.setText(cycle_data.cycle)
         self.labelCycleTime.setText(cycle_data.cycle_time.strftime(FMT)[:-3])
