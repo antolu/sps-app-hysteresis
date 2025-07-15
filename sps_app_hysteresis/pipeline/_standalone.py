@@ -216,6 +216,7 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
         self._correction.cycleDataAvailable.connect(self._track_dyneco.onNewCycleData)
         self._correction.cycleDataAvailable.connect(self._trim.onNewPrediction)
         self._trim.trimApplied.connect(self._trimApplied.emit)
+        self._trim.trimApplied.connect(self._correction.onTrimCompleted)
         self._trim.flatteningApplied.connect(self._trimApplied.emit)
         self._trim.flatteningApplied.connect(self._on_flattening_applied)
         self._track_dyneco.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)

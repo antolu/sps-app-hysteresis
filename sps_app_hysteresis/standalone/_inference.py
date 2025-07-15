@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import enum
 import functools
 import logging
 import typing
@@ -9,7 +8,7 @@ import mlp_client
 import numpy as np
 import pyda.access
 import scipy.signal
-from hystcomp_utils.cycle_data import CycleData, EconomyMode
+from hystcomp_utils.cycle_data import CorrectionMode, CycleData, EconomyMode
 from qtpy import QtCore, QtWidgets
 from sps_mlp_hystcomp import (
     EddyCurrentPredictor,
@@ -41,12 +40,8 @@ def inference_thread() -> QtCore.QThread:
     return _thread
 
 
-class PredictionMode(enum.Enum):
-    """Prediction mode enumeration."""
-
-    COMBINED = "combined"  # Hysteresis + Eddy Current
-    HYSTERESIS_ONLY = "hysteresis_only"  # Hysteresis predictions only
-    EDDY_CURRENT_ONLY = "eddy_current_only"  # Eddy current predictions only
+# Type alias for backward compatibility
+PredictionMode = CorrectionMode
 
 
 class InferenceFlags:
@@ -56,7 +51,7 @@ class InferenceFlags:
         self._do_inference = False
         self._autoregressive = False
         self._use_programmed_current = True
-        self._prediction_mode = PredictionMode.COMBINED
+        self._prediction_mode = CorrectionMode.COMBINED
 
     def set_do_inference(self, state: bool) -> None:  # noqa: FBT001
         self._do_inference = state
@@ -83,17 +78,17 @@ class InferenceFlags:
     def use_programmed_current(self, value: bool) -> None:
         self.set_use_programmed_current(state=value)
 
-    def set_prediction_mode(self, mode: PredictionMode) -> None:
+    def set_prediction_mode(self, mode: CorrectionMode) -> None:
         """Set the prediction mode."""
         self._prediction_mode = mode
 
     @property
-    def prediction_mode(self) -> PredictionMode:
+    def prediction_mode(self) -> CorrectionMode:
         """Get the current prediction mode."""
         return self._prediction_mode
 
     @prediction_mode.setter
-    def prediction_mode(self, mode: PredictionMode) -> None:
+    def prediction_mode(self, mode: CorrectionMode) -> None:
         """Set the prediction mode."""
         self.set_prediction_mode(mode)
 
@@ -102,17 +97,17 @@ class InferenceFlags:
     def eddy_current(self) -> bool:
         """Legacy property for backward compatibility."""
         return self._prediction_mode in (
-            PredictionMode.COMBINED,
-            PredictionMode.EDDY_CURRENT_ONLY,
+            CorrectionMode.COMBINED,
+            CorrectionMode.EDDY_CURRENT_ONLY,
         )
 
     @eddy_current.setter
     def eddy_current(self, value: bool) -> None:
         """Legacy setter for backward compatibility."""
         if value:
-            self._prediction_mode = PredictionMode.COMBINED
+            self._prediction_mode = CorrectionMode.COMBINED
         else:
-            self._prediction_mode = PredictionMode.HYSTERESIS_ONLY
+            self._prediction_mode = CorrectionMode.HYSTERESIS_ONLY
 
 
 class Inference(InferenceFlags, EventBuilderAbc):
@@ -435,7 +430,7 @@ def predict_cycle(
     e_predictor: EddyCurrentPredictor | None = None,
     *,
     use_programmed_current: bool = True,
-    prediction_mode: PredictionMode = PredictionMode.COMBINED,
+    prediction_mode: CorrectionMode = CorrectionMode.COMBINED,
 ) -> np.ndarray:
     """Predict the field for the given cycle and store separated components.
 
@@ -481,7 +476,7 @@ def predict_cycle(
         )
 
     # Set field_pred based on prediction mode for legacy support
-    if prediction_mode == PredictionMode.EDDY_CURRENT_ONLY:
+    if prediction_mode == CorrectionMode.EDDY_CURRENT_ONLY:
         log.debug(f"[{cycle}]: Using EDDY_CURRENT_ONLY prediction mode.")
         if cycle.field_pred_eddy is None:
             msg = "Eddy current predictor is required for EDDY_CURRENT_ONLY mode"
@@ -489,7 +484,7 @@ def predict_cycle(
         cycle.field_pred = cycle.field_pred_eddy
         return cycle.field_pred_eddy
 
-    if prediction_mode == PredictionMode.HYSTERESIS_ONLY:
+    if prediction_mode == CorrectionMode.HYSTERESIS_ONLY:
         log.debug(f"[{cycle}]: Using HYSTERESIS_ONLY prediction mode.")
         if cycle.field_pred_hyst is None:
             msg = "Hysteresis predictor is required for HYSTERESIS_ONLY mode"
@@ -497,7 +492,7 @@ def predict_cycle(
         cycle.field_pred = cycle.field_pred_hyst
         return cycle.field_pred_hyst
 
-    # PredictionMode.COMBINED
+    # CorrectionMode.COMBINED
     log.debug(f"[{cycle}]: Using COMBINED prediction mode.")
 
     if cycle.field_pred_hyst is None:

@@ -209,7 +209,7 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         )
 
     @QtCore.Slot(bool)
-    def onPredictionModeChanged(self, is_eddy_current_only: bool) -> None:  # noqa: FBT001
+    def onCorrectionModeChanged(self, is_eddy_current_only: bool) -> None:  # noqa: FBT001
         """Update prediction mode and enable/disable flattening button accordingly."""
         self._is_eddy_current_only = is_eddy_current_only
         self._update_flattening_button_state()
@@ -332,6 +332,6 @@ class TrimWidgetView(QtWidgets.QWidget):
         self.referenceReset.emit(selected_context.name)
 
     @QtCore.Slot(bool)
-    def onPredictionModeChanged(self, is_eddy_current_only: bool) -> None:  # noqa: FBT001
+    def onCorrectionModeChanged(self, is_eddy_current_only: bool) -> None:  # noqa: FBT001
         """Update prediction mode in the trim settings widget."""
-        self.TrimSettingsWidget.onPredictionModeChanged(is_eddy_current_only)
+        self.TrimSettingsWidget.onCorrectionModeChanged(is_eddy_current_only)

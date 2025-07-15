@@ -6,6 +6,7 @@ from accwidgets.app_frame import ApplicationFrame
 from accwidgets.log_console import LogConsole
 from accwidgets.rbac import RbaButton
 from accwidgets.timing_bar import TimingBar, TimingBarDomain, TimingBarModel
+from hystcomp_utils.cycle_data import CorrectionMode
 from op_app_context import context
 from qtpy import QtCore, QtGui, QtWidgets
 
@@ -14,10 +15,12 @@ from .generated.main_window_ui import Ui_main_window
 from .history import PredictionHistory
 from .io import IO
 from .pipeline import Pipeline, StandalonePipeline
-from .standalone._inference import PredictionMode
 from .widgets import ModelLoadDialog, PlotModel
 from .widgets.history_widget import HistoryWidget
 from .widgets.trim_widget import TrimModel, TrimWidgetView
+
+# Backward compatibility alias
+PredictionMode = CorrectionMode
 
 log = logging.getLogger(__name__)
 
@@ -68,8 +71,8 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         # Initialize prediction mode state in trim widget
         if isinstance(self._data, StandalonePipeline):
             current_mode = self._data._predict.prediction_mode  # noqa: SLF001
-            is_eddy_current_only = current_mode == PredictionMode.EDDY_CURRENT_ONLY
-            self._trim_widget.onPredictionModeChanged(is_eddy_current_only)
+            is_eddy_current_only = current_mode == CorrectionMode.EDDY_CURRENT_ONLY
+            self._trim_widget.onCorrectionModeChanged(is_eddy_current_only)
 
         self._trim_widget.show()
         self._history_widget.show()
@@ -159,16 +162,16 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         # Connect actions to handlers
         self.actionMode_Combined.triggered.connect(
-            lambda: self._on_prediction_mode_changed(PredictionMode.COMBINED)
+            lambda: self._on_prediction_mode_changed(CorrectionMode.COMBINED)
         )
         self.actionMode_Hysteresis_Only.triggered.connect(
-            lambda: self._on_prediction_mode_changed(PredictionMode.HYSTERESIS_ONLY)
+            lambda: self._on_prediction_mode_changed(CorrectionMode.HYSTERESIS_ONLY)
         )
         self.actionMode_Eddy_Current_Only.triggered.connect(
-            lambda: self._on_prediction_mode_changed(PredictionMode.EDDY_CURRENT_ONLY)
+            lambda: self._on_prediction_mode_changed(CorrectionMode.EDDY_CURRENT_ONLY)
         )
 
-    def _on_prediction_mode_changed(self, mode: PredictionMode) -> None:
+    def _on_prediction_mode_changed(self, mode: CorrectionMode) -> None:
         """Handle prediction mode changes."""
         log.info(f"Prediction mode changed to: {mode.value}")
 
@@ -177,8 +180,8 @@ class MainWindow(Ui_main_window, ApplicationFrame):
             self._data.set_prediction_mode(mode)
 
         # Update trim widget about prediction mode change
-        is_eddy_current_only = mode == PredictionMode.EDDY_CURRENT_ONLY
-        self._trim_widget.onPredictionModeChanged(is_eddy_current_only)
+        is_eddy_current_only = mode == CorrectionMode.EDDY_CURRENT_ONLY
+        self._trim_widget.onCorrectionModeChanged(is_eddy_current_only)
 
         # Reset reference when mode changes
         self._data.onResetReference("all")
