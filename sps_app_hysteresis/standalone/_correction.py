@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import dataclasses
 import datetime
 import logging
 import time
-from collections.abc import Iterator, MutableMapping
-from dataclasses import dataclass
+from collections.abc import Callable, Iterator, MutableMapping
 
 import hystcomp_utils.cycle_data
 import numpy as np
@@ -22,12 +22,181 @@ from .event_building import EventBuilderAbc
 log = logging.getLogger(__name__)
 
 
-@dataclass
+class CorrectionCalculator:
+    """Handles correction calculation and clipping operations."""
+
+    def __init__(self, trim_settings: TrimSettings):
+        self._trim_settings = trim_settings
+
+    def calculate_correction(
+        self,
+        current_correction: npt.NDArray[np.float64],
+        delta: npt.NDArray[np.float64],
+        cycle_name: str,
+        field_prog: npt.NDArray[np.float64],
+        beam_in: float | None = None,
+        beam_out: float | None = None,
+    ) -> npt.NDArray[np.float64]:
+        """Calculate and clip correction."""
+        try:
+            # Cut current correction to beam limits
+            if beam_in is not None and beam_out is not None:
+                current_correction = np.vstack(
+                    cut_trim_beyond_time(
+                        current_correction[0],
+                        current_correction[1],
+                        beam_in,
+                        beam_out,
+                    )
+                )
+
+            # Calculate new correction
+            gain = self._trim_settings.gain[cycle_name]
+            correction = calc_new_correction(current_correction, delta, gain)
+
+            # Clip correction
+            return clip_correction(
+                correction,
+                field_prog,
+                clip_factor=app_context().TRIM_CLIP_THRESHOLD,
+            )
+
+        except Exception:
+            log.exception(f"Could not calculate correction for {cycle_name}")
+            raise
+
+
+class CorrectionHelper:
+    """Helper class for common correction operations."""
+
+    @staticmethod
+    def get_beam_times(cycle_name: str) -> tuple[int, int]:
+        """Get beam in and beam out times for a cycle."""
+        beam_in = cycle_metadata.beam_in(cycle_name)
+        beam_out = cycle_metadata.beam_out(cycle_name)
+        return beam_in, beam_out
+
+    @staticmethod
+    def apply_running_eddy_adjustment(
+        delta_eddy: npt.NDArray[np.float64],
+        running_field_ref_eddy: FieldReferenceStore,
+        cycle_id: str,
+    ) -> npt.NDArray[np.float64]:
+        """Apply running eddy current reference adjustment to delta."""
+        if cycle_id in running_field_ref_eddy:
+            delta_eddy, match_delta = match_array_size(
+                delta_eddy, running_field_ref_eddy[cycle_id]
+            )
+            delta_eddy[1] -= match_delta[1]
+        return delta_eddy
+
+
+class EddyCorrectionManager:
+    """Manages eddy current reference updates."""
+
+    def __init__(self, trim_settings: TrimSettings):
+        self._trim_settings = trim_settings
+        self._correction_calculator = CorrectionCalculator(trim_settings)
+
+    def calculate_eddy_delta(
+        self,
+        cycle_data: hystcomp_utils.cycle_data.CycleData,
+    ) -> npt.NDArray[np.float64]:
+        """Calculate eddy current delta from reference and prediction."""
+        if cycle_data.field_ref_eddy is None or cycle_data.field_pred_eddy is None:
+            msg = "Missing eddy current reference or prediction"
+            raise ValueError(msg)
+
+        # Calculate eddy current delta: ref - pred
+        eddy_ref_t = cycle_data.field_ref_eddy[0]
+        eddy_ref_v = cycle_data.field_ref_eddy[1]
+        eddy_pred_t = cycle_data.field_pred_eddy[0]
+        eddy_pred_v = cycle_data.field_pred_eddy[1]
+
+        # Interpolate prediction to reference time grid
+        eddy_pred_interp = np.interp(eddy_ref_t, eddy_pred_t, eddy_pred_v)
+
+        # Calculate delta and apply gain
+        gain = self._trim_settings.gain[cycle_data.cycle]
+        eddy_delta_v = gain * (eddy_ref_v - eddy_pred_interp)
+
+        # Create delta array
+        return np.vstack((eddy_ref_t, eddy_delta_v))
+
+    def update_reference_after_trim(
+        self,
+        cycle_data: hystcomp_utils.cycle_data.CycleData,
+        correction_mode: CorrectionMode,
+        field_ref_eddy_store: FieldReferenceStore,
+        running_field_ref_eddy: FieldReferenceStore,
+        update_reference_callback: Callable[[str, npt.NDArray[np.float64]], None],
+    ) -> None:
+        """Update eddy current reference after trim completion."""
+        cycle_id = _cycle_id_helper(cycle_data)
+
+        if cycle_id not in field_ref_eddy_store:
+            log.debug(f"[{cycle_data}] No eddy current reference to update")
+            return
+
+        if correction_mode == CorrectionMode.EDDY_CURRENT_ONLY:  # noqa: SIM102
+            # In eddy current only mode, the entire applied correction is eddy current
+            if cycle_data.correction_applied is not None:
+                update_reference_callback(cycle_id, cycle_data.correction_applied)
+                log.debug(
+                    f"{cycle_data}: Updated eddy current reference after trim (eddy current only mode)"
+                )
+
+        if correction_mode == CorrectionMode.COMBINED:
+            # In combined mode, use stored eddy current delta if available
+            eddy_delta = cycle_data.delta_eddy
+
+            # Calculate actual correction to apply
+            beam_in, beam_out = CorrectionHelper.get_beam_times(cycle_data.cycle)
+
+            try:
+                if cycle_data.correction is not None:
+                    # Normally this is not None
+                    correction = self._correction_calculator.calculate_correction(
+                        cycle_data.correction,
+                        eddy_delta,
+                        cycle_data.cycle,
+                        cycle_data.field_prog,
+                        beam_in,
+                        beam_out,
+                    )
+
+                    update_reference_callback(cycle_data.cycle, correction)
+                    log.debug(
+                        f"{cycle_data}: Updated eddy current reference after trim (combined mode)"
+                    )
+            except Exception:
+                log.exception(
+                    f"[{cycle_data}]: Could not update eddy current reference"
+                )
+                return
+
+        # hysteresis only
+
+
+@dataclasses.dataclass
 class FieldReference:
     """Container for field reference data and timestamp."""
 
     data: npt.NDArray[np.float64]  # [2, n_points] array
     timestamp: float
+
+
+@dataclasses.dataclass
+class DeltaComponents:
+    """Container for separated delta components."""
+
+    combined: npt.NDArray[np.float64]  # [2, n_points] - combined delta
+    hysteresis: npt.NDArray[np.float64] | None = (
+        None  # [2, n_points] - hysteresis delta only
+    )
+    eddy_current: npt.NDArray[np.float64] | None = (
+        None  # [2, n_points] - eddy current delta only
+    )
 
 
 class FieldReferenceStore(MutableMapping[str, npt.NDArray[np.float64]]):
@@ -90,11 +259,14 @@ class CalculateCorrection(EventBuilderAbc):
         super().__init__(parent=parent)
 
         self._trim_settings = trim_settings
+        self._correction_calculator = CorrectionCalculator(trim_settings)
+        self._eddy_correction_manager = EddyCorrectionManager(trim_settings)
 
         # Field reference stores with automatic timestamp management
         self._field_ref = FieldReferenceStore()
         self._field_ref_hyst = FieldReferenceStore()
         self._field_ref_eddy = FieldReferenceStore()
+        self._running_field_ref_eddy = FieldReferenceStore()
 
         # Prediction mode
         self._prediction_mode: CorrectionMode | None = None
@@ -105,12 +277,7 @@ class CalculateCorrection(EventBuilderAbc):
         log.debug(msg)
 
         # Set the correction mode from the current prediction mode
-        if hasattr(cycle, "correction_mode"):
-            # If cycle already has correction_mode set, use it
-            pass
-        else:
-            # Set correction mode from prediction mode
-            cycle.correction_mode = self._prediction_mode or CorrectionMode.COMBINED
+        cycle.correction_mode = self._prediction_mode or CorrectionMode.COMBINED
 
         self._maybe_save_reference(cycle)
 
@@ -125,57 +292,50 @@ class CalculateCorrection(EventBuilderAbc):
             self.cycleDataAvailable.emit(cycle)
             return
 
-        beam_in = cycle_metadata.beam_in(cycle.cycle)
-        beam_out = cycle_metadata.beam_out(cycle.cycle)
+        beam_in, beam_out = CorrectionHelper.get_beam_times(cycle.cycle)
         log.debug(
             f"{cycle}: Cutting delta with Beam in: {beam_in}, Beam out: {beam_out}"
         )
 
         # Use the new separated delta calculation
-        delta = calc_separated_delta_field(
+        delta_components = calc_separated_delta_field(
             cycle,
             self._field_ref,
             self._field_ref_hyst,
             self._field_ref_eddy,
+            self._running_field_ref_eddy,
             beam_in=beam_in,
             beam_out=beam_out,
         )
+
+        # Store individual delta components in cycle data for later use
+        cycle.delta_hyst = delta_components.hysteresis
+        cycle.delta_eddy = delta_components.eddy_current
+
+        # Apply smoothing to the combined delta
+        delta = delta_components.combined
         delta[1] = smooth_correction(*delta)[1]
         cycle.delta_applied = delta
 
         msg = f"{cycle}: Delta calculated."
         log.debug(msg)
 
-        # NOTE: Eddy current reference update moved to after trim completion
-        # This ensures reference is only updated when trim is actually applied
-
         if cycle.correction is not None:  # and not cycle.cycle.endswith("ECO"):
             try:
-                current_correction = np.vstack(
-                    cut_trim_beyond_time(
-                        cycle.correction[0],
-                        cycle.correction[1],
-                        beam_in,
-                        beam_out,
-                    )
+                correction = self._correction_calculator.calculate_correction(
+                    cycle.correction,
+                    delta,
+                    cycle.cycle,
+                    cycle.field_prog,
+                    beam_in,
+                    beam_out,
                 )
-                correction = calc_new_correction(
-                    current_correction, delta, self._trim_settings.gain[cycle.cycle]
-                )
+                cycle.correction_applied = correction
+                msg = f"{cycle}: New correction calculated."
+                log.debug(msg)
             except:  # noqa: E722
                 log.exception(f"{cycle}: Could not calculate correction.")
                 return
-
-            correction = clip_correction(
-                correction,
-                cycle.field_prog,
-                clip_factor=app_context().TRIM_CLIP_THRESHOLD,
-            )
-
-            cycle.correction_applied = correction
-
-            msg = f"{cycle}: New correction calculated."
-            log.debug(msg)
 
         self.cycleDataAvailable.emit(cycle)
 
@@ -223,7 +383,13 @@ class CalculateCorrection(EventBuilderAbc):
 
         # Update reference field values: B_ref_new[1] = B_ref_old[1] + delta_correction[1]
         # Time axis (row 0) remains unchanged
-        current_ref = self._field_ref_eddy[cycle_name]
+        if cycle_name not in self._running_field_ref_eddy:
+            log.debug(f"{cycle_name}: Initializing running eddy current reference")
+            self._running_field_ref_eddy[cycle_name] = np.vstack((
+                np.array([0.0]),
+                np.array([0.0]),
+            ))
+        current_ref = self._running_field_ref_eddy[cycle_name]
 
         # Use match_array_size to handle interpolation
         matched_current_ref, matched_delta = match_array_size(
@@ -233,12 +399,12 @@ class CalculateCorrection(EventBuilderAbc):
         # Update only the field values (row 1), keep time axis unchanged
         updated_data = np.vstack((
             matched_current_ref[0],  # Keep original time axis
-            matched_current_ref[1] + matched_delta[1],  # Update field values
+            matched_delta[1],
         ))
 
         # Update the reference with the same timestamp
-        current_timestamp = self._field_ref_eddy.get_timestamp(cycle_name)
-        self._field_ref_eddy.set_with_timestamp(
+        current_timestamp = self._running_field_ref_eddy.get_timestamp(cycle_name)
+        self._running_field_ref_eddy.set_with_timestamp(
             cycle_name, updated_data, current_timestamp
         )
 
@@ -277,125 +443,13 @@ class CalculateCorrection(EventBuilderAbc):
         correction_mode: CorrectionMode,
     ) -> None:
         """Update eddy current reference after trim is successfully applied."""
-        cycle_id = self._cycle_id(cycle_data)
-
-        if cycle_id not in self._field_ref_eddy:
-            log.debug(f"[{cycle_data}] No eddy current reference to update")
-            return
-
-        if correction_mode == CorrectionMode.EDDY_CURRENT_ONLY:
-            # In eddy current only mode, the entire delta is eddy current
-            if cycle_data.delta_applied is not None:
-                eddy_delta = cycle_data.delta_applied
-                self.updateEddyCurrentReference(cycle_data.cycle, eddy_delta)
-                log.debug(
-                    f"{cycle_data}: Updated eddy current reference after trim (eddy current only mode)"
-                )
-
-        elif correction_mode == CorrectionMode.COMBINED:
-            # In combined mode, calculate the eddy current portion of the applied delta
-            if (
-                cycle_data.field_ref_eddy is not None
-                and cycle_data.field_pred_eddy is not None
-            ):
-                # Calculate eddy current delta: ref - pred
-                eddy_ref_t = cycle_data.field_ref_eddy[0]
-                eddy_ref_v = cycle_data.field_ref_eddy[1]
-                eddy_pred_t = cycle_data.field_pred_eddy[0]
-                eddy_pred_v = cycle_data.field_pred_eddy[1]
-
-                # Interpolate prediction to reference time grid
-                eddy_pred_interp = np.interp(eddy_ref_t, eddy_pred_t, eddy_pred_v)
-
-                # Calculate delta and apply gain
-                eddy_delta_v = eddy_ref_v - eddy_pred_interp
-                gain = self._trim_settings.gain[cycle_data.cycle]
-                eddy_delta_v = gain * eddy_delta_v
-
-                # Create delta array
-                eddy_delta = np.vstack((eddy_ref_t, eddy_delta_v))
-
-                # Apply time limits if needed (same as main correction)
-                beam_in = cycle_metadata.beam_in(cycle_data.cycle)
-                beam_out = cycle_metadata.beam_out(cycle_data.cycle)
-
-                if beam_in is not None and beam_out is not None:
-                    eddy_delta_t, eddy_delta_v = cut_trim_beyond_time(
-                        eddy_delta[0], eddy_delta[1], beam_in, beam_out
-                    )
-                    eddy_delta = np.vstack((eddy_delta_t, eddy_delta_v))
-
-                self.updateEddyCurrentReference(cycle_data.cycle, eddy_delta)
-                log.debug(
-                    f"{cycle_data}: Updated eddy current reference after trim (combined mode)"
-                )
-            else:
-                log.warning(
-                    f"{cycle_data}: Cannot update eddy current reference - missing reference or prediction"
-                )
-
-    def _update_eddy_current_reference_after_correction(
-        self,
-        cycle_data: hystcomp_utils.cycle_data.CycleData,
-        prediction_mode: CorrectionMode,
-    ) -> None:
-        """Update eddy current reference after correction is calculated."""
-        cycle_id = self._cycle_id(cycle_data)
-
-        if cycle_id not in self._field_ref_eddy:
-            log.debug(f"[{cycle_data}] No eddy current reference to update")
-            return
-
-        if prediction_mode == CorrectionMode.EDDY_CURRENT_ONLY:
-            # In eddy current only mode, the entire delta is eddy current
-            if cycle_data.delta_applied is not None:
-                eddy_delta = cycle_data.delta_applied
-                self.updateEddyCurrentReference(cycle_data.cycle, eddy_delta)
-                log.debug(
-                    f"{cycle_data}: Updated eddy current reference (eddy current only mode)"
-                )
-
-        elif prediction_mode == CorrectionMode.COMBINED:
-            # In combined mode, calculate the eddy current portion of the delta
-            if (
-                cycle_data.field_ref_eddy is not None
-                and cycle_data.field_pred_eddy is not None
-            ):
-                # Calculate eddy current delta: ref - pred
-                eddy_ref_t = cycle_data.field_ref_eddy[0]
-                eddy_ref_v = cycle_data.field_ref_eddy[1]
-                eddy_pred_t = cycle_data.field_pred_eddy[0]
-                eddy_pred_v = cycle_data.field_pred_eddy[1]
-
-                # Interpolate prediction to reference time grid
-                eddy_pred_interp = np.interp(eddy_ref_t, eddy_pred_t, eddy_pred_v)
-
-                # Calculate delta and apply gain
-                eddy_delta_v = eddy_ref_v - eddy_pred_interp
-                gain = self._trim_settings.gain[cycle_data.cycle]
-                eddy_delta_v = gain * eddy_delta_v
-
-                # Create delta array
-                eddy_delta = np.vstack((eddy_ref_t, eddy_delta_v))
-
-                # Apply time limits if needed (same as main correction)
-                beam_in = cycle_metadata.beam_in(cycle_data.cycle)
-                beam_out = cycle_metadata.beam_out(cycle_data.cycle)
-
-                if beam_in is not None and beam_out is not None:
-                    eddy_delta_t, eddy_delta_v = cut_trim_beyond_time(
-                        eddy_delta[0], eddy_delta[1], beam_in, beam_out
-                    )
-                    eddy_delta = np.vstack((eddy_delta_t, eddy_delta_v))
-
-                self.updateEddyCurrentReference(cycle_data.cycle, eddy_delta)
-                log.debug(
-                    f"{cycle_data}: Updated eddy current reference (combined mode)"
-                )
-            else:
-                log.warning(
-                    f"{cycle_data}: Cannot update eddy current reference - missing reference or prediction"
-                )
+        self._eddy_correction_manager.update_reference_after_trim(
+            cycle_data,
+            correction_mode,
+            self._field_ref_eddy,
+            self._running_field_ref_eddy,
+            self.updateEddyCurrentReference,
+        )
 
     def _maybe_save_reference(
         self, cycle_data: hystcomp_utils.cycle_data.CycleData
@@ -424,7 +478,7 @@ class CalculateCorrection(EventBuilderAbc):
             # then, save or update the reference with the ECO cycle name
         #
         # save the reference if it has not been set, or reference was removed
-        id_ = self._cycle_id(cycle_data)
+        id_ = _cycle_id_helper(cycle_data)
         if id_ not in self._field_ref:
             log.debug(
                 f"{cycle_data}: Saving field reference since it has not "
@@ -473,19 +527,6 @@ class CalculateCorrection(EventBuilderAbc):
             cycle_data.field_ref_hyst = self._field_ref_hyst[id_]
         if id_ in self._field_ref_eddy:
             cycle_data.field_ref_eddy = self._field_ref_eddy[id_]
-
-    @staticmethod
-    def _cycle_id(cycle_data: hystcomp_utils.cycle_data.CycleData) -> str:
-        id_ = cycle_data.cycle
-        if cycle_data.economy_mode is not hystcomp_utils.cycle_data.EconomyMode.NONE:
-            if cycle_data.economy_mode is hystcomp_utils.cycle_data.EconomyMode.FULL:
-                id_ += "_FULLECO"
-            elif (
-                cycle_data.economy_mode is hystcomp_utils.cycle_data.EconomyMode.DYNAMIC
-            ):
-                id_ += "_DYNECO"
-
-        return id_
 
 
 def calc_delta_field(
@@ -545,11 +586,12 @@ def calc_separated_delta_field(
     field_ref_store: FieldReferenceStore,
     field_ref_hyst_store: FieldReferenceStore,
     field_ref_eddy_store: FieldReferenceStore,
+    running_field_ref_eddy: FieldReferenceStore | None = None,
     beam_in: float | None = None,
     beam_out: float | None = None,
     *,
     flatten: bool = False,
-) -> npt.NDArray[np.float64]:
+) -> DeltaComponents:
     """Calculate delta field using separated hysteresis and eddy current components.
 
     This function computes the delta field based on the correction mode:
@@ -590,105 +632,131 @@ def calc_separated_delta_field(
     if correction_mode == CorrectionMode.HYSTERESIS_ONLY:
         # Use only hysteresis components
         if cycle_id in field_ref_hyst_store and cycle_data.field_pred_hyst is not None:
-            return compute_single_delta(
+            delta_hyst = compute_single_delta(
                 field_ref_hyst_store[cycle_id], cycle_data.field_pred_hyst, "hysteresis"
             )
+            return DeltaComponents(combined=delta_hyst, hysteresis=delta_hyst)
         # Fallback to legacy references if separated components not available
         log.warning(
             f"[{cycle_data}] Hysteresis components not available, falling back to legacy"
         )
         if cycle_data.field_pred is not None:
-            return calc_delta_field(
+            delta = calc_delta_field(
                 field_ref_store[cycle_id],
                 cycle_data.field_pred,
                 beam_in=beam_in,
                 beam_out=beam_out,
                 flatten=flatten,
             )
+            return DeltaComponents(combined=delta)
         msg = f"[{cycle_data}] No field prediction available"
         raise ValueError(msg)
 
     if correction_mode == CorrectionMode.EDDY_CURRENT_ONLY:
         # Use only eddy current components
         if cycle_id in field_ref_eddy_store and cycle_data.field_pred_eddy is not None:
-            return compute_single_delta(
+            delta_eddy = compute_single_delta(
                 field_ref_eddy_store[cycle_id],
                 cycle_data.field_pred_eddy,
                 "eddy current",
             )
+            if running_field_ref_eddy is not None:
+                # Update running eddy current reference
+                delta_eddy = CorrectionHelper.apply_running_eddy_adjustment(
+                    delta_eddy, running_field_ref_eddy, cycle_id
+                )
+            return DeltaComponents(combined=delta_eddy, eddy_current=delta_eddy)
         # Fallback to legacy references if separated components not available
         log.warning(
             f"[{cycle_data}] Eddy current components not available, falling back to legacy"
         )
         if cycle_data.field_pred is not None:
-            return calc_delta_field(
+            delta = calc_delta_field(
                 field_ref_store[cycle_id],
                 cycle_data.field_pred,
                 beam_in=beam_in,
                 beam_out=beam_out,
                 flatten=flatten,
             )
+            return DeltaComponents(combined=delta)
         msg = f"[{cycle_data}] No field prediction available"
         raise ValueError(msg)
 
     if correction_mode == CorrectionMode.COMBINED:
         # Compute both deltas separately and combine them
-        delta_hyst = None
-        delta_eddy = None
+        delta_hyst_combined: npt.NDArray[np.float64] | None = None
+        delta_eddy_combined: npt.NDArray[np.float64] | None = None
 
         # Compute hysteresis delta if available
         if cycle_id in field_ref_hyst_store and cycle_data.field_pred_hyst is not None:
-            delta_hyst = compute_single_delta(
+            delta_hyst_combined = compute_single_delta(
                 field_ref_hyst_store[cycle_id], cycle_data.field_pred_hyst, "hysteresis"
             )
 
         # Compute eddy current delta if available
         if cycle_id in field_ref_eddy_store and cycle_data.field_pred_eddy is not None:
-            delta_eddy = compute_single_delta(
+            delta_eddy_combined = compute_single_delta(
                 field_ref_eddy_store[cycle_id],
                 cycle_data.field_pred_eddy,
                 "eddy current",
             )
 
+            if running_field_ref_eddy is not None:
+                # Update running eddy current reference
+                delta_eddy_combined = CorrectionHelper.apply_running_eddy_adjustment(
+                    delta_eddy_combined, running_field_ref_eddy, cycle_id
+                )
+
         # Combine the deltas
-        if delta_hyst is not None and delta_eddy is not None:
+        if delta_hyst_combined is not None and delta_eddy_combined is not None:
             # Interpolate both deltas to common time grid and add them
             log.debug(f"[{cycle_data}] Combining hysteresis and eddy current deltas")
             delta_hyst_interp, delta_eddy_interp = match_array_size(
-                delta_hyst, delta_eddy
+                delta_hyst_combined, delta_eddy_combined
             )
 
-            return np.vstack((
+            combined_delta = np.vstack((
                 delta_hyst_interp[0],  # Use common time axis
                 delta_hyst_interp[1] + delta_eddy_interp[1],  # Add field values
             ))
 
-        if delta_hyst is not None:
+            return DeltaComponents(
+                combined=combined_delta,
+                hysteresis=delta_hyst_combined,
+                eddy_current=delta_eddy_combined,
+            )
+
+        if delta_hyst_combined is not None:
             # Only hysteresis delta available
             log.debug(
                 f"[{cycle_data}] Only hysteresis delta available in combined mode"
             )
-            return delta_hyst
+            return DeltaComponents(
+                combined=delta_hyst_combined, hysteresis=delta_hyst_combined
+            )
 
-        if delta_eddy is not None:
+        if delta_eddy_combined is not None:
             # Only eddy current delta available
             log.debug(
                 f"[{cycle_data}] Only eddy current delta available in combined mode"
             )
-            return delta_eddy
+            return DeltaComponents(
+                combined=delta_eddy_combined, eddy_current=delta_eddy_combined
+            )
 
         # Neither component available, fallback to legacy
         log.warning(
             f"[{cycle_data}] No separated components available, falling back to legacy"
         )
         if cycle_data.field_pred is not None:
-            return calc_delta_field(
+            delta = calc_delta_field(
                 field_ref_store[cycle_id],
                 cycle_data.field_pred,
                 beam_in=beam_in,
                 beam_out=beam_out,
                 flatten=flatten,
             )
+            return DeltaComponents(combined=delta)
         msg = f"[{cycle_data}] No field prediction available"
         raise ValueError(msg)
 
