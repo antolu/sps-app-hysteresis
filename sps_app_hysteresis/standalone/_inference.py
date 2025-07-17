@@ -7,7 +7,6 @@ import typing
 import mlp_client
 import numpy as np
 import pyda.access
-import scipy.signal
 from hystcomp_utils.cycle_data import CorrectionMode, CycleData, EconomyMode
 from qtpy import QtCore, QtWidgets
 from sps_mlp_hystcomp import (
@@ -408,20 +407,15 @@ def downsample_prediction(
 
     # Calculate decimation factor
     decimation_factor = int(np.round(current_freq / target_freq))
+    log.debug(
+        f"Downsampling from {current_freq:.2f} Hz to {target_freq} Hz with decimation factor {decimation_factor}."
+    )
 
     # Ensure we have enough points for decimation
     if decimation_factor <= 1 or len(t_data) < decimation_factor:
         return t_data, b_data
 
-    # Decimate with anti-aliasing filter
-    b_decimated = scipy.signal.decimate(
-        b_data, decimation_factor, n=None, ftype="iir", axis=0
-    )
-    t_decimated = scipy.signal.decimate(
-        t_data, decimation_factor, n=None, ftype="iir", axis=0
-    )
-
-    return t_decimated, b_decimated
+    return t_data[::decimation_factor], b_data[::decimation_factor]
 
 
 def predict_cycle(
@@ -530,7 +524,7 @@ def predict_cycle(
 @functools.lru_cache
 def resolve_predictor_cls(
     model_name: str,
-) -> type[EddyCurrentPredictor | PETEPredictor | TFTPredictor]:
+) -> type[PETEPredictor | TFTPredictor | PFTFTPredictor]:
     if model_name == "PETE":
         return PETEPredictor
     if model_name == "TemporalFusionTransformer":
