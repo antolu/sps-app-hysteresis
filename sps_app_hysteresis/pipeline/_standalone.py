@@ -11,6 +11,7 @@ from qtpy import QtCore
 
 from ..contexts import app_context
 from ..standalone import CalculateCorrection, Inference, StandaloneTrim
+from ..standalone._inference import PredictionMode
 from ..standalone.event_building import (
     AddMeasurementReferencesEventBuilder,
     AddMeasurementsEventBuilder,
@@ -21,7 +22,6 @@ from ..standalone.event_building import (
     CycleStampedAddMeasurementsEventBuilder,
     StartCycleEventBuilder,
     TrackDynEcoEventBuilder,
-    TrackFullEcoEventBuilder,
     TrackReferenceChangedEventBuilder,
 )
 from ..standalone.track_precycle import TrackPrecycleEventBuilder
@@ -52,6 +52,7 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
             param_b_prog=param_names.B_PROG,
             param_i_prog=param_names.I_PROG,
             param_b_correction=param_names.B_CORRECTION,
+            param_fulleco_iref=param_names.I_PROG_FULLECO,
             provider=provider,
             parent=parent,
         )
@@ -96,12 +97,6 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
             provider=provider,
             parent=parent,
         )
-        self._track_fulleco = TrackFullEcoEventBuilder(
-            param_fulleco_iref=param_names.I_PROG_FULLECO,
-            param_fulleco_trigger=param_names.FULLECO_TRIGGER,
-            provider=provider,
-            parent=parent,
-        )
         self._track_precycle = TrackPrecycleEventBuilder(
             precycle_sequence=["SPS.USER.LHCPILOT", "SPS.USER.MD1"], parent=parent
         )
@@ -119,6 +114,9 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
             parent=parent,
         )
 
+        # Store current prediction mode
+        self._prediction_mode = PredictionMode.COMBINED
+
         self._connect_signals()
 
     def start(self) -> None:
@@ -132,7 +130,6 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
             self._add_programmed,
             self._add_measurement_post,
             self._track_dyneco,
-            self._track_fulleco,
             self._track_precycle,
             self._track_reference_changed,
         ):
@@ -156,7 +153,6 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
             self._add_programmed,
             self._add_measurement_post,
             self._track_dyneco,
-            self._track_fulleco,
             self._track_precycle,
             self._track_reference_changed,
         ):
@@ -218,14 +214,35 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
             )
 
         self._correction.cycleDataAvailable.connect(self._track_dyneco.onNewCycleData)
-        self._correction.cycleDataAvailable.connect(self._track_fulleco.onNewCycleData)
         self._correction.cycleDataAvailable.connect(self._trim.onNewPrediction)
         self._trim.trimApplied.connect(self._trimApplied.emit)
+        self._trim.trimApplied.connect(self._correction.onTrimCompleted)
+        self._trim.flatteningApplied.connect(self._trimApplied.emit)
+        self._trim.flatteningApplied.connect(self._on_flattening_applied)
         self._track_dyneco.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)
-        self._track_fulleco.cycleDataAvailable.connect(self._buffer.onNewEcoCycleData)
-        self._track_reference_changed.resetReference.connect(self.onResetReference)
+        # self._track_reference_changed.resetReference.connect(self.onResetReference)
 
         self._resetState.connect(self._predict.reset_state)
+
+        # Set initial prediction mode for correction system
+        self._correction.set_prediction_mode(self._prediction_mode)
+
+        # Set correction system reference for trim (for any remaining reference updates)
+        self._trim.set_correction_system(self._correction)
+
+    @QtCore.Slot(CycleData, np.ndarray, datetime.datetime, str)
+    def _on_flattening_applied(
+        self,
+        cycle_data: CycleData,
+        delta: np.ndarray,
+        trim_time: datetime.datetime,
+        comment: str,
+    ) -> None:
+        """Handle flattening correction applied - reset reference for the cycle."""
+        log.info(
+            f"Flattening correction applied for cycle {cycle_data.cycle}. Resetting reference."
+        )
+        self.onResetReference(cycle_data.cycle)
 
     @property
     def onModelLoaded(self) -> QtCore.Signal:
@@ -242,6 +259,10 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
     @property
     def onCycleStart(self) -> QtCore.Signal:
         return self._start_cycle.cycleDataAvailable
+
+    @property
+    def onCyclePredictionCompleted(self) -> QtCore.Signal:
+        return self._predict.cycleDataAvailable
 
     @property
     def onCycleCorrectionCalculated(self) -> QtCore.Signal:
@@ -266,3 +287,9 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
     @QtCore.Slot(str, float)
     def setGain(self, cycle: str, gain: float) -> None:
         app_context().TRIM_SETTINGS.gain[cycle] = gain
+
+    def set_prediction_mode(self, mode: PredictionMode) -> None:
+        """Set the prediction mode for both inference and correction systems."""
+        self._prediction_mode = mode
+        self._predict.set_prediction_mode(mode)
+        self._correction.set_prediction_mode(mode)

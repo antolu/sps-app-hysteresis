@@ -6,9 +6,8 @@ import pyqtgraph as pg
 from qtpy import QtCore, QtGui, QtWidgets
 
 from ...generated.prediction_history_widget_ui import Ui_PredictionAnalysisWidget
-from ...history import HistoryListModel
-from ._model import PredictionListModel
-from ._plot_model import PredictionPlotModel
+from ._cycle_model import CycleListModel
+from ._plot_model import CyclePlotModel
 
 log = logging.getLogger(__package__)
 
@@ -211,9 +210,16 @@ class PlotContainer(QtCore.QObject):
 
 
 class HistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
+    """
+    History plot widget for displaying cycle data and predictions.
+
+    This widget uses CycleListModel and plot model to display
+    historical cycle data with interactive plotting capabilities.
+    """
+
     def __init__(
         self,
-        history: HistoryListModel,
+        cycle_model: CycleListModel,
         parent: QtWidgets.QWidget | None = None,
         *,
         plot_measured: bool = True,
@@ -222,60 +228,65 @@ class HistoryPlotWidget(QtWidgets.QWidget, Ui_PredictionAnalysisWidget):
         self.setupUi(self)
         self.plot_measured = plot_measured
 
-        self.lmodel = PredictionListModel(data_source=history, parent=self)
+        # Store the cycle model reference
+        self.cycle_model = cycle_model
 
+        # Plot container handles the actual plotting widgets
         self.plots = PlotContainer(parent=self.widget, plot_measured=plot_measured)
-        self.pmodel = PredictionPlotModel(parent=self)
 
-        self._connect_list_model()
+        # Plot model using adapter pattern
+        self.plot_model = CyclePlotModel(cycle_model=self.cycle_model, parent=self)
+
+        # Connect the signals
         self._connect_plot_model()
 
-    def _connect_list_model(self) -> None:
-        self.lmodel.itemAdded.connect(self.pmodel.showCycle)
-        self.lmodel.itemUpdated.connect(self.pmodel.updateCycle)
-        self.lmodel.itemRemoved.connect(self.pmodel.removeCycle)
-        self.lmodel.modelReset.connect(self.pmodel.removeAll)
-        # self.lmodel.referenceChanged.connect(self.pmodel.setReference)
-
     def _connect_plot_model(self) -> None:
-        self.pmodel.measuredCurrentAdded.connect(self.plots.addMeasuredCurrentPlot)
-        self.pmodel.measuredCurrentRemoved.connect(self.plots.removeMeasuredCurrentPlot)
-        self.pmodel.measuredFieldAdded.connect(self.plots.addMeasuredFieldPlot)
-        self.pmodel.measuredFieldRemoved.connect(self.plots.removeMeasuredFieldPlot)
-        self.pmodel.predictedFieldAdded.connect(self.plots.addPredictedFieldPlot)
-        self.pmodel.predictedFieldRemoved.connect(self.plots.removePredictedFieldPlot)
-        self.pmodel.refMeasuredFieldAdded.connect(
+        """Connect plot model signals to plot container."""
+        # Plot addition signals
+        self.plot_model.measuredCurrentAdded.connect(self.plots.addMeasuredCurrentPlot)
+        self.plot_model.measuredFieldAdded.connect(self.plots.addMeasuredFieldPlot)
+        self.plot_model.predictedFieldAdded.connect(self.plots.addPredictedFieldPlot)
+        self.plot_model.deltaFieldAdded.connect(self.plots.addDeltaPlot)
+        self.plot_model.refMeasuredFieldAdded.connect(
             self.plots.addMeasuredFieldRefDiffPlot
         )
-        self.pmodel.refMeasuredFieldRemoved.connect(
-            self.plots.removeMeasuredFieldRefDiffPlot
-        )
-        self.pmodel.refPredictedFieldAdded.connect(
+        self.plot_model.refPredictedFieldAdded.connect(
             self.plots.addPredictedFieldRefDiffPlot
         )
-        self.pmodel.refPredictedFieldRemoved.connect(
+
+        # Plot removal signals
+        self.plot_model.measuredCurrentRemoved.connect(
+            self.plots.removeMeasuredCurrentPlot
+        )
+        self.plot_model.measuredFieldRemoved.connect(self.plots.removeMeasuredFieldPlot)
+        self.plot_model.predictedFieldRemoved.connect(
+            self.plots.removePredictedFieldPlot
+        )
+        self.plot_model.deltaFieldRemoved.connect(self.plots.removeDeltaPlot)
+        self.plot_model.refMeasuredFieldRemoved.connect(
+            self.plots.removeMeasuredFieldRefDiffPlot
+        )
+        self.plot_model.refPredictedFieldRemoved.connect(
             self.plots.removePredictedFieldRefDiffPlot
         )
-        self.pmodel.deltaFieldAdded.connect(self.plots.addDeltaPlot)
-        self.pmodel.deltaFieldRemoved.connect(self.plots.removeDeltaPlot)
 
-        self.pmodel.setXRange.connect(self.plots.setXRange)
+        # Axis control
+        self.plot_model.setXRange.connect(self.plots.setXRange)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def itemClicked(self, index: QtCore.QModelIndex) -> None:
-        item = self.lmodel.itemAt(index)
-        if item.is_shown:
-            log.debug(f"[{item.cycle_data}] Hiding plots after click")
-            self.pmodel.removeCycle(item)
-        else:
-            log.debug(f"[{item.cycle_data}] Showing plots after click")
-            self.pmodel.showCycle(item)
-        self.lmodel.clicked(index)
+        """Handle list item click."""
+        # The cycle model handles the click event
+        self.cycle_model.clicked(index)
+        log.debug(f"Item clicked at row {index.row()}")
 
     @QtCore.Slot()
     def resetAxes(self) -> None:
-        self.model.plot_model.resetAxes.emit()
+        """Reset plot axes."""
+        self.plot_model.reset_axes()
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
-        self.windowClosed.emit()
+        """Handle widget close."""
+        # Clean up plots
+        self.plot_model.hide_all()
         event.accept()

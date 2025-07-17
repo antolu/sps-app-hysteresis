@@ -33,6 +33,6 @@ MBI_REMOTE_PARAMS = RemoteParameterNames(
 )
 
 MBI_EDDY_CURRENT_MODEL = EddyCurrentModel(
-    NAME="SPS.MBI.EDDY_CURRENT",
-    VERSION="0.1",
+    NAME="SPS.MBI.EDDY_CURRENT_NIGHTLY",
+    VERSION="0.4",
 )

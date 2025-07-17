@@ -21,7 +21,10 @@ log = logging.getLogger(__package__)
 
 
 class StandaloneTrim(QtCore.QObject):
-    trimApplied = QtCore.Signal(CycleData, np.ndarray, datetime, str)
+    trimApplied = QtCore.Signal(CycleData, datetime, str)
+    flatteningApplied = QtCore.Signal(
+        CycleData, np.ndarray, datetime, str
+    )  # Keep delta for flattening
 
     def __init__(
         self,
@@ -40,8 +43,38 @@ class StandaloneTrim(QtCore.QObject):
         self._trim_threshold = trim_threshold or app_context().TRIM_MIN_THRESHOLD
         self._trim_lock = QtCore.QMutex()
 
+        # Flattening state
+        self._pending_flattening: dict[str, float] = {}  # cycle -> constant_field
+
+        # Reference to correction system for eddy current reference updates
+        self._correction_system: typing.Any = None
+
+    def set_correction_system(self, correction_system: typing.Any) -> None:
+        """Set reference to correction system for eddy current reference updates."""
+        self._correction_system = correction_system
+
     @QtCore.Slot(CycleData, name="onNewPrediction")
     def onNewPrediction(self, prediction: CycleData, *_: typing.Any) -> None:
+        # Check if there's a pending flattening request for this cycle
+        if prediction.cycle in self._pending_flattening:
+            constant_field = self._pending_flattening.pop(prediction.cycle)
+            log.info(
+                f"Applying pending flattening correction for cycle {prediction.cycle}"
+            )
+
+            # Apply flattening in a new thread
+            worker = ThreadWorker(
+                self.apply_flattening_correction, prediction, constant_field
+            )
+            worker.exception.connect(
+                lambda e: log.exception(
+                    "Failed to apply flattening correction to LSA:\n" + str(e)
+                )
+            )
+            QtCore.QThreadPool.globalInstance().start(worker)
+            return
+
+        # Normal trim logic
         if not self._check_trim_allowed(prediction):
             log.debug(f"Trim not allowed for {prediction}.")
             return
@@ -49,7 +82,7 @@ class StandaloneTrim(QtCore.QObject):
         # trim in a new thread
         worker = ThreadWorker(self.apply_correction, prediction)
         worker.exception.connect(
-            lambda e: log.exception("Failed to apply trim to LSA.:\n" + str(e))
+            lambda e: log.exception("Failed to apply trim to LSA:\n" + str(e))
         )
 
         QtCore.QThreadPool.globalInstance().start(worker)
@@ -91,7 +124,7 @@ class StandaloneTrim(QtCore.QObject):
             log.warning("Already applying trim, skipping.")
             return
 
-        comment = f"Hysteresis prediction correction {str(cycle_data.cycle_time)[:-7]}"
+        comment = f"Prediction correction {str(cycle_data.cycle_time)[:-7]}"
 
         try:
             assert cycle_data.correction_applied is not None, "No correction found."
@@ -120,11 +153,7 @@ class StandaloneTrim(QtCore.QObject):
             trim_time_diff = trim_time.duration
             log.debug(f"Trim applied in {trim_time_diff:.02f}s.")
 
-            # calculating the deltas is for purely plotting purposes
-            # any real usage should still be done with the CycleData.correction_applied field
-            delta = self.calc_delta(cycle_data, start, end)
-
-            self.trimApplied.emit(cycle_data, delta, trim_time_d, comment)
+            self.trimApplied.emit(cycle_data, trim_time_d, comment)
         except:
             log.exception("Failed to apply trim to LSA.")
             raise
@@ -191,15 +220,83 @@ class StandaloneTrim(QtCore.QObject):
 
         return now
 
-    def calc_delta(self, cycle_data: CycleData, start: float, end: float) -> np.ndarray:
-        assert cycle_data.delta_applied is not None, "No delta applied found."
-        delta_t, delta_v = self.cut_trim_beyond_time(
-            cycle_data.delta_applied[0],
-            cycle_data.delta_applied[1],
-            lower=start,
-            upper=end,
+    @QtCore.Slot(str, float, name="onFlatteningRequested")
+    def onFlatteningRequested(self, cycle: str, constant_field: float) -> None:
+        """Schedule flattening correction for the next prediction of the given cycle."""
+        log.info(
+            f"Scheduling flattening correction for cycle {cycle} with constant field {constant_field}"
         )
+        self._pending_flattening[cycle] = constant_field
 
-        delta_v = self._settings.gain[cycle_data.cycle] * delta_v
+    def apply_flattening_correction(
+        self,
+        cycle_data: CycleData,
+        constant_field: float,
+    ) -> None:
+        """Apply flattening correction by computing difference between prediction and constant field."""
+        if not self._trim_lock.tryLock():
+            log.warning("Already applying trim, skipping flattening correction.")
+            return
 
-        return np.vstack((delta_t, delta_v))
+        comment = f"Flattening correction (constant={constant_field:.2f}) {str(cycle_data.cycle_time)[:-7]}"
+
+        try:
+            assert cycle_data.field_pred is not None, (
+                "No field prediction found for flattening."
+            )
+
+            # Get the predicted field
+            pred_time = cycle_data.field_pred[0]
+            pred_field = cycle_data.field_pred[1]
+
+            # Compute the difference from constant field
+            field_diff = pred_field - constant_field
+
+            # Apply gain to the difference
+            gain = self._settings.gain[cycle_data.cycle]
+            correction_v = gain * field_diff
+
+            # Add to existing current correction if it exists
+            if cycle_data.correction is not None:
+                current_corr_time = cycle_data.correction[0]
+                current_corr_v = cycle_data.correction[1]
+
+                # Interpolate existing correction to prediction time grid
+                existing_correction = np.interp(
+                    pred_time, current_corr_time, current_corr_v
+                )
+                correction_v = correction_v + existing_correction
+
+            # Apply time limits
+            start = self._settings.trim_start[cycle_data.cycle]
+            start = max(start, cycle_metadata.beam_in(cycle_data.cycle))
+
+            end = self._settings.trim_end[cycle_data.cycle]
+            end = min(end, cycle_metadata.beam_out(cycle_data.cycle))
+
+            correction_t, correction_v = self.cut_trim_beyond_time(
+                pred_time, correction_v, start, end
+            )
+
+            log.debug(
+                f"[{cycle_data}] Sending flattening correction to LSA with {correction_t.size} points."
+            )
+
+            with time_execution() as trim_time:
+                trim_time_d = self.send_trim(
+                    correction_t, correction_v, cycle=cycle_data.cycle, comment=comment
+                )
+
+            trim_time_diff = trim_time.duration
+            log.debug(f"Flattening correction applied in {trim_time_diff:.02f}s.")
+
+            # Calculate delta for plotting
+            delta = np.vstack((correction_t, correction_v))
+
+            self.flatteningApplied.emit(cycle_data, delta, trim_time_d, comment)
+
+        except:
+            log.exception("Failed to apply flattening correction to LSA.")
+            raise
+        finally:
+            self._trim_lock.unlock()

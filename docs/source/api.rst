@@ -10,4 +10,4 @@ SPS Hysteresis App API documentation
 
    .. Add the sub-packages that you wish to document below
 
-   sps_apps.hysteresis_prediction
+   sps_app_hysteresis

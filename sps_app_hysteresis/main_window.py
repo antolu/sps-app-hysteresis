@@ -6,18 +6,21 @@ from accwidgets.app_frame import ApplicationFrame
 from accwidgets.log_console import LogConsole
 from accwidgets.rbac import RbaButton
 from accwidgets.timing_bar import TimingBar, TimingBarDomain, TimingBarModel
+from hystcomp_utils.cycle_data import CorrectionMode
 from op_app_context import context
-from qtpy import QtGui, QtWidgets
+from qtpy import QtCore, QtGui, QtWidgets
 
 from .contexts import app_context
 from .generated.main_window_ui import Ui_main_window
 from .history import PredictionHistory
 from .io import IO
 from .pipeline import Pipeline, StandalonePipeline
-from .standalone._inference import PredictionMode
 from .widgets import ModelLoadDialog, PlotModel
 from .widgets.history_widget import HistoryWidget
 from .widgets.trim_widget import TrimModel, TrimWidgetView
+
+# Backward compatibility alias
+PredictionMode = CorrectionMode
 
 log = logging.getLogger(__name__)
 
@@ -65,6 +68,12 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self._connect_signals()
         self._connect_actions()
 
+        # Initialize prediction mode state in trim widget
+        if isinstance(self._data, StandalonePipeline):
+            current_mode = self._data._predict.prediction_mode  # noqa: SLF001
+            is_eddy_current_only = current_mode == CorrectionMode.EDDY_CURRENT_ONLY
+            self._trim_widget.onCorrectionModeChanged(is_eddy_current_only)
+
         self._trim_widget.show()
         self._history_widget.show()
 
@@ -93,12 +102,14 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         self._data.onCycleMeasured.connect(self._io.save_data)
 
         # connect history
+        # self._data.onCyclePredictionCompleted.connect(self._history.add_cycle)
         self._data.onCycleCorrectionCalculated.connect(self._history.add_cycle)
         self._data.onCycleStart.connect(self._history.update_cycle)
         self._data.onCycleMeasured.connect(self._history.update_cycle)
         self._data.onNewReference.connect(self._history.onReferenceChanged)
 
         self._trim_widget.referenceReset.connect(self._data.onResetReference)
+        self._trim_widget.flatteningRequested.connect(self._on_flattening_requested)
 
         # trim
         self._data.onTrimApplied.connect(self._trim_widget.onTrimApplied)
@@ -151,26 +162,48 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         # Connect actions to handlers
         self.actionMode_Combined.triggered.connect(
-            lambda: self._on_prediction_mode_changed(PredictionMode.COMBINED)
+            lambda: self._on_prediction_mode_changed(CorrectionMode.COMBINED)
         )
         self.actionMode_Hysteresis_Only.triggered.connect(
-            lambda: self._on_prediction_mode_changed(PredictionMode.HYSTERESIS_ONLY)
+            lambda: self._on_prediction_mode_changed(CorrectionMode.HYSTERESIS_ONLY)
         )
         self.actionMode_Eddy_Current_Only.triggered.connect(
-            lambda: self._on_prediction_mode_changed(PredictionMode.EDDY_CURRENT_ONLY)
+            lambda: self._on_prediction_mode_changed(CorrectionMode.EDDY_CURRENT_ONLY)
         )
 
-    def _on_prediction_mode_changed(self, mode: PredictionMode) -> None:
+    def _on_prediction_mode_changed(self, mode: CorrectionMode) -> None:
         """Handle prediction mode changes."""
         log.info(f"Prediction mode changed to: {mode.value}")
 
         # Set the prediction mode (only for standalone pipelines)
         if isinstance(self._data, StandalonePipeline):
-            self._data._predict.set_prediction_mode(mode)  # noqa: SLF001
+            self._data.set_prediction_mode(mode)
+
+        # Update trim widget about prediction mode change
+        is_eddy_current_only = mode == CorrectionMode.EDDY_CURRENT_ONLY
+        self._trim_widget.onCorrectionModeChanged(is_eddy_current_only)
 
         # Reset reference when mode changes
         self._data.onResetReference("all")
         log.info("Reference reset due to prediction mode change")
+
+    @QtCore.Slot(str, float)
+    def _on_flattening_requested(self, cycle: str, constant_field: float) -> None:
+        """Handle flattening correction request from trim widget."""
+        log.info(
+            f"Flattening correction requested for cycle {cycle} with constant field {constant_field}"
+        )
+
+        # Only allow flattening for standalone pipelines
+        if not isinstance(self._data, StandalonePipeline):
+            log.error("Flattening correction is only available in standalone mode")
+            return
+
+        # Forward the request to the standalone trim component
+        if hasattr(self._data, "_trim") and self._data._trim is not None:  # noqa: SLF001
+            self._data._trim.onFlatteningRequested(cycle, constant_field)  # noqa: SLF001
+        else:
+            log.error("No trim component available for flattening correction")
 
     def on_load_model_triggered(self) -> None:
         if not isinstance(self._data, StandalonePipeline):

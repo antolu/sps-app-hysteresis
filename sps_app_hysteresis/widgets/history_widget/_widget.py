@@ -8,11 +8,14 @@ from op_app_context import context
 from qtpy import QtCore, QtGui, QtWidgets
 
 from ...generated.reference_selector_dialog_ui import Ui_ReferenceSelectorDialog
-from ...history import PredictionHistory
 from ...utils import mute_signals
 from ._view import HistoryPlotWidget
 
 log = logging.getLogger(__package__)
+
+
+if typing.TYPE_CHECKING:
+    from ...history import PredictionHistory
 
 
 class NoHighlightDelegate(QtWidgets.QStyledItemDelegate):
@@ -74,6 +77,17 @@ class HistoryWidget(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(frame)
         layout.addWidget(self.LsaSelector)
         layout.addWidget(self.listView)
+
+        # Add Select All/None buttons
+        self.buttonSelectAll = QtWidgets.QPushButton("Select All", self)
+        self.buttonSelectNone = QtWidgets.QPushButton("Select None", self)
+
+        button_layout = QtWidgets.QHBoxLayout()
+        button_layout.addWidget(self.buttonSelectAll)
+        button_layout.addWidget(self.buttonSelectNone)
+
+        layout.addLayout(button_layout)
+
         frame.setMaximumWidth(320)
         frame.setMinimumWidth(320)
 
@@ -109,6 +123,14 @@ class HistoryWidget(QtWidgets.QWidget):
         self.listView.clicked.connect(self.onItemClicked)
 
         self.listView.setItemDelegate(NoHighlightDelegate(self.listView))
+
+        # Connect button signals
+        self.buttonSelectAll.clicked.connect(self.onSelectAll)
+        self.buttonSelectNone.clicked.connect(self.onSelectNone)
+
+        # Initialize button states
+        self._update_button_states()
+
         self.adjustSize()
 
     def _setup_lsa_selector(self) -> lsa_selector.LsaSelector:
@@ -155,6 +177,34 @@ class HistoryWidget(QtWidgets.QWidget):
     def onItemClicked(self, index: QtCore.QModelIndex) -> None:
         self.currentWidget.itemClicked(index)
 
+    def _update_button_states(self) -> None:
+        """Update button states based on current tab's data availability."""
+        try:
+            current_widget = self.currentWidget
+            has_data = current_widget.cycle_model.rowCount() > 0
+            self.buttonSelectAll.setEnabled(has_data)
+            self.buttonSelectNone.setEnabled(has_data)
+        except RuntimeError:
+            # No tab selected
+            self.buttonSelectAll.setEnabled(False)
+            self.buttonSelectNone.setEnabled(False)
+
+    @QtCore.Slot()
+    def onSelectAll(self) -> None:
+        """Handle Select All button click."""
+        try:
+            self.currentWidget.cycle_model.select_all_cycles()
+        except RuntimeError:
+            log.warning("No tab selected when trying to select all cycles")
+
+    @QtCore.Slot()
+    def onSelectNone(self) -> None:
+        """Handle Select None button click."""
+        try:
+            self.currentWidget.cycle_model.select_none_cycles()
+        except RuntimeError:
+            log.warning("No tab selected when trying to select none cycles")
+
     def show_or_create_tab(self, name: str) -> None:
         # check if tab is already open and selected
         if name in self._tabs and self.tabWidget.currentWidget() == self._tabs[name]:
@@ -164,11 +214,21 @@ class HistoryWidget(QtWidgets.QWidget):
         if name not in self._tabs:
             msg = f"Creating new tab for {name}"
             log.debug(msg)
+            # Get the cycle model for this user
+            cycle_model = self._history.model(name)
+
+            # Create the history plot widget
             widget = HistoryPlotWidget(
-                self._history.model(name),
+                cycle_model,
                 self,
                 plot_measured=self.measured_available,
             )
+
+            # Connect to model signals to update button states
+            cycle_model.rowsInserted.connect(self._update_button_states)
+            cycle_model.rowsRemoved.connect(self._update_button_states)
+            cycle_model.modelReset.connect(self._update_button_states)
+
             with mute_signals(self.tabWidget):
                 self.tabWidget.addTab(widget, name)
                 self.tabWidget.setCurrentWidget(widget)
@@ -195,17 +255,23 @@ class HistoryWidget(QtWidgets.QWidget):
             self.tabWidget.setCurrentWidget(self._tabs[name])
             self.tabWidget.currentChanged.connect(self.onTabChanged)
 
-        self.listView.setModel(self.currentWidget.lmodel)
+        self.listView.setModel(self.currentWidget.cycle_model)
+
+        # Update button states for new tab
+        self._update_button_states()
 
     @QtCore.Slot(int)
     def onTabChanged(self, index: int) -> None:
-        self.listView.setModel(self.tabWidget.widget(index).lmodel)
+        self.listView.setModel(self.tabWidget.widget(index).cycle_model)
 
         name = self.tabWidget.tabText(index)
         log.debug(f"Switched to tab {name}")
 
         with mute_signals(self.LsaSelector):
             self.LsaSelector.select_user(self._cycle2user[name])
+
+        # Update button states for new tab
+        self._update_button_states()
 
     @QtCore.Slot(int)
     def onTabCloseRequested(self, index: int) -> None:

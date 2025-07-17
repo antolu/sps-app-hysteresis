@@ -6,9 +6,9 @@ Installation
 ------------
 Using the `acc-py Python package index
 <https://wikis.cern.ch/display/ACCPY/Getting+started+with+acc-python#Gettingstartedwithacc-python-OurPythonPackageRepositoryrepo>`_
-, ``sps_apps.hysteresis_prediction`` can be pip installed with::
+, ``sps_app_hysteresis`` can be pip installed with::
 
-   pip install sps_apps.hysteresis_prediction
+   pip install sps_app_hysteresis
 
 
 Documentation contents
@@ -21,7 +21,7 @@ Documentation contents
     self
 
 .. toctree::
-    :caption: sps_apps.hysteresis_prediction
+    :caption: sps_app_hysteresis
     :maxdepth: 1
 
     usage

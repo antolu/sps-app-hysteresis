@@ -1,5 +1,4 @@
 from .._mod_replace import replace_modname
-from ._color_pool import ColorPool
 from ._threadutil import (
     ThreadWorker,
     run_in_main_thread,
@@ -19,14 +18,12 @@ for _mod in (
     load_cursor,
     mute_signals,
     ThreadWorker,
-    ColorPool,
     CycleMetadata,
     cycle_metadata,
 ):
     replace_modname(_mod, __name__)
 
 __all__ = [
-    "ColorPool",
     "CycleMetadata",
     "ThreadWorker",
     "cycle_metadata",

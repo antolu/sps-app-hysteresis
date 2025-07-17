@@ -68,7 +68,7 @@ class ApplicationContext:
     TIMESTAMP: typing.Final[datetime.datetime]
     LOGDIR = "."
 
-    TRIM_MIN_THRESHOLD = 5e-5  # tesla
+    TRIM_MIN_THRESHOLD = 1e-6  # tesla
     """ Minimum dB to actually trim"""
 
     TRIM_CLIP_THRESHOLD = 1e-3  # dp/p
