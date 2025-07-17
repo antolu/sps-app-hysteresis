@@ -210,7 +210,7 @@ class StandaloneTrim(QtCore.QObject):
                 flags=TrimFlags(
                     transient=True,
                     drive=context.lsa_server not in {"next", "dev"},
-                    # propagate_to_children=context.lsa_server not in {"next", "dev"},
+                    propagate_to_children=context.lsa_server not in {"next", "dev"},
                 ),
             ),
         )
@@ -257,9 +257,9 @@ class StandaloneTrim(QtCore.QObject):
             correction_v = gain * field_diff
 
             # Add to existing current correction if it exists
-            if cycle_data.current_correction is not None:
-                current_corr_time = cycle_data.current_correction[0]
-                current_corr_v = cycle_data.current_correction[1]
+            if cycle_data.correction is not None:
+                current_corr_time = cycle_data.correction[0]
+                current_corr_v = cycle_data.correction[1]
 
                 # Interpolate existing correction to prediction time grid
                 existing_correction = np.interp(
