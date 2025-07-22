@@ -214,6 +214,46 @@
           <string>PFTFT</string>
          </property>
         </item>
+        <item>
+         <property name="text">
+          <string>TCT</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>AttentionLSTM</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>EncoderDecoderLSTM</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>InterpolatedTFT</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>InterpolatedPFTFT</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>InterpolatedTCT</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>InterpolatedAttentionLSTM</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>InterpolatedEncoderDecoderLSTM</string>
+         </property>
+        </item>
        </widget>
       </item>
      </layout>

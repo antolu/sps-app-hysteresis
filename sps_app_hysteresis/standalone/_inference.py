@@ -10,9 +10,17 @@ import pyda.access
 from hystcomp_utils.cycle_data import CorrectionMode, CycleData, EconomyMode
 from qtpy import QtCore, QtWidgets
 from sps_mlp_hystcomp import (
+    AttentionLSTMPredictor,
     EddyCurrentPredictor,
+    EncoderDecoderLSTMPredictor,
+    InterpolatedAttentionLSTMPredictor,
+    InterpolatedEncoderDecoderLSTMPredictor,
+    InterpolatedPFTFTPredictor,
+    InterpolatedTCTPredictor,
+    InterpolatedTFTPredictor,
     PETEPredictor,
     PFTFTPredictor,
+    TCTPredictor,
     TFTPredictor,
 )
 
@@ -124,7 +132,20 @@ class Inference(InferenceFlags, EventBuilderAbc):
         InferenceFlags.__init__(self)
 
         self._e_predictor = EddyCurrentPredictor()
-        self._predictor: PETEPredictor | TFTPredictor | None = None
+        self._predictor: (
+            PETEPredictor
+            | TFTPredictor
+            | PFTFTPredictor
+            | TCTPredictor
+            | AttentionLSTMPredictor
+            | EncoderDecoderLSTMPredictor
+            | InterpolatedTFTPredictor
+            | InterpolatedPFTFTPredictor
+            | InterpolatedTCTPredictor
+            | InterpolatedAttentionLSTMPredictor
+            | InterpolatedEncoderDecoderLSTMPredictor
+            | None
+        ) = None
 
         self._prev_state: typing.Any | None = None
         self._prev_e_state: typing.Any | None = None
@@ -204,7 +225,17 @@ class Inference(InferenceFlags, EventBuilderAbc):
             client = _mlp_client()
             try:
                 predictor = typing.cast(
-                    PETEPredictor | TFTPredictor | PFTFTPredictor,
+                    PETEPredictor
+                    | TFTPredictor
+                    | PFTFTPredictor
+                    | TCTPredictor
+                    | AttentionLSTMPredictor
+                    | EncoderDecoderLSTMPredictor
+                    | InterpolatedTFTPredictor
+                    | InterpolatedPFTFTPredictor
+                    | InterpolatedTCTPredictor
+                    | InterpolatedAttentionLSTMPredictor
+                    | InterpolatedEncoderDecoderLSTMPredictor,
                     client.create_model(predictor_cls, params_name, params_version),
                 )
                 predictor.device = device
@@ -420,7 +451,17 @@ def downsample_prediction(
 
 def predict_cycle(
     cycle: CycleData,
-    predictor: PETEPredictor | TFTPredictor,
+    predictor: PETEPredictor
+    | TFTPredictor
+    | PFTFTPredictor
+    | TCTPredictor
+    | AttentionLSTMPredictor
+    | EncoderDecoderLSTMPredictor
+    | InterpolatedTFTPredictor
+    | InterpolatedPFTFTPredictor
+    | InterpolatedTCTPredictor
+    | InterpolatedAttentionLSTMPredictor
+    | InterpolatedEncoderDecoderLSTMPredictor,
     e_predictor: EddyCurrentPredictor | None = None,
     *,
     use_programmed_current: bool = True,
@@ -524,13 +565,38 @@ def predict_cycle(
 @functools.lru_cache
 def resolve_predictor_cls(
     model_name: str,
-) -> type[PETEPredictor | TFTPredictor | PFTFTPredictor]:
-    if model_name == "PETE":
-        return PETEPredictor
-    if model_name == "TemporalFusionTransformer":
-        return TFTPredictor
-    if model_name == "PFTFT":
-        return PFTFTPredictor
+) -> type[
+    PETEPredictor
+    | TFTPredictor
+    | PFTFTPredictor
+    | TCTPredictor
+    | AttentionLSTMPredictor
+    | EncoderDecoderLSTMPredictor
+    | InterpolatedTFTPredictor
+    | InterpolatedPFTFTPredictor
+    | InterpolatedTCTPredictor
+    | InterpolatedAttentionLSTMPredictor
+    | InterpolatedEncoderDecoderLSTMPredictor
+]:
+    model_mapping = {
+        # Non-interpolated models
+        "PETE": PETEPredictor,
+        "TemporalFusionTransformer": TFTPredictor,
+        "PFTFT": PFTFTPredictor,
+        "TCT": TCTPredictor,
+        "AttentionLSTM": AttentionLSTMPredictor,
+        "EncoderDecoderLSTM": EncoderDecoderLSTMPredictor,
+        # Interpolated models
+        "InterpolatedTFT": InterpolatedTFTPredictor,
+        "InterpolatedPFTFT": InterpolatedPFTFTPredictor,
+        "InterpolatedTCT": InterpolatedTCTPredictor,
+        "InterpolatedAttentionLSTM": InterpolatedAttentionLSTMPredictor,
+        "InterpolatedEncoderDecoderLSTM": InterpolatedEncoderDecoderLSTMPredictor,
+    }
+
+    if model_name in model_mapping:
+        return model_mapping[model_name]
+
     msg = f"Unknown model name: {model_name}"
     log.exception(msg)
     raise ValueError(msg)
