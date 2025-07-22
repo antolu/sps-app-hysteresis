@@ -184,13 +184,13 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
             self._track_precycle.onNewCycleData
         )
         self._track_precycle.cycleDataAvailable.connect(self._buffer.onNewCycleData)
-        self._add_measurements_pre.cycleDataAvailable.connect(
-            self._start_cycle.onNewCycleData
-        )
         self._buffer.newBufferAvailable.connect(self._predict.onNewCycleDataBuffer)
         self._buffer.newEcoBufferAvailable.connect(self._predict.onNewCycleDataBuffer)
         self._predict.cycleDataAvailable.connect(self._correction.onNewCycleData)
-        self._correction.cycleDataAvailable.connect(self._add_programmed.onNewCycleData)
+        self._correction.cycleDataAvailable.connect(self._start_cycle.onNewCycleData)
+        self._start_cycle.cycleDataAvailable.connect(
+            self._add_programmed.onNewCycleData
+        )
 
         self._add_programmed.cycleDataAvailable.connect(self._buffer.onNewProgCycleData)
         self._add_programmed.cycleDataAvailable.connect(
