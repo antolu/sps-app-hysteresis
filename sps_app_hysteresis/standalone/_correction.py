@@ -37,7 +37,7 @@ class CorrectionCalculator:
         beam_in: float | None = None,
         beam_out: float | None = None,
     ) -> npt.NDArray[np.float64]:
-        """Calculate and clip correction."""
+        """Calculate and clip correction using trim window."""
         try:
             # Cut current correction to beam limits
             if beam_in is not None and beam_out is not None:
@@ -50,9 +50,15 @@ class CorrectionCalculator:
                     )
                 )
 
-            # Calculate new correction
+            # Get trim window times
+            trim_start = self._trim_settings.trim_start[cycle_name]
+            trim_end = self._trim_settings.trim_end[cycle_name]
+
+            # Calculate new correction with trim window
             gain = self._trim_settings.gain[cycle_name]
-            correction = calc_new_correction(current_correction, delta, gain)
+            correction = calc_new_correction_with_trim_window(
+                current_correction, delta, trim_start, trim_end, gain
+            )
 
             # Clip correction
             return clip_correction(
@@ -149,6 +155,12 @@ class EddyCorrectionManager:
         if correction_mode == CorrectionMode.COMBINED:
             # In combined mode, use stored eddy current delta if available
             eddy_delta = cycle_data.delta_eddy
+
+            if eddy_delta is None:
+                log.warning(
+                    f"[{cycle_data}]: No eddy current delta available for combined mode update"
+                )
+                return
 
             # Calculate actual correction to apply
             beam_in, beam_out = CorrectionHelper.get_beam_times(cycle_data.cycle)
@@ -569,14 +581,9 @@ def calc_delta_field(
             np.array([pred_v[0], pred_v[0]]),
         )
 
-    # cut trim beyond time limits
+    # calculate delta without slicing - keep full time range
     delta_v = ref_v - pred_v
     delta_t = ref_t
-    if beam_in is not None and beam_out is not None:
-        delta_t, delta_v = cut_trim_beyond_time(delta_t, delta_v, beam_in, beam_out)
-    else:
-        msg = "Beam in and beam out not set. Not trimming the delta field."
-        log.debug(msg)
 
     return np.vstack((delta_t, delta_v))
 
@@ -859,11 +866,58 @@ def cut_trim_beyond_time(
     return time_axis_trunc, correction_trunc
 
 
+def calc_new_correction_with_trim_window(
+    current_correction: npt.NDArray[np.float64],  # [2, n_points]
+    delta: npt.NDArray[np.float64],  # [2, n_points]
+    trim_start: float,  # ms
+    trim_end: float,  # ms
+    gain: float = 1.0,
+) -> npt.NDArray[np.float64]:
+    """Calculate new correction applying delta only within trim window.
+
+    Args:
+        current_correction: Current correction [time, values]
+        delta: Delta to apply [time, values]
+        trim_start: Start time of trim window (ms)
+        trim_end: End time of trim window (ms)
+        gain: Gain factor for delta application
+
+    Returns:
+        New correction with delta applied only in trim window
+    """
+    log.debug(f"Current correction shape: {current_correction.shape}")
+    log.debug(f"Delta shape: {delta.shape}")
+    log.debug(f"Trim window: {trim_start} - {trim_end} ms")
+
+    # Create union time axis and interpolate both arrays
+    current_correction_interp, delta_interp = match_array_size(
+        current_correction,
+        delta,
+    )
+
+    # Get the common time axis
+    time_axis = current_correction_interp[0]
+
+    # Create mask for trim window (inclusive endpoints)
+    trim_mask = (time_axis >= trim_start) & (time_axis <= trim_end)
+
+    # Start with current correction values
+    new_correction = current_correction_interp[1].copy()
+
+    # Apply delta * gain only within trim window
+    new_correction[trim_mask] += gain * delta_interp[1][trim_mask]
+
+    log.debug(f"Applied correction to {np.sum(trim_mask)} points within trim window")
+
+    return np.vstack((time_axis, new_correction))
+
+
 def calc_new_correction(
     current_correction: npt.NDArray[np.float64],  # [2, n_points]
     delta: npt.NDArray[np.float64],  # [2, n_points]
     gain: float = 1.0,
 ) -> npt.NDArray[np.float64]:
+    """Legacy function - kept for backward compatibility."""
     log.debug(f"Current correction shape: {current_correction.shape}")
     log.debug(f"Delta shape: {delta.shape}")
     current_correction, delta = match_array_size(
