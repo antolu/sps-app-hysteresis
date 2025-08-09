@@ -16,6 +16,7 @@ log = logging.getLogger(__name__)
 
 PARAM_I_MEAS = "MBI/LOG.I.MEAS"
 PARAM_B_MEAS = "SR.BMEAS-SP-B-SD/CycleSamples#samples"
+PARAM_BDOT_MEAS = "SR.BMEAS-SP-BDOT-SD/CycleSamples#samples"
 
 
 class AddMeasurementsEventBuilder(BufferedSubscriptionEventBuilder):
@@ -23,6 +24,7 @@ class AddMeasurementsEventBuilder(BufferedSubscriptionEventBuilder):
         self,
         param_i_meas: str = PARAM_I_MEAS,
         param_b_meas: str | None = PARAM_B_MEAS,
+        param_bdot_meas: str | None = PARAM_BDOT_MEAS,
         provider: pyda_japc.JapcProvider | None = None,
         *,
         parent: QtCore.QObject | None = None,
@@ -30,6 +32,10 @@ class AddMeasurementsEventBuilder(BufferedSubscriptionEventBuilder):
         buffered_subscriptions = [BufferedSubscription("I_MEAS", param_i_meas)]
         if param_b_meas is not None:
             buffered_subscriptions.append(BufferedSubscription("B_MEAS", param_b_meas))
+        if param_bdot_meas is not None:
+            buffered_subscriptions.append(
+                BufferedSubscription("BDOT_MEAS", param_bdot_meas)
+            )
 
         super().__init__(
             buffered_subscriptions=buffered_subscriptions,
@@ -39,6 +45,7 @@ class AddMeasurementsEventBuilder(BufferedSubscriptionEventBuilder):
 
         self.param_i_meas = param_i_meas
         self.param_b_meas = param_b_meas
+        self.param_bdot_meas = param_bdot_meas
 
     def _handle_acquisition_impl(
         self, fspv: pyda.access.PropertyRetrievalResponse
@@ -64,6 +71,13 @@ class AddMeasurementsEventBuilder(BufferedSubscriptionEventBuilder):
             log.error(msg)
             return
 
+        if self.param_bdot_meas is not None and not self._buffer_has_data(
+            self.param_bdot_meas, selector
+        ):
+            msg = f"Missing BDOT measurements for {selector}"
+            log.error(msg)
+            return
+
         i_meas = np.array(
             self._get_buffered_data(self.param_i_meas, selector).data["value"]
         )
@@ -79,7 +93,18 @@ class AddMeasurementsEventBuilder(BufferedSubscriptionEventBuilder):
             )  # G to T
             cycle_data.field_meas = b_meas
 
-        msg = f"Added measurements to cycle data for {selector}: I_MEAS={True}, B_MEAS={self.param_b_meas is not None}"
+        if self.param_bdot_meas is not None:
+            bdot_meas = (
+                np.array(
+                    self._get_buffered_data(self.param_bdot_meas, selector).data[
+                        "value"
+                    ]
+                )
+                * 1e3
+            )
+            cycle_data.bdot_meas = bdot_meas
+
+        msg = f"Added measurements to cycle data for {selector}: I_MEAS={True}, B_MEAS={self.param_b_meas is not None}, BDOT_MEAS={self.param_bdot_meas is not None}"
         log.debug(msg)
 
         self.cycleDataAvailable.emit(cycle_data)

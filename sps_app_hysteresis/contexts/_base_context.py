@@ -31,7 +31,10 @@ class ParameterNames:
     RESET_REFERENCE_TRIGGER: str
 
     I_MEAS: str
+    BDOT_PROG: str
+    BDOT_PLAYED: str
     B_MEAS: str | None = None
+    BDOT_MEAS: str | None = None
     TRIM_SETTINGS: str | None = None
 
 

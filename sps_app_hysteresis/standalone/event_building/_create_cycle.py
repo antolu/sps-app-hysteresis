@@ -24,6 +24,7 @@ PARAM_BHYS_CORRECTION = (
     "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPSBEAM.BHYS-CORRECTION/Acquisition"
 )
 PARAM_FULLECO_IREF = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.MBI.FULLECO/IREF"
+PARAM_BDOT_PROG = "UCAP.SPSBEAM/BDOT"
 
 
 class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
@@ -34,6 +35,7 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
         param_b_prog: str = PARAM_B_PROG,
         param_b_correction: str = PARAM_BHYS_CORRECTION,
         param_fulleco_iref: str = PARAM_FULLECO_IREF,
+        param_bdot_prog: str = PARAM_BDOT_PROG,
         provider: pyda_japc.JapcProvider | None = None,
         *,
         parent: QtCore.QObject | None = None,
@@ -47,6 +49,7 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
                 BufferedSubscription("B", param_b_prog),
                 BufferedSubscription("BHYS-CORRECTION", param_b_correction),
                 BufferedSubscription("FULLECO_IREF", param_fulleco_iref),
+                BufferedSubscription("BDOT_PROG", param_bdot_prog),
             ],
             provider=provider,
             parent=parent,
@@ -58,6 +61,7 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
         self.param_b_prog = param_b_prog
         self.param_b_correction = param_b_correction
         self.param_fulleco_iref = param_fulleco_iref
+        self.param_bdot_prog = param_bdot_prog
 
     def _handle_acquisition_impl(
         self, fspv: pyda.access.PropertyRetrievalResponse
@@ -76,6 +80,7 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
                 not self._buffer_has_data(self.param_i_prog, selector)
                 or not self._buffer_has_data(self.param_b_prog, selector)
                 or not self._buffer_has_data(self.param_b_correction, selector)
+                or not self._buffer_has_data(self.param_bdot_prog, selector)
             ):
                 msg = f"Missing base data for {selector}. Skipping cycle creation."
                 log.error(msg)
@@ -85,6 +90,7 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
             current_prog_fspv = self._get_buffered_data(self.param_i_prog, selector)
             field_prog_fspv = self._get_buffered_data(self.param_b_prog, selector)
             bhys_corr_fspv = self._get_buffered_data(self.param_b_correction, selector)
+            bdot_prog_fspv = self._get_buffered_data(self.param_bdot_prog, selector)
 
             current_prog = np.vstack((
                 current_prog_fspv.data["value"].xs,
@@ -97,6 +103,10 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
             bhys_corr = np.vstack((
                 bhys_corr_fspv.data["value"].xs,
                 bhys_corr_fspv.data["value"].ys,
+            ))
+            bdot_prog = np.vstack((
+                bdot_prog_fspv.data["value"].xs,
+                bdot_prog_fspv.data["value"].ys,
             ))
 
             # Check if this is a FULLECO cycle
@@ -140,6 +150,7 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
                 field_prog=field_prog,
                 correction=bhys_corr,
                 economy_mode=economy_mode,
+                bdot_prog=bdot_prog,
             )
 
             self.cycleDataAvailable.emit(cycle_data)

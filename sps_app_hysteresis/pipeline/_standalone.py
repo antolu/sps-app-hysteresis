@@ -53,12 +53,14 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
             param_i_prog=param_names.I_PROG,
             param_b_correction=param_names.B_CORRECTION,
             param_fulleco_iref=param_names.I_PROG_FULLECO,
+            param_bdot_prog=param_names.BDOT_PROG,
             provider=provider,
             parent=parent,
         )
         self._add_measurements_pre = AddMeasurementsEventBuilder(
             param_i_meas=param_names.I_MEAS,
             param_b_meas=param_names.B_MEAS,
+            param_bdot_meas=param_names.BDOT_MEAS,
             provider=provider,
             parent=parent,
         )
@@ -77,6 +79,7 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
         self._add_programmed = AddProgrammedEventBuilder(
             param_i_prog=param_names.I_PROG,
             param_b_prog=param_names.B_PROG,
+            param_bdot_played=param_names.BDOT_PLAYED,
             trigger=param_names.ADD_PROG_TRIGGER,
             provider=provider,
             parent=parent,
@@ -84,6 +87,7 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
         self._add_measurement_post = CycleStampedAddMeasurementsEventBuilder(
             param_i_meas=param_names.I_MEAS,
             param_b_meas=param_names.B_MEAS,
+            param_bdot_meas=param_names.BDOT_MEAS,
             provider=provider,
             parent=parent,
         )

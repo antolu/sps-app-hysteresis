@@ -20,6 +20,7 @@ log = logging.getLogger(__name__)
 
 PARAM_I_PROG = "rmi://virtual_sps/MBI/IREF"
 PARAM_B_PROG = "rmi://virtual_sps/SPSBEAM/B"
+PARAM_BDOT_PLAYED = "UCAP.SPSBEAM/BDOT_PLAYED"
 TRIGGER = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/XTIM.UCAP.SCY-CT-500/Acquisition"
 
 
@@ -28,6 +29,7 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
         self,
         param_i_prog: str = PARAM_I_PROG,
         param_b_prog: str = PARAM_B_PROG,
+        param_bdot_played: str = PARAM_BDOT_PLAYED,
         trigger: str = TRIGGER,
         provider: pyda_japc.JapcProvider | None = None,
         *,
@@ -40,6 +42,7 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
             buffered_subscriptions=[
                 BufferedSubscription("I_PROG", param_i_prog),
                 BufferedSubscription("B_PROG", param_b_prog),
+                BufferedSubscription("BDOT_PLAYED", param_bdot_played),
             ],
             provider=provider,
             parent=parent,
@@ -48,6 +51,7 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
 
         self.param_i_prog = param_i_prog
         self.param_b_prog = param_b_prog
+        self.param_bdot_played = param_bdot_played
         self.trigger = trigger
 
         self._cycle_data_buffer: dict[str, hystcomp_utils.cycle_data.CycleData] = {}
@@ -80,9 +84,13 @@ class AddProgrammedEventBuilder(BufferedSubscriptionEventBuilder):
 
         prog_i_df = self._get_buffered_data(self.param_i_prog, selector).data["value"]
         prog_b_df = self._get_buffered_data(self.param_b_prog, selector).data["value"]
+        prog_bdot_df = self._get_buffered_data(self.param_bdot_played, selector).data[
+            "value"
+        ]
 
         cycle_data.current_prog = np.vstack((prog_i_df.xs, prog_i_df.ys))
         cycle_data.field_prog = np.vstack((prog_b_df.xs, prog_b_df.ys))
+        cycle_data.bdot_prog = np.vstack((prog_bdot_df.xs, prog_bdot_df.ys))
 
         msg = f"[{cycle_data}]: Added programmed data."
         log.debug(msg)

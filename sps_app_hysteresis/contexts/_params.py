@@ -14,6 +14,9 @@ MBI_PARAMS = ParameterNames(
     FULLECO_TRIGGER="XTIM.SX.FCY-MMODE-WRT/Acquisition",
     I_MEAS="MBI/LOG.I.MEAS",
     B_MEAS="SR.BMEAS-SP-B-SD/CycleSamples#samples",
+    BDOT_PROG="UCAP.SPSBEAM/BDOT",
+    BDOT_MEAS="SR.BMEAS-SP-BDOT-SD/CycleSamples#samples",
+    BDOT_PLAYED="UCAP.SPSBEAM/BDOT_PLAYED",
     RESET_REFERENCE_TRIGGER="rmi://virtual_sps/SPSBEAM/B",
 )
 
