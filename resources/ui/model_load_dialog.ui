@@ -254,6 +254,16 @@
           <string>InterpolatedEncoderDecoderLSTM</string>
          </property>
         </item>
+        <item>
+         <property name="text">
+          <string>TransformerLSTM</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>InterpolatedTransformerLSTM</string>
+         </property>
+        </item>
        </widget>
       </item>
      </layout>

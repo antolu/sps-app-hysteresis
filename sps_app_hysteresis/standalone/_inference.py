@@ -18,10 +18,12 @@ from sps_mlp_hystcomp import (
     InterpolatedPFTFTPredictor,
     InterpolatedTCTPredictor,
     InterpolatedTFTPredictor,
+    InterpolatedTransformerLSTMPredictor,
     PETEPredictor,
     PFTFTPredictor,
     TCTPredictor,
     TFTPredictor,
+    TransformerLSTMPredictor,
 )
 
 from ..utils import ThreadWorker, load_cursor, run_in_thread, time_execution
@@ -139,11 +141,13 @@ class Inference(InferenceFlags, EventBuilderAbc):
             | TCTPredictor
             | AttentionLSTMPredictor
             | EncoderDecoderLSTMPredictor
+            | TransformerLSTMPredictor
             | InterpolatedTFTPredictor
             | InterpolatedPFTFTPredictor
             | InterpolatedTCTPredictor
             | InterpolatedAttentionLSTMPredictor
             | InterpolatedEncoderDecoderLSTMPredictor
+            | InterpolatedTransformerLSTMPredictor
             | None
         ) = None
 
@@ -231,11 +235,13 @@ class Inference(InferenceFlags, EventBuilderAbc):
                     | TCTPredictor
                     | AttentionLSTMPredictor
                     | EncoderDecoderLSTMPredictor
+                    | TransformerLSTMPredictor
                     | InterpolatedTFTPredictor
                     | InterpolatedPFTFTPredictor
                     | InterpolatedTCTPredictor
                     | InterpolatedAttentionLSTMPredictor
-                    | InterpolatedEncoderDecoderLSTMPredictor,
+                    | InterpolatedEncoderDecoderLSTMPredictor
+                    | InterpolatedTransformerLSTMPredictor,
                     client.create_model(predictor_cls, params_name, params_version),
                 )
                 predictor.device = device
@@ -457,11 +463,13 @@ def predict_cycle(
     | TCTPredictor
     | AttentionLSTMPredictor
     | EncoderDecoderLSTMPredictor
+    | TransformerLSTMPredictor
     | InterpolatedTFTPredictor
     | InterpolatedPFTFTPredictor
     | InterpolatedTCTPredictor
     | InterpolatedAttentionLSTMPredictor
-    | InterpolatedEncoderDecoderLSTMPredictor,
+    | InterpolatedEncoderDecoderLSTMPredictor
+    | InterpolatedTransformerLSTMPredictor,
     e_predictor: EddyCurrentPredictor | None = None,
     *,
     use_programmed_current: bool = True,
@@ -572,11 +580,13 @@ def resolve_predictor_cls(
     | TCTPredictor
     | AttentionLSTMPredictor
     | EncoderDecoderLSTMPredictor
+    | TransformerLSTMPredictor
     | InterpolatedTFTPredictor
     | InterpolatedPFTFTPredictor
     | InterpolatedTCTPredictor
     | InterpolatedAttentionLSTMPredictor
     | InterpolatedEncoderDecoderLSTMPredictor
+    | InterpolatedTransformerLSTMPredictor
 ]:
     model_mapping = {
         # Non-interpolated models
@@ -586,12 +596,14 @@ def resolve_predictor_cls(
         "TCT": TCTPredictor,
         "AttentionLSTM": AttentionLSTMPredictor,
         "EncoderDecoderLSTM": EncoderDecoderLSTMPredictor,
+        "TransformerLSTM": TransformerLSTMPredictor,
         # Interpolated models
         "InterpolatedTFT": InterpolatedTFTPredictor,
         "InterpolatedPFTFT": InterpolatedPFTFTPredictor,
         "InterpolatedTCT": InterpolatedTCTPredictor,
         "InterpolatedAttentionLSTM": InterpolatedAttentionLSTMPredictor,
         "InterpolatedEncoderDecoderLSTM": InterpolatedEncoderDecoderLSTMPredictor,
+        "InterpolatedTransformerLSTM": InterpolatedTransformerLSTMPredictor,
     }
 
     if model_name in model_mapping:
