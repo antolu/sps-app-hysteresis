@@ -6,7 +6,6 @@ import logging
 import numpy as np
 import pyda_japc
 from hystcomp_utils.cycle_data import CycleData
-from PyQt6.QtCore import QObject
 from qtpy import QtCore
 
 from ..contexts import app_context
@@ -30,7 +29,7 @@ from ._pipeline import Pipeline
 log = logging.getLogger(__name__)
 
 
-class StandalonePipeline(Pipeline, QtCore.QObject):
+class StandalonePipeline(Pipeline):
     _resetState = QtCore.Signal()
     _trimApplied = QtCore.Signal(CycleData, np.ndarray, datetime.datetime, str)
 
@@ -42,7 +41,7 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
         meas_b_avail: bool = True,
         parent: QtCore.QObject | None = None,
     ) -> None:
-        QObject.__init__(self, parent=parent)
+        super().__init__(parent=parent)
         param_names = app_context().PARAMS
 
         self.meas_b_avail = meas_b_avail

@@ -38,7 +38,7 @@ RESET_REFERENCE = (
 SET_GAIN = "rda3://UCAP-NODE-SPS-HYSTCOMP-TEST/SPS.HYSTCOMP.MBI.ECO/Gain"
 
 
-class RemotePipeline(Pipeline, QtCore.QObject):
+class RemotePipeline(Pipeline):
     _onCycleForewarning = QtCore.Signal(hystcomp_utils.cycle_data.CycleData)
     _onCorrectionCalculated = QtCore.Signal(hystcomp_utils.cycle_data.CycleData)
     _onCycleMeasured = QtCore.Signal(hystcomp_utils.cycle_data.CycleData)
