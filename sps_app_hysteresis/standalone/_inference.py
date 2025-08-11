@@ -508,6 +508,9 @@ def predict_cycle(
             save_state=True,
         )
 
+        t_eddy = t_eddy[:-1]
+        b_eddy = b_eddy[:-1]
+
         # Downsample eddy current prediction from 1 kHz to 50 Hz
         t_eddy_downsampled, b_eddy_downsampled = downsample_prediction(
             t_eddy, b_eddy.flatten(), target_freq=50
