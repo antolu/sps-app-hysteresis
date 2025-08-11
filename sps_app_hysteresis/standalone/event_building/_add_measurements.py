@@ -41,6 +41,7 @@ class AddMeasurementsEventBuilder(BufferedSubscriptionEventBuilder):
             buffered_subscriptions=buffered_subscriptions,
             provider=provider,
             parent=parent,
+            no_metadata_source=True,
         )
 
         self.param_i_meas = param_i_meas
