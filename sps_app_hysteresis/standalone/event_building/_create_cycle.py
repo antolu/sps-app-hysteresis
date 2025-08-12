@@ -80,7 +80,20 @@ class CreateCycleEventBuilder(BufferedSubscriptionEventBuilder):
                 or not self._buffer_has_data(self.param_b_correction, selector)
                 or not self._buffer_has_data(self.param_bdot_prog, selector)
             ):
-                msg = f"Missing base data for {selector}. Skipping cycle creation."
+                # determine which data is missing
+                missing_data = [
+                    param
+                    for param in [
+                        self.param_i_prog,
+                        self.param_b_prog,
+                        self.param_b_correction,
+                        self.param_bdot_prog,
+                    ]
+                    if not self._buffer_has_data(param, selector)
+                ]
+
+                # Log a warning for each missing data
+                msg = f"Missing data: {', '.join(missing_data)} for {selector}. Skipping cycle creation."
                 log.error(msg)
                 return
 
