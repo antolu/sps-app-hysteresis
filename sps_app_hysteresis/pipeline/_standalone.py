@@ -89,6 +89,7 @@ class StandalonePipeline(Pipeline):
             param_bdot_meas=param_names.BDOT_MEAS,
             provider=provider,
             parent=parent,
+            no_metadata_source=True,
         )
         if meas_b_avail:
             self._add_measurement_ref = AddMeasurementReferencesEventBuilder(

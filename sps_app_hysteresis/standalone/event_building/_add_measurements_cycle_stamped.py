@@ -31,6 +31,7 @@ class CycleStampedAddMeasurementsEventBuilder(CycleStampGroupedTriggeredEventBui
         track_cycle_data: bool = True,  # noqa: FBT001, FBT002
         buffer_size: int = 10,
         *,
+        no_metadata_source: bool = False,
         parent: QtCore.QObject | None = None,
     ):
         assert param_b_meas is not None, "B_MEAS parameter must be provided."
@@ -49,6 +50,7 @@ class CycleStampedAddMeasurementsEventBuilder(CycleStampGroupedTriggeredEventBui
             buffer_size=buffer_size,
             provider=provider,
             parent=parent,
+            no_metadata_source=no_metadata_source,
         )
         self.param_i_meas = param_i_meas
         self.param_b_meas = param_b_meas
