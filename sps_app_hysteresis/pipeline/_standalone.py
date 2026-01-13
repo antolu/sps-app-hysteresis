@@ -69,6 +69,12 @@ class StandalonePipeline(Pipeline):
             app_context().EDDY_CURRENT_MODEL.NAME,
             app_context().EDDY_CURRENT_MODEL.VERSION,
         )
+        # Load measurement eddy current model for cleaning historical measurements
+        if meas_b_avail:
+            self._predict.load_measurement_eddy_current_model(
+                app_context().MEASUREMENT_EDDY_CURRENT_MODEL.NAME,
+                app_context().MEASUREMENT_EDDY_CURRENT_MODEL.VERSION,
+            )
         self._correction = CalculateCorrection(
             trim_settings=app_context().TRIM_SETTINGS, parent=parent
         )

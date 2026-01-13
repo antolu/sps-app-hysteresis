@@ -26,6 +26,7 @@ from sps_mlp_hystcomp import (
     TransformerLSTMPredictor,
 )
 
+from ..contexts import app_context
 from ..utils import ThreadWorker, load_cursor, run_in_thread, time_execution
 from .event_building import EventBuilderAbc
 
@@ -134,6 +135,7 @@ class Inference(InferenceFlags, EventBuilderAbc):
         InferenceFlags.__init__(self)
 
         self._e_predictor = EddyCurrentPredictor()
+        self._measurement_e_predictor: EddyCurrentPredictor | None = None
         self._predictor: (
             PETEPredictor
             | TFTPredictor
@@ -177,6 +179,29 @@ class Inference(InferenceFlags, EventBuilderAbc):
         )
 
         log.info(f"Loaded eddy current model with {len(self._e_predictor.C)}")
+
+    def load_measurement_eddy_current_model(
+        self,
+        model_name: str,
+        model_version: str,
+    ) -> None:
+        client = mlp_client.Client(profile=mlp_client.Profile.PRO)
+
+        log.debug(
+            f"Loading measurement eddy current model {model_name} version {model_version}."
+        )
+        self._measurement_e_predictor = typing.cast(
+            EddyCurrentPredictor,
+            client.create_model(
+                EddyCurrentPredictor,
+                params_name=model_name,
+                params_version=model_version,
+            ),
+        )
+
+        log.info(
+            f"Loaded measurement eddy current model with {len(self._measurement_e_predictor.C)} parameters"
+        )
 
     @QtCore.Slot(str, str, str)
     def loadLocalModel(
@@ -305,6 +330,96 @@ class Inference(InferenceFlags, EventBuilderAbc):
         finally:
             self.predictionFinished.emit()
 
+    def _clean_historical_measurements(
+        self, historical_cycles: list[CycleData]
+    ) -> None:
+        """Clean field_meas in historical cycles by subtracting predicted eddy currents.
+
+        This method processes historical cycles sequentially to maintain proper internal
+        state progression in the measurement eddy current predictor.
+        """
+        if not historical_cycles or self._measurement_e_predictor is None:
+            return
+
+        log.debug(
+            f"Cleaning historical measurements for {len(historical_cycles)} cycles"
+        )
+
+        # Store original bdot_prog values for all cycles
+        original_bdot_progs = {}
+
+        # Apply monkeypatch to all cycles first (needed for state initialization)
+        for i, cycle in enumerate(historical_cycles):
+            original_bdot_progs[i] = getattr(cycle, "bdot_prog", None)
+
+            # Calculate idot from current_prog for backward compatibility
+            if (
+                cycle.current_prog is not None
+                and hasattr(cycle.current_prog, "shape")
+                and cycle.current_prog.shape[0] >= 2
+            ):
+                # current_prog has shape [2, N] where [0] is time in ms, [1] is current values
+                t_prog = cycle.current_prog[0] / 1e3  # Convert ms to seconds
+                i_prog = cycle.current_prog[1]
+
+                # Calculate time derivative of current (idot)
+                if len(t_prog) > 1:
+                    idot = np.gradient(i_prog, t_prog)  # di/dt
+                    # Temporarily set bdot_prog to idot for the eddy current model
+                    cycle.bdot_prog = np.vstack((t_prog, idot))
+                    log.debug(
+                        f"[{cycle}] Monkeypatched bdot_prog with idot: range=[{idot.min():.3f}, {idot.max():.3f}] A/s"
+                    )
+
+        try:
+            # Initialize state with the FIRST cycle only (now has proper bdot_prog)
+            self._measurement_e_predictor.set_cycled_initial_state([
+                historical_cycles[0]
+            ])
+
+            # Process each cycle sequentially to maintain state progression
+            for cycle in historical_cycles:
+                if cycle.field_meas is not None:
+                    try:
+                        # Predict eddy currents for this cycle and advance internal state
+                        # (bdot_prog is already patched with idot from the preprocessing above)
+                        t_eddy, b_eddy = self._measurement_e_predictor.predict_cycle(
+                            cycle, save_state=True
+                        )
+
+                        # Process eddy current prediction (remove last point per existing pattern)
+                        t_eddy = t_eddy[:-1]
+                        b_eddy = b_eddy[:-1]
+
+                        # Create time grid for measurements at 1 kHz resolution
+                        t_meas = (
+                            np.arange(len(cycle.field_meas)) / 1e3
+                        )  # 1 kHz sampling
+
+                        # Interpolate eddy current prediction to measurement time grid
+                        b_eddy_interp = np.interp(t_meas, t_eddy, b_eddy.flatten())
+
+                        # Subtract eddy currents from measurements
+                        cycle.field_meas = cycle.field_meas - b_eddy_interp
+
+                        log.debug(
+                            f"[{cycle}] Cleaned measurements: eddy_range=[{b_eddy.min():.6f}, {b_eddy.max():.6f}]"
+                        )
+
+                    except Exception:
+                        log.exception(
+                            f"[{cycle}] Error cleaning measurements, skipping cycle"
+                        )
+
+        finally:
+            # Restore original bdot_prog values for all cycles
+            for i, cycle in enumerate(historical_cycles):
+                if i in original_bdot_progs:
+                    if original_bdot_progs[i] is not None:
+                        cycle.bdot_prog = original_bdot_progs[i]
+                    elif hasattr(cycle, "bdot_prog"):
+                        delattr(cycle, "bdot_prog")
+
     @run_in_thread(inference_thread)
     def _predict_last_cycle(self, buffer: list[CycleData]) -> np.ndarray:
         """
@@ -318,26 +433,104 @@ class Inference(InferenceFlags, EventBuilderAbc):
         """
         assert self._predictor is not None
 
-        last_cycle = buffer[-1]
+        # 1. Save original field_meas for all cycles with measurements
+        original_field_meas = {}
+        for cycle in buffer:
+            if cycle.field_meas is not None:
+                original_field_meas[cycle.cycle_timestamp] = cycle.field_meas.copy()
 
-        if self._prev_state is None:  # no way we can be in ECO cycle
-            if last_cycle.economy_mode is EconomyMode.DYNAMIC:
-                msg = (
-                    f"[{last_cycle}]: ECO cycle detected, but previous state is not set."
-                    f"This should not happen."
+        # 2. Clean historical field_meas using measurement eddy current model
+        if app_context().B_MEAS_AVAIL and self._measurement_e_predictor is not None:
+            self._clean_historical_measurements(buffer[:-1])  # Clean all but last cycle
+
+        try:
+            last_cycle = buffer[-1]
+
+            if self._prev_state is None:  # no way we can be in ECO cycle
+                if last_cycle.economy_mode is EconomyMode.DYNAMIC:
+                    msg = (
+                        f"[{last_cycle}]: ECO cycle detected, but previous state is not set."
+                        f"This should not happen."
+                    )
+                    log.debug(msg)
+                    raise ValueError(msg)
+
+                # run first prediction
+                self._e_predictor.set_cycled_initial_state(buffer[:-1])
+                self._predictor.set_cycled_initial_state(
+                    buffer[:-1],
+                    use_programmed_current=self._use_programmed_current,
                 )
-                log.debug(msg)
-                raise ValueError(msg)
+                self._prev_state = self._predictor.state
+                self._prev_e_state = self._e_predictor.state
 
-            # run first prediction
-            self._e_predictor.set_cycled_initial_state(buffer[:-1])
-            self._predictor.set_cycled_initial_state(
-                buffer[:-1],
-                use_programmed_current=self._use_programmed_current,
+                return predict_cycle(
+                    cycle=last_cycle,
+                    predictor=self._predictor,
+                    e_predictor=self._e_predictor,
+                    use_programmed_current=self._use_programmed_current,
+                    prediction_mode=self._prediction_mode,
+                )
+
+            if last_cycle.economy_mode is EconomyMode.DYNAMIC:
+                msg = f"[{last_cycle}]: ECO cycle detected, using previous state to predict again."
+                log.debug(msg)
+
+                # doesn't matter if we are going autoregressive or not since
+                # the state was kept from the last cycle
+                self._predictor.state = self._prev_state
+                self._e_predictor.state = self._prev_e_state
+
+                return predict_cycle(
+                    cycle=last_cycle,
+                    predictor=self._predictor,
+                    e_predictor=self._e_predictor,
+                    use_programmed_current=self._use_programmed_current,
+                    prediction_mode=self._prediction_mode,
+                )
+
+            # no need to save the state again since the next prediction will not
+            # be an ECO cycle
+            if self._autoregressive:  # previous state is set already, no need to check
+                msg = f"[{last_cycle}]: Autoregressive mode enabled, using previous state to predict."
+                log.debug(msg)
+
+                # save the state before prediction if we need to re-predict
+                self._prev_state = self._predictor.state
+                t_pred, b_pred = self._predictor.predict_cycle(
+                    cycle=last_cycle,
+                    save_state=True,
+                    use_programmed_current=self._use_programmed_current,
+                    prediction_mode=self._prediction_mode,
+                )
+
+                t_e_pred, b_e_pred = self._e_predictor.predict_cycle(
+                    cycle=last_cycle,
+                    save_state=True,
+                )
+
+                b_e_pred_interp = np.interp(
+                    t_pred,
+                    t_e_pred,
+                    b_e_pred,
+                )
+                return np.vstack((t_pred, b_pred + b_e_pred_interp))
+
+            msg = (
+                f"[{last_cycle}]: Autoregressive mode disabled, re-initializing state."
             )
+            log.debug(msg)
+
+            self._predictor.set_cycled_initial_state(
+                buffer[:-1], use_programmed_current=self._use_programmed_current
+            )
+            log.debug(f"[{last_cycle}]: Saving state for next prediction.")
             self._prev_state = self._predictor.state
+
+            self._e_predictor.set_cycled_initial_state(buffer[:-1])
             self._prev_e_state = self._e_predictor.state
 
+            log.debug(f"[{last_cycle}]: Predicting next cycle.")
             return predict_cycle(
                 cycle=last_cycle,
                 predictor=self._predictor,
@@ -346,70 +539,11 @@ class Inference(InferenceFlags, EventBuilderAbc):
                 prediction_mode=self._prediction_mode,
             )
 
-        if last_cycle.economy_mode is EconomyMode.DYNAMIC:
-            msg = f"[{last_cycle}]: ECO cycle detected, using previous state to predict again."
-            log.debug(msg)
-
-            # doesn't matter if we are going autoregressive or not since
-            # the state was kept from the last cycle
-            self._predictor.state = self._prev_state
-            self._e_predictor.state = self._prev_e_state
-
-            return predict_cycle(
-                cycle=last_cycle,
-                predictor=self._predictor,
-                e_predictor=self._e_predictor,
-                use_programmed_current=self._use_programmed_current,
-                prediction_mode=self._prediction_mode,
-            )
-
-        # no need to save the state again since the next prediction will not
-        # be an ECO cycle
-        if self._autoregressive:  # previous state is set already, no need to check
-            msg = f"[{last_cycle}]: Autoregressive mode enabled, using previous state to predict."
-            log.debug(msg)
-
-            # save the state before prediction if we need to re-predict
-            self._prev_state = self._predictor.state
-            t_pred, b_pred = self._predictor.predict_cycle(
-                cycle=last_cycle,
-                save_state=True,
-                use_programmed_current=self._use_programmed_current,
-                prediction_mode=self._prediction_mode,
-            )
-
-            t_e_pred, b_e_pred = self._e_predictor.predict_cycle(
-                cycle=last_cycle,
-                save_state=True,
-            )
-
-            b_e_pred_interp = np.interp(
-                t_pred,
-                t_e_pred,
-                b_e_pred,
-            )
-            return np.vstack((t_pred, b_pred + b_e_pred_interp))
-
-        msg = f"[{last_cycle}]: Autoregressive mode disabled, re-initializing state."
-        log.debug(msg)
-
-        self._predictor.set_cycled_initial_state(
-            buffer[:-1], use_programmed_current=self._use_programmed_current
-        )
-        log.debug(f"[{last_cycle}]: Saving state for next prediction.")
-        self._prev_state = self._predictor.state
-
-        self._e_predictor.set_cycled_initial_state(buffer[:-1])
-        self._prev_e_state = self._e_predictor.state
-
-        log.debug(f"[{last_cycle}]: Predicting next cycle.")
-        return predict_cycle(
-            cycle=last_cycle,
-            predictor=self._predictor,
-            e_predictor=self._e_predictor,
-            use_programmed_current=self._use_programmed_current,
-            prediction_mode=self._prediction_mode,
-        )
+        finally:
+            # 4. Restore original field_meas values
+            for cycle in buffer:
+                if cycle.cycle_timestamp in original_field_meas:
+                    cycle.field_meas = original_field_meas[cycle.cycle_timestamp]
 
     @property
     def model_is_loaded(self) -> bool:

@@ -67,7 +67,6 @@ class CycleStampedAddMeasurementsEventBuilder(CycleStampGroupedTriggeredEventBui
         ]
         i_meas = np.array(i_meas_fspv.data["value"])
         cycle_data.current_meas = i_meas
-        log.debug(f"[{cycle_data}] Added I measurements to cycle data")
 
         if self.param_b_meas is not None:
             b_meas_fspv = self._cycle_stamp_buffers[self.param_b_meas][selector][
@@ -75,7 +74,6 @@ class CycleStampedAddMeasurementsEventBuilder(CycleStampGroupedTriggeredEventBui
             ]
             b_meas = np.array(b_meas_fspv.data["value"]) / 1e4
             cycle_data.field_meas = b_meas
-            log.debug(f"[{cycle_data}] Added B measurements to cycle data")
 
         if self.param_bdot_meas is not None:
             bdot_meas_fspv = self._cycle_stamp_buffers[self.param_bdot_meas][selector][

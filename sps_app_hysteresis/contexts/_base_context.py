@@ -53,6 +53,12 @@ class EddyCurrentModel:
     VERSION: str
 
 
+@dataclasses.dataclass(frozen=True)
+class MeasurementEddyCurrentModel:
+    NAME: str
+    VERSION: str
+
+
 class ApplicationContext:
     """Base context class that all other contexts should inherit from."""
 
@@ -63,6 +69,7 @@ class ApplicationContext:
     REMOTE_PARAMS: typing.Final[RemoteParameterNames | None]
 
     EDDY_CURRENT_MODEL: typing.Final[EddyCurrentModel]
+    MEASUREMENT_EDDY_CURRENT_MODEL: typing.Final[MeasurementEddyCurrentModel]
 
     TRIM_SETTINGS: TrimSettings
 
@@ -83,6 +90,7 @@ class ApplicationContext:
         param_names: ParameterNames,
         trim_settings: TrimSettings,
         eddy_current_model: EddyCurrentModel,
+        measurement_eddy_current_model: MeasurementEddyCurrentModel,
         *,
         remote_params: RemoteParameterNames | None = None,
         b_meas_avail: bool | None = None,
@@ -91,6 +99,7 @@ class ApplicationContext:
         self.PARAMS = param_names
         self.TRIM_SETTINGS = trim_settings
         self.EDDY_CURRENT_MODEL = eddy_current_model
+        self.MEASUREMENT_EDDY_CURRENT_MODEL = measurement_eddy_current_model
         self.B_MEAS_AVAIL = (
             self.PARAMS.B_MEAS is not None if b_meas_avail is None else b_meas_avail
         )

@@ -87,23 +87,13 @@ class PlotDataAdapter:
             curves[PlotType.DELTA_FIELD] = self._create_delta_curve(plot_item, width)
 
         if cycle_data.field_meas_ref is not None and cycle_data.field_meas is not None:
-            log.debug(f"[{cycle_data}] Creating ref measured diff curve")
             curves[PlotType.REF_MEASURED_DIFF] = self._create_ref_measured_diff_curve(
                 plot_item, width
             )
-        else:
-            log.debug(
-                f"[{cycle_data}] Skipping ref measured diff: field_meas_ref={cycle_data.field_meas_ref is not None}, field_meas={cycle_data.field_meas is not None}"
-            )
 
         if cycle_data.field_ref is not None and cycle_data.field_pred is not None:
-            log.debug(f"[{cycle_data}] Creating ref predicted diff curve")
             curves[PlotType.REF_PREDICTED_DIFF] = self._create_ref_predicted_diff_curve(
                 plot_item, width
-            )
-        else:
-            log.debug(
-                f"[{cycle_data}] Skipping ref predicted diff: field_ref={cycle_data.field_ref is not None}, field_pred={cycle_data.field_pred is not None}"
             )
 
         return curves

@@ -318,7 +318,7 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
         raise NotImplementedError
 
     def _clear_older_than(self, cycle_stamp: float, selector) -> None:
-        cycle_time = datetime.datetime.fromtimestamp(cycle_stamp / 1e9)
+        cycle_time = datetime.datetime.fromtimestamp(cycle_stamp / 1e9, tz=datetime.UTC)
         msg = f"Clearing older than {cycle_time} for {selector}."
         log.debug(msg)
 

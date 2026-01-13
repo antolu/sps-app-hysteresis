@@ -5,10 +5,16 @@ from ..settings import OnlineTrimSettings, StandaloneTrimSettings
 from ._base_context import (
     ApplicationContext,
     EddyCurrentModel,
+    MeasurementEddyCurrentModel,
     ParameterNames,
     RemoteParameterNames,
 )
-from ._params import MBI_EDDY_CURRENT_MODEL, MBI_PARAMS, MBI_REMOTE_PARAMS
+from ._params import (
+    MBI_EDDY_CURRENT_MODEL,
+    MBI_MEASUREMENT_EDDY_CURRENT_MODEL,
+    MBI_PARAMS,
+    MBI_REMOTE_PARAMS,
+)
 
 for _mod in [ApplicationContext, ParameterNames, MBI_PARAMS]:
     replace_modname(_mod, __name__)
@@ -20,6 +26,7 @@ class ContextRecipe(typing.TypedDict):
     trim_settings: type[StandaloneTrimSettings | OnlineTrimSettings]
     remote_param_names: typing.NotRequired[RemoteParameterNames]
     eddy_current_model: EddyCurrentModel
+    measurement_eddy_current_model: MeasurementEddyCurrentModel
 
 
 _context_recipes: dict[str, ContextRecipe] = {
@@ -28,6 +35,7 @@ _context_recipes: dict[str, ContextRecipe] = {
         "param_names": MBI_PARAMS,
         "trim_settings": StandaloneTrimSettings,
         "eddy_current_model": MBI_EDDY_CURRENT_MODEL,
+        "measurement_eddy_current_model": MBI_MEASUREMENT_EDDY_CURRENT_MODEL,
     },
     "MBI_online": {
         "device": "MBI",
@@ -35,6 +43,7 @@ _context_recipes: dict[str, ContextRecipe] = {
         "trim_settings": OnlineTrimSettings,
         "remote_param_names": MBI_REMOTE_PARAMS,
         "eddy_current_model": MBI_EDDY_CURRENT_MODEL,
+        "measurement_eddy_current_model": MBI_MEASUREMENT_EDDY_CURRENT_MODEL,
     },
     # "QF": {
     #     "device": "QF",
@@ -87,6 +96,7 @@ def set_context(
         trim_settings=trim_settings,
         remote_params=remote_params,
         eddy_current_model=recipe["eddy_current_model"],
+        measurement_eddy_current_model=recipe["measurement_eddy_current_model"],
     )
     global _app_context  # noqa: PLW0603
     _app_context = context

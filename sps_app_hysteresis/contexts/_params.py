@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from ._base_context import EddyCurrentModel, ParameterNames, RemoteParameterNames
+from ._base_context import (
+    EddyCurrentModel,
+    MeasurementEddyCurrentModel,
+    ParameterNames,
+    RemoteParameterNames,
+)
 
 UCAP_NODE = "UCAP-NODE-SPS-HYSTCOMP"
 
@@ -39,5 +44,10 @@ MBI_REMOTE_PARAMS = RemoteParameterNames(
 
 MBI_EDDY_CURRENT_MODEL = EddyCurrentModel(
     NAME="SPS.MBI.EDDY_CURRENT.3EXP",
+    VERSION="1.0",
+)
+
+MBI_MEASUREMENT_EDDY_CURRENT_MODEL = MeasurementEddyCurrentModel(
+    NAME="SPS.MBI.BTRAIN.EDDY_CURRENT",
     VERSION="1.0",
 )
