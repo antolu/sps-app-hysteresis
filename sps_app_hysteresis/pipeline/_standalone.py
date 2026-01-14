@@ -9,7 +9,11 @@ from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
 
 from ..contexts import app_context
-from ..standalone import CalculateCorrection, Inference, StandaloneTrim
+from ..standalone import (
+    CalculateCorrection,
+    Inference,
+    create_standalone_trim,
+)
 from ..standalone._inference import PredictionMode
 from ..standalone.event_building import (
     AddMeasurementReferencesEventBuilder,
@@ -118,7 +122,7 @@ class StandalonePipeline(Pipeline):
         )
         self._calculate_metrics = CalculateMetricsConverter(parent=parent)
 
-        self._trim = StandaloneTrim(
+        self._trim = create_standalone_trim(
             param_b_corr="SPSBEAM/BHYS",
             settings=app_context().TRIM_SETTINGS,
             parent=parent,
