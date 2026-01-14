@@ -5,17 +5,7 @@ import logging
 
 import numpy as np
 import pyda_japc
-from hystcomp_utils.cycle_data import CycleData
-from qtpy import QtCore
-
-from ..contexts import app_context
-from ..standalone import (
-    create_correction,
-    create_inference,
-    create_standalone_trim,
-)
-from ..standalone._inference import PredictionMode
-from ..standalone.event_building import (
+from hystcomp_event_builder import (
     AddMeasurementReferencesEventBuilder,
     AddMeasurementsEventBuilder,
     AddProgrammedEventBuilder,
@@ -27,6 +17,17 @@ from ..standalone.event_building import (
     TrackDynEcoEventBuilder,
     TrackReferenceChangedEventBuilder,
 )
+from hystcomp_event_builder.qt import QtEventBuilderAdapter
+from hystcomp_utils.cycle_data import CycleData
+from qtpy import QtCore
+
+from ..contexts import app_context
+from ..standalone import (
+    create_correction,
+    create_inference,
+    create_standalone_trim,
+)
+from ..standalone._inference import PredictionMode
 from ..standalone.track_precycle import TrackPrecycleEventBuilder
 from ._pipeline import Pipeline
 
@@ -50,67 +51,84 @@ class StandalonePipeline(Pipeline):
 
         self.meas_b_avail = meas_b_avail
 
-        self._create_cycle = CreateCycleEventBuilder(
-            cycle_warning=param_names.TRIGGER,
-            param_b_prog=param_names.B_PROG,
-            param_i_prog=param_names.I_PROG,
-            param_b_correction=param_names.B_CORRECTION,
-            param_fulleco_iref=param_names.I_PROG_FULLECO,
-            param_bdot_prog=param_names.BDOT_PROG,
-            provider=provider,
+        # Create core event builders and wrap with Qt adapters
+        self._create_cycle = QtEventBuilderAdapter(
+            CreateCycleEventBuilder(
+                cycle_warning=param_names.TRIGGER,
+                param_b_prog=param_names.B_PROG,
+                param_i_prog=param_names.I_PROG,
+                param_b_correction=param_names.B_CORRECTION,
+                param_fulleco_iref=param_names.I_PROG_FULLECO,
+                provider=provider,
+            ),
             parent=parent,
         )
-        self._add_measurements_pre = AddMeasurementsEventBuilder(
-            param_i_meas=param_names.I_MEAS,
-            param_b_meas=param_names.B_MEAS,
-            param_bdot_meas=param_names.BDOT_MEAS,
-            provider=provider,
+        self._add_measurements_pre = QtEventBuilderAdapter(
+            AddMeasurementsEventBuilder(
+                param_i_meas=param_names.I_MEAS,
+                param_b_meas=param_names.B_MEAS,
+                provider=provider,
+            ),
             parent=parent,
         )
-        self._buffer = BufferEventbuilder(buffer_size=buffer_size, parent=parent)
+        self._buffer = QtEventBuilderAdapter(
+            BufferEventbuilder(buffer_size=buffer_size), parent=parent
+        )
         self._predict = create_inference(parent=parent)
         self._correction, self._correction_core = create_correction(
             trim_settings=app_context().TRIM_SETTINGS, parent=parent
         )
-        self._start_cycle = StartCycleEventBuilder(
-            trigger=param_names.CYCLE_START, provider=provider, parent=parent
-        )
-        self._add_programmed = AddProgrammedEventBuilder(
-            param_i_prog=param_names.I_PROG,
-            param_b_prog=param_names.B_PROG,
-            param_bdot_played=param_names.BDOT_PLAYED,
-            trigger=param_names.ADD_PROG_TRIGGER,
-            provider=provider,
+        self._start_cycle = QtEventBuilderAdapter(
+            StartCycleEventBuilder(trigger=param_names.CYCLE_START, provider=provider),
             parent=parent,
         )
-        self._add_measurement_post = CycleStampedAddMeasurementsEventBuilder(
-            param_i_meas=param_names.I_MEAS,
-            param_b_meas=param_names.B_MEAS,
-            param_bdot_meas=param_names.BDOT_MEAS,
-            provider=provider,
+        self._add_programmed = QtEventBuilderAdapter(
+            AddProgrammedEventBuilder(
+                param_i_prog=param_names.I_PROG,
+                param_b_prog=param_names.B_PROG,
+                trigger=param_names.ADD_PROG_TRIGGER,
+                provider=provider,
+            ),
+            parent=parent,
+        )
+        self._add_measurement_post = QtEventBuilderAdapter(
+            CycleStampedAddMeasurementsEventBuilder(
+                param_i_meas=param_names.I_MEAS,
+                param_b_meas=param_names.B_MEAS,
+                provider=provider,
+            ),
             parent=parent,
             no_metadata_source=True,
         )
         if meas_b_avail:
-            self._add_measurement_ref = AddMeasurementReferencesEventBuilder(
-                parent=parent
+            self._add_measurement_ref = QtEventBuilderAdapter(
+                AddMeasurementReferencesEventBuilder(), parent=parent
             )
 
-        self._track_dyneco = TrackDynEcoEventBuilder(
-            param_dyneco_iref=param_names.I_PROG_DYNECO,
-            provider=provider,
+        self._track_dyneco = QtEventBuilderAdapter(
+            TrackDynEcoEventBuilder(
+                param_dyneco_iref=param_names.I_PROG_DYNECO,
+                provider=provider,
+            ),
             parent=parent,
         )
-        self._track_precycle = TrackPrecycleEventBuilder(
-            precycle_sequence=["SPS.USER.LHCPILOT", "SPS.USER.MD1"], parent=parent
-        )
-        self._track_reference_changed = TrackReferenceChangedEventBuilder(
-            param_trigger=param_names.RESET_REFERENCE_TRIGGER,
-            param_start_cycle=param_names.CYCLE_START,
-            provider=provider,
+        self._track_precycle = QtEventBuilderAdapter(
+            TrackPrecycleEventBuilder(
+                precycle_sequence=["SPS.USER.LHCPILOT", "SPS.USER.MD1"]
+            ),
             parent=parent,
         )
-        self._calculate_metrics = CalculateMetricsConverter(parent=parent)
+        self._track_reference_changed = QtEventBuilderAdapter(
+            TrackReferenceChangedEventBuilder(
+                param_trigger=param_names.RESET_REFERENCE_TRIGGER,
+                param_start_cycle=param_names.CYCLE_START,
+                provider=provider,
+            ),
+            parent=parent,
+        )
+        self._calculate_metrics = QtEventBuilderAdapter(
+            CalculateMetricsConverter(), parent=parent
+        )
 
         self._trim = create_standalone_trim(
             param_b_corr="SPSBEAM/BHYS",
