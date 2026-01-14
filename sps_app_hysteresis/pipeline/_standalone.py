@@ -10,7 +10,7 @@ from qtpy import QtCore
 
 from ..contexts import app_context
 from ..standalone import (
-    CalculateCorrection,
+    create_correction,
     create_inference,
     create_standalone_trim,
 )
@@ -69,7 +69,7 @@ class StandalonePipeline(Pipeline):
         )
         self._buffer = BufferEventbuilder(buffer_size=buffer_size, parent=parent)
         self._predict = create_inference(parent=parent)
-        self._correction = CalculateCorrection(
+        self._correction, self._correction_core = create_correction(
             trim_settings=app_context().TRIM_SETTINGS, parent=parent
         )
         self._start_cycle = StartCycleEventBuilder(
@@ -232,7 +232,7 @@ class StandalonePipeline(Pipeline):
         self._correction.set_prediction_mode(self._prediction_mode)
 
         # Set correction system reference for trim (for any remaining reference updates)
-        self._trim.set_correction_system(self._correction)
+        self._trim.set_correction_system(self._correction_core)
 
     @QtCore.Slot(CycleData, np.ndarray, datetime.datetime, str)
     def _on_flattening_applied(
