@@ -1,6 +1,7 @@
 from .._mod_replace import replace_modname
 from ._correction import CalculateCorrection
 from ._inference import Inference
+from ._inference_refactored import create_inference
 from ._local_trim import StandaloneTrim
 from ._local_trim_refactored import create_standalone_trim
 
@@ -11,5 +12,6 @@ __all__ = [
     "CalculateCorrection",
     "Inference",
     "StandaloneTrim",
+    "create_inference",
     "create_standalone_trim",
 ]
