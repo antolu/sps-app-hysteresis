@@ -45,9 +45,14 @@ class AddMeasurementReferencesEventBuilder(EventBuilderAbc):
         log.debug(f"[{cycle_data}] Adding reference field to the cycle data")
         id_ = self._cycle_id(cycle_data)
         if id_ not in self._reference_timestamps:
-            log.error(f"[{cycle_data}] No reference found")
+            log.debug(
+                f"[{cycle_data}] No reference found for cycle_id '{id_}', available references: {list(self._reference_timestamps.keys())}"
+            )
             return
 
+        log.debug(
+            f"[{cycle_data}] Setting field_meas_ref from reference for cycle_id '{id_}'"
+        )
         cycle_data.field_meas_ref = self._reference_fields[id_]
 
         ref_time = datetime.datetime.fromtimestamp(
@@ -80,7 +85,9 @@ class AddMeasurementReferencesEventBuilder(EventBuilderAbc):
                 log.error(f"[{cycle_data}] field_meas is None")
                 return
 
-            log.debug(f"[{cycle_data}] Saving reference for the first time")
+            log.debug(
+                f"[{cycle_data}] Saving reference for the first time with cycle_id '{id_}'"
+            )
 
             self._reference_timestamps[id_] = cycle_data.cycle_timestamp
             self._reference_fields[id_] = cycle_data.field_meas.copy()

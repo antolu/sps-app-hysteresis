@@ -293,6 +293,20 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
 
             self.onCycleStampGroupTriggered(cycle_data.cycle_timestamp, selector)
             self._clear_older_than(cycle_data.cycle_timestamp, selector)
+        else:
+            # find which data is missing
+            missing_data = [
+                param
+                for param in self._cycle_stamp_buffers
+                if selector not in self._cycle_stamp_buffers[param]
+                or cycle_data.cycle_timestamp
+                not in self._cycle_stamp_buffers[param][selector]
+            ]
+            msg = (
+                f"Missing data for {selector} on cycle time {cycle_data.cycle_time}: "
+                f"{', '.join(missing_data)}."
+            )
+            log.debug(msg)
 
     def _handle_acquisition_impl(
         self, fspv: pyda.access.PropertyRetrievalResponse
@@ -304,7 +318,7 @@ class CycleStampGroupedTriggeredEventBuilder(BufferedSubscriptionEventBuilder):
         raise NotImplementedError
 
     def _clear_older_than(self, cycle_stamp: float, selector) -> None:
-        cycle_time = datetime.datetime.fromtimestamp(cycle_stamp / 1e9)
+        cycle_time = datetime.datetime.fromtimestamp(cycle_stamp / 1e9, tz=datetime.UTC)
         msg = f"Clearing older than {cycle_time} for {selector}."
         log.debug(msg)
 

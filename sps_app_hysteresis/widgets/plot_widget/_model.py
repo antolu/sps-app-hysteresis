@@ -72,6 +72,9 @@ class PlotModel(QtCore.QObject):
 
             if cycle_data.field_pred is not None:
                 field_pred = cycle_data.field_pred
+                log.debug(
+                    f"[{cycle_data}] Computing meas-pred diff: meas_size={cycle_data.field_meas.size}, pred_shape={field_pred.shape}"
+                )
                 downsample_factor = cycle_data.field_meas.size // field_pred.shape[-1]
                 delta = (
                     downsample_tf(
@@ -79,8 +82,15 @@ class PlotModel(QtCore.QObject):
                     )
                     - field_pred[1, :]
                 ) * 1e4
+                log.debug(
+                    f"[{cycle_data}] Publishing meas-pred diff with delta range: [{delta.min():.2e}, {delta.max():.2e}]"
+                )
                 self._field_meas_diff_source.new_value(
                     cycle_data.cycle_timestamp, np.vstack((field_pred[0, :], delta))
+                )
+            else:
+                log.debug(
+                    f"[{cycle_data}] No field_pred available for meas-pred diff calculation"
                 )
 
         except Exception:

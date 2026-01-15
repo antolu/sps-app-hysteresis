@@ -6,7 +6,6 @@ import logging
 import numpy as np
 import pyda_japc
 from hystcomp_utils.cycle_data import CycleData
-from PyQt6.QtCore import QObject
 from qtpy import QtCore
 
 from ..contexts import app_context
@@ -30,7 +29,7 @@ from ._pipeline import Pipeline
 log = logging.getLogger(__name__)
 
 
-class StandalonePipeline(Pipeline, QtCore.QObject):
+class StandalonePipeline(Pipeline):
     _resetState = QtCore.Signal()
     _trimApplied = QtCore.Signal(CycleData, np.ndarray, datetime.datetime, str)
 
@@ -42,7 +41,7 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
         meas_b_avail: bool = True,
         parent: QtCore.QObject | None = None,
     ) -> None:
-        QObject.__init__(self, parent=parent)
+        super().__init__(parent=parent)
         param_names = app_context().PARAMS
 
         self.meas_b_avail = meas_b_avail
@@ -53,12 +52,14 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
             param_i_prog=param_names.I_PROG,
             param_b_correction=param_names.B_CORRECTION,
             param_fulleco_iref=param_names.I_PROG_FULLECO,
+            param_bdot_prog=param_names.BDOT_PROG,
             provider=provider,
             parent=parent,
         )
         self._add_measurements_pre = AddMeasurementsEventBuilder(
             param_i_meas=param_names.I_MEAS,
             param_b_meas=param_names.B_MEAS,
+            param_bdot_meas=param_names.BDOT_MEAS,
             provider=provider,
             parent=parent,
         )
@@ -68,6 +69,12 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
             app_context().EDDY_CURRENT_MODEL.NAME,
             app_context().EDDY_CURRENT_MODEL.VERSION,
         )
+        # Load measurement eddy current model for cleaning historical measurements
+        if meas_b_avail:
+            self._predict.load_measurement_eddy_current_model(
+                app_context().MEASUREMENT_EDDY_CURRENT_MODEL.NAME,
+                app_context().MEASUREMENT_EDDY_CURRENT_MODEL.VERSION,
+            )
         self._correction = CalculateCorrection(
             trim_settings=app_context().TRIM_SETTINGS, parent=parent
         )
@@ -77,6 +84,7 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
         self._add_programmed = AddProgrammedEventBuilder(
             param_i_prog=param_names.I_PROG,
             param_b_prog=param_names.B_PROG,
+            param_bdot_played=param_names.BDOT_PLAYED,
             trigger=param_names.ADD_PROG_TRIGGER,
             provider=provider,
             parent=parent,
@@ -84,8 +92,10 @@ class StandalonePipeline(Pipeline, QtCore.QObject):
         self._add_measurement_post = CycleStampedAddMeasurementsEventBuilder(
             param_i_meas=param_names.I_MEAS,
             param_b_meas=param_names.B_MEAS,
+            param_bdot_meas=param_names.BDOT_MEAS,
             provider=provider,
             parent=parent,
+            no_metadata_source=True,
         )
         if meas_b_avail:
             self._add_measurement_ref = AddMeasurementReferencesEventBuilder(

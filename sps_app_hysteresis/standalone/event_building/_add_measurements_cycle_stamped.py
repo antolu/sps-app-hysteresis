@@ -18,6 +18,7 @@ log = logging.getLogger(__name__)
 
 PARAM_I_MEAS = "MBI/LOG.I.MEAS"
 PARAM_B_MEAS = "SR.BMEAS-SP-B-SD/CycleSamples#samples"
+PARAM_BDOT_MEAS = "SR.BMEAS-SP-BDOT-SD/CycleSamples#samples"
 
 
 class CycleStampedAddMeasurementsEventBuilder(CycleStampGroupedTriggeredEventBuilder):
@@ -25,10 +26,12 @@ class CycleStampedAddMeasurementsEventBuilder(CycleStampGroupedTriggeredEventBui
         self,
         param_i_meas: str = PARAM_I_MEAS,
         param_b_meas: str | None = PARAM_B_MEAS,
+        param_bdot_meas: str | None = PARAM_BDOT_MEAS,
         provider: pyda_japc.JapcProvider | None = None,
         track_cycle_data: bool = True,  # noqa: FBT001, FBT002
         buffer_size: int = 10,
         *,
+        no_metadata_source: bool = False,
         parent: QtCore.QObject | None = None,
     ):
         assert param_b_meas is not None, "B_MEAS parameter must be provided."
@@ -36,6 +39,10 @@ class CycleStampedAddMeasurementsEventBuilder(CycleStampGroupedTriggeredEventBui
 
         if param_b_meas is not None:
             buffered_subscriptions.append(BufferedSubscription("B_MEAS", param_b_meas))
+        if param_bdot_meas is not None:
+            buffered_subscriptions.append(
+                BufferedSubscription("BDOT_MEAS", param_bdot_meas)
+            )
 
         super().__init__(
             buffered_subscriptions=buffered_subscriptions,
@@ -43,9 +50,11 @@ class CycleStampedAddMeasurementsEventBuilder(CycleStampGroupedTriggeredEventBui
             buffer_size=buffer_size,
             provider=provider,
             parent=parent,
+            no_metadata_source=no_metadata_source,
         )
         self.param_i_meas = param_i_meas
         self.param_b_meas = param_b_meas
+        self.param_bdot_meas = param_bdot_meas
 
     def onCycleStampGroupTriggered(self, cycle_stamp: float, selector: str) -> None:
         cycle_data = typing.cast(
@@ -65,6 +74,15 @@ class CycleStampedAddMeasurementsEventBuilder(CycleStampGroupedTriggeredEventBui
             ]
             b_meas = np.array(b_meas_fspv.data["value"]) / 1e4
             cycle_data.field_meas = b_meas
+
+        if self.param_bdot_meas is not None:
+            bdot_meas_fspv = self._cycle_stamp_buffers[self.param_bdot_meas][selector][
+                cycle_stamp
+            ]
+            bdot_meas = np.array(bdot_meas_fspv.data["value"]) * 1e3
+            cycle_data.bdot_meas = bdot_meas
+
+            log.debug(f"[{cycle_data}] Added BDOT measurements to cycle data")
 
         msg = f"[{cycle_data}] Added measurements to cycle data"
         log.debug(msg)
