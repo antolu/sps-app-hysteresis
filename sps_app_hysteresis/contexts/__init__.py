@@ -94,9 +94,9 @@ def set_context(
         device=device,
         param_names=recipe["param_names"],
         trim_settings=trim_settings,
-        remote_params=remote_params,
         eddy_current_model=recipe["eddy_current_model"],
         measurement_eddy_current_model=recipe["measurement_eddy_current_model"],
+        remote_params=remote_params,
     )
     global _app_context  # noqa: PLW0603
     _app_context = context
