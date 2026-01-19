@@ -7,8 +7,7 @@ import numpy as np
 import pyda_japc
 from hystcomp_actions import Correction, Inference, Trim
 from hystcomp_actions.qt import QtCorrectionAdapter, QtInferenceAdapter, QtTrimAdapter
-from hystcomp_event_builder import SynchronousOrchestrator
-from hystcomp_event_builder.config import EventBuilderConfig
+from hystcomp_event_builder import EventBuilderConfig, SynchronousOrchestrator
 from hystcomp_event_builder.qt import QtEventBuilderAdapter
 from hystcomp_utils.cycle_data import CorrectionMode, CycleData
 from op_app_context import context
