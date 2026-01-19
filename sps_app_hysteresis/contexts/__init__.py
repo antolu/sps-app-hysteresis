@@ -1,7 +1,12 @@
 import typing
 
+import pyda
+from hystcomp_actions import OnlineTrimSettings, QtTrimSettings
+from hystcomp_actions.utils import cycle_metadata
+from op_app_context import context as op_context
+from op_app_context import settings as app_settings
+
 from .._mod_replace import replace_modname
-from ..settings import OnlineTrimSettings, QtTrimSettings
 from ._base_context import (
     ApplicationContext,
     EddyCurrentModel,
@@ -73,7 +78,8 @@ def set_context(
             raise ValueError(msg)
         trim_settings_cls = typing.cast(type[OnlineTrimSettings], trim_settings_cls)
         trim_settings = trim_settings_cls(
-            device=recipe["param_names"].TRIM_SETTINGS or ""
+            device=recipe["param_names"].TRIM_SETTINGS or "",
+            da=pyda.SimpleClient(provider=op_context.japc_provider),
         )
         remote_params = recipe.get("remote_param_names")
         if remote_params is None:
@@ -86,7 +92,11 @@ def set_context(
             )
             raise ValueError(msg)
         trim_settings_cls = typing.cast(type[QtTrimSettings], trim_settings_cls)
-        trim_settings = trim_settings_cls(prefix=device)
+        trim_settings = trim_settings_cls(
+            prefix=device,
+            settings=app_settings.settings,
+            cycle_metadata=cycle_metadata,
+        )
 
         remote_params = None
 

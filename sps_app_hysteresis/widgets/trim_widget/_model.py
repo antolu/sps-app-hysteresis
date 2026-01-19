@@ -6,9 +6,8 @@ from __future__ import annotations
 
 import logging
 
+from hystcomp_actions import TrimSettings
 from qtpy import QtCore
-
-from ...settings import TrimSettings
 
 log = logging.getLogger(__package__)
 

@@ -14,11 +14,12 @@ from accwidgets.lsa_selector import (
     LsaSelectorAccelerator,
     LsaSelectorModel,
 )
+from hystcomp_actions.utils import cycle_metadata
 from hystcomp_utils.cycle_data import CycleData
 from op_app_context import context
 from qtpy import QtCore, QtWidgets
 
-from ...utils import cycle_metadata, mute_signals
+from ...utils import mute_signals
 from .._widgets import ToggleButton
 from ._model import TrimModel
 

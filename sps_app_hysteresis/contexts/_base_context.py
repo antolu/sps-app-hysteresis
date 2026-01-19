@@ -12,7 +12,7 @@ import dataclasses
 import datetime
 import typing
 
-from ..settings import TrimSettings
+from hystcomp_actions import TrimSettings
 
 
 @dataclasses.dataclass
