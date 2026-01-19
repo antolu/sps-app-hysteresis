@@ -13,9 +13,9 @@ import os
 import pathlib
 
 import tensorboardX
+from hystcomp_event_builder.builders import Metrics
 
 from ...contexts import app_context
-from ...standalone.event_building._calculate_metrics import Metrics
 
 log = logging.getLogger(__package__)
 
