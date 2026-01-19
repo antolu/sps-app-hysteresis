@@ -161,8 +161,6 @@ class StandalonePipeline(Pipeline):
         # Set initial prediction mode for correction system
         self._correction_core.set_prediction_mode(self._prediction_mode)
 
-        self._trim_core.set_correction_system(self._correction_core)
-
     @QtCore.Slot(CycleData, np.ndarray, datetime.datetime, str)
     def _on_flattening_applied(
         self,
@@ -179,7 +177,7 @@ class StandalonePipeline(Pipeline):
 
     @property
     def onModelLoaded(self) -> QtCore.Signal:
-        return self._predict.model_loaded
+        return self._predict.modelLoaded
 
     @property
     def resetState(self) -> QtCore.Signal:
