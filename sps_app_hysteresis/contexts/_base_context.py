@@ -43,6 +43,7 @@ class RemoteParameterNames:
     CYCLE_WARNING: str
     CYCLE_CORRECTION: str
     CYCLE_MEASURED: str
+    METRICS: str
     RESET_REFERENCE: str
     SET_GAIN: str
 
