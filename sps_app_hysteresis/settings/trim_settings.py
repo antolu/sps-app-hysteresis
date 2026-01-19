@@ -7,7 +7,7 @@ import pyda
 from hystcomp_actions import (
     OnlineTrimSettings as HystcompOnlineTrimSettings,
 )
-from hystcomp_actions import StandaloneTrimSettings as HystcompStandaloneTrimSettings
+from hystcomp_actions import QtTrimSettings as HystcompQtTrimSettings
 from hystcomp_actions import TrimSettings as HystcompTrimSettings
 from op_app_context import context
 from op_app_context import settings as app_settings
@@ -58,8 +58,8 @@ class TrimSettings(HystcompTrimSettings, QtCore.QObject):
         raise NotImplementedError
 
 
-class StandaloneTrimSettings(HystcompStandaloneTrimSettings):
-    """Wrapper around hystcomp_actions.StandaloneTrimSettings with local defaults."""
+class QtTrimSettings(HystcompQtTrimSettings):
+    """Wrapper around hystcomp_actions.QtTrimSettings with local defaults."""
 
     def __init__(self, parent: QtCore.QObject | None = None, *, prefix: str):
         super().__init__(
