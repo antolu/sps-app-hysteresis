@@ -9,11 +9,10 @@ from hystcomp_actions import (
 )
 from hystcomp_actions import QtTrimSettings as HystcompQtTrimSettings
 from hystcomp_actions import TrimSettings as HystcompTrimSettings
+from hystcomp_actions.utils import cycle_metadata
 from op_app_context import context
 from op_app_context import settings as app_settings
 from qtpy import QtCore
-
-from ..utils.cycle_metadata import cycle_metadata
 
 log = logging.getLogger(__package__)
 
