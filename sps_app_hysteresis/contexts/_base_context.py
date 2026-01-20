@@ -36,6 +36,7 @@ class ParameterNames:
     B_MEAS: str | None = None
     BDOT_MEAS: str | None = None
     TRIM_SETTINGS: str | None = None
+    LSA_TRIM_PARAM: str | None = None
 
 
 @dataclasses.dataclass

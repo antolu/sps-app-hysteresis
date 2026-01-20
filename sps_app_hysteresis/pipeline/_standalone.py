@@ -8,7 +8,7 @@ import pyda_japc
 from hystcomp_actions import Correction, Inference, Trim
 from hystcomp_actions.qt import QtCorrectionAdapter, QtInferenceAdapter, QtTrimAdapter
 from hystcomp_event_builder import EventBuilderConfig, SynchronousOrchestrator
-from hystcomp_event_builder.qt import QtEventBuilderAdapter
+from hystcomp_event_builder.qt import QtEventBuilderAdapter, QtMetricsAdapter
 from hystcomp_utils.cycle_data import CorrectionMode, CycleData
 from op_app_context import context
 from qtpy import QtCore
@@ -77,7 +77,7 @@ class StandalonePipeline(Pipeline):
 
         # Trim
         self._trim_core = Trim(
-            param_b_corr="SPSBEAM/BHYS",
+            param_b_corr=param_names.LSA_TRIM_PARAM or "",
             settings=app_context().TRIM_SETTINGS,
             lsa_provider=context.lsa_provider,
             trim_threshold=app_context().TRIM_MIN_THRESHOLD,
@@ -117,7 +117,7 @@ class StandalonePipeline(Pipeline):
         self._track_reference_changed = QtEventBuilderAdapter(
             self._orchestrator.track_reference_changed, parent=parent
         )
-        self._calculate_metrics = QtEventBuilderAdapter(
+        self._calculate_metrics = QtMetricsAdapter(
             self._orchestrator.calculate_metrics, parent=parent
         )
 

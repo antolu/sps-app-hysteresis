@@ -25,6 +25,7 @@ MBI_PARAMS = ParameterNames(
     BDOT_MEAS="SR.BMEAS-SP-BDOT-SD/CycleSamples#samples",
     BDOT_PLAYED=f"rda3://{UCAP_NODE}/UCAP.SPSBEAM/BDOT_PLAYED",
     RESET_REFERENCE_TRIGGER="rmi://virtual_sps/SPSBEAM/B",
+    LSA_TRIM_PARAM="SPSBEAM/BHYS",
 )
 
 
