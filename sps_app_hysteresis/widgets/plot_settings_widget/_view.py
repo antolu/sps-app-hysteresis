@@ -19,14 +19,11 @@ FMT = "%Y-%m-%d %H:%M:%S.%f"
 class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
     timespan_changed = Signal(int, int)  # min, max
     downsample_changed = Signal(int)
-    toggle_predictions = Signal(bool)
 
     def __init__(self, parent: QWidget | None = None):
         QWidget.__init__(self, parent=parent)
 
         self.setupUi(self)
-
-        self._prediction_enabled = False
 
         self.spinBoxTimespan.valueChanged.connect(self._timespan_changed)
         self.spinBoxDownsample.valueChanged.connect(self.downsample_changed)
