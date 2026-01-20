@@ -70,7 +70,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         # Initialize prediction mode state in trim widget
         if isinstance(self._data, StandalonePipeline):
-            current_mode = self._data._predict.prediction_mode  # noqa: SLF001
+            current_mode = self._data._prediction_mode  # noqa: SLF001
             is_eddy_current_only = current_mode == CorrectionMode.EDDY_CURRENT_ONLY
             self._trim_widget.onCorrectionModeChanged(is_eddy_current_only)
 
