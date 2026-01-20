@@ -231,6 +231,11 @@
         </item>
         <item>
          <property name="text">
+          <string>TransformerLSTM</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
           <string>InterpolatedTFT</string>
          </property>
         </item>
@@ -252,11 +257,6 @@
         <item>
          <property name="text">
           <string>InterpolatedEncoderDecoderLSTM</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>TransformerLSTM</string>
          </property>
         </item>
         <item>
