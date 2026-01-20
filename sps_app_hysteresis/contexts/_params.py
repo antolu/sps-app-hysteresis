@@ -10,15 +10,15 @@ from ._base_context import (
 UCAP_NODE = "UCAP-NODE-SPS-HYSTCOMP"
 
 MBI_PARAMS = ParameterNames(
-    TRIGGER="XTIM.SX.FCY2500-WRT/Acquisition",
+    TRIGGER="XTIM.SX.FCY2500-CT/Acquisition",
     I_PROG="rmi://virtual_sps/MBI/IREF",
     B_PROG="rmi://virtual_sps/SPSBEAM/B",
     ADD_PROG_TRIGGER=f"rda3://{UCAP_NODE}/UCAP.MACHINE_MODE/Acquisition",
     B_CORRECTION=f"rda3://{UCAP_NODE}/UCAP.SPSBEAM/BHYS_CORRECTION",
-    CYCLE_START="XTIM.SX.SCY-WRT/Acquisition",
+    CYCLE_START="XTIM.SX.SCY-CT/Acquisition",
     I_PROG_DYNECO=f"rda3://{UCAP_NODE}/UCAP.MBI/DYNECO_IREF",
     I_PROG_FULLECO=f"rda3://{UCAP_NODE}/UCAP.MBI/FULLECO_IREF",
-    FULLECO_TRIGGER="XTIM.SX.FCY-MMODE-WRT/Acquisition",
+    FULLECO_TRIGGER="XTIM.SX.FCY-MMODE-CT/Acquisition",
     I_MEAS="MBI/LOG.I.MEAS",
     B_MEAS=f"rda3://{UCAP_NODE}/SPS.BTRAIN.BMEAS.SP/Acquisition",
     BDOT_PROG=f"rda3://{UCAP_NODE}/UCAP.SPSBEAM/BDOT",
