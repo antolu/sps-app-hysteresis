@@ -4,7 +4,6 @@ import logging
 
 import numpy as np
 import scipy.ndimage
-import scipy.signal
 from hystcomp_utils.cycle_data import CycleData
 from qtpy import QtCore
 from transformertf.data import downsample as downsample_tf

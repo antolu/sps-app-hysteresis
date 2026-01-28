@@ -1,3 +1,4 @@
+import getpass
 import logging
 import os.path
 import sys
@@ -15,8 +16,6 @@ from .contexts import app_context, set_context
 from .io.metrics import TensorboardWriter, TextWriter
 from .main_window import MainWindow
 from .pipeline import Pipeline, RemotePipeline, StandalonePipeline
-
-import getpass
 
 torch.set_float32_matmul_precision("high")
 
@@ -196,11 +195,12 @@ def setup_rbac_authentication_location() -> (
         logging.getLogger(__name__).warning(
             "No RBAC by location, you will have to login manually."
         )
-        return None, None   
+        return None, None
     else:
-        print(f"Successfully logged in by location")
+        print("Successfully logged in by location")
         return service, listener
-    
+
+
 def setup_rbac_authentication_explicit() -> (
     tuple[pyrbac.LoginService, PyrbacAuthenticationListener] | tuple[None, None]
 ):
@@ -209,7 +209,7 @@ def setup_rbac_authentication_explicit() -> (
 
     try:
         print("Please log in with your CERN credentials.")
-        username=input("Username: ")
+        username = input("Username: ")
         password = getpass.getpass()
         token = pyrbac.AuthenticationClient().login_explicit(username, password)
         context.rbac_token = token
