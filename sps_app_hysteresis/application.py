@@ -16,6 +16,8 @@ from .io.metrics import TensorboardWriter, TextWriter
 from .main_window import MainWindow
 from .pipeline import Pipeline, RemotePipeline, StandalonePipeline
 
+import getpass
+
 torch.set_float32_matmul_precision("high")
 
 
@@ -172,13 +174,14 @@ def configure_application_context(
     app_context().LOGDIR = args.logdir
 
 
-def setup_rbac_authentication() -> (
+def setup_rbac_authentication_location() -> (
     tuple[pyrbac.LoginService, PyrbacAuthenticationListener] | tuple[None, None]
 ):
     """Set up RBAC authentication and return service and listener."""
     from op_app_context import context  # noqa: PLC0415
 
     try:
+        print("Attempting to log in by location...")
         token = pyrbac.AuthenticationClient().login_location()
         context.rbac_token = token
         listener = PyrbacAuthenticationListener()
@@ -193,8 +196,35 @@ def setup_rbac_authentication() -> (
         logging.getLogger(__name__).warning(
             "No RBAC by location, you will have to login manually."
         )
+        return None, None   
+    else:
+        print(f"Successfully logged in by location")
+        return service, listener
+    
+def setup_rbac_authentication_explicit() -> (
+    tuple[pyrbac.LoginService, PyrbacAuthenticationListener] | tuple[None, None]
+):
+    """Set up RBAC authentication and return service and listener."""
+    from op_app_context import context  # noqa: PLC0415
+
+    try:
+        print("Please log in with your CERN credentials.")
+        username=input("Username: ")
+        password = getpass.getpass()
+        token = pyrbac.AuthenticationClient().login_explicit(username, password)
+        context.rbac_token = token
+        listener = PyrbacAuthenticationListener()
+        service = pyrbac.LoginService.create_for_explicit(username, password, listener)
+
+        listener.register_token_obtained_callback(context.set_rbac_token)
+
+        logging.getLogger(__name__).info(f"Logged in as {token.user_name}")
+        logging.getLogger(__name__).info(f"Created service: {service}")
+    except:  # noqa: E722
+        logging.getLogger(__name__).exception("Failed to login with RBAC.")
         return None, None
     else:
+        print(f"Successfully logged in as {username}")
         return service, listener
 
 
@@ -252,7 +282,10 @@ def main() -> None:
 
     application = create_qt_application()
     configure_application_context(args, application)
-    service, listener = setup_rbac_authentication()
+    service, listener = setup_rbac_authentication_location()
+    if service is None or listener is None:
+        print("Falling back to explicit login...")
+        service, listener = setup_rbac_authentication_explicit()
     pipeline = create_pipeline(args)
     data_thread = setup_pipeline_threading(pipeline, application)
     writer = create_metrics_writer(args)
