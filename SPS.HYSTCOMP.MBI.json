@@ -1,0 +1,388 @@
+{
+  "ucapJsonSchemaVersion" : "v3",
+  "name" : "SPS.HYSTCOMP.MBI",
+  "description" : "Prediction for SPS Hysteresis Compensation on Main Bending Magnet",
+  "deviceClassName" : "sps-ucap-hystcomp-mbi",
+  "deviceClassVersion" : null,
+  "timingDomain" : null,
+  "accelerator" : "SPS",
+  "acceleratorZone" : null,
+  "state" : null,
+  "ppm" : true,
+  "cycleBound" : true,
+  "responsible" : "Anton LU / anton.lu@cern.ch",
+  "transformations" : [ {
+    "type" : "EventToMany",
+    "name" : "sps-ucap-hystcomp-buffer",
+    "description" : "Event builder for SPS Hysteresis Compensation on Main Bending Magnet",
+    "event" : {
+      "type" : "ForwardedSubscriptions",
+      "forwardedSubscriptions" : [ {
+        "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.HYSTCOMP.MBI/CycleDataMeasInit",
+        "selector" : "SPS.USER.ALL",
+        "ignoreFirstUpdates" : true,
+        "alias" : "CycleDataMeasInit"
+      }, {
+        "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.HYSTCOMP.MBI/CycleDataDynEco",
+        "selector" : "SPS.USER.ALL",
+        "ignoreFirstUpdates" : true,
+        "alias" : "CycleDataDynEco"
+      }, {
+        "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.HYSTCOMP.MBI/CycleDataFullEco",
+        "selector" : "SPS.USER.ALL",
+        "ignoreFirstUpdates" : true,
+        "alias" : "CycleDataFullEco"
+      }, {
+        "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.HYSTCOMP.MBI/CycleDataMeas",
+        "selector" : "SPS.USER.ALL",
+        "ignoreFirstUpdates" : true,
+        "alias" : "CycleDataMeas"
+      }, {
+        "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.HYSTCOMP.MBI/CycleDataProg",
+        "selector" : "SPS.USER.ALL",
+        "ignoreFirstUpdates" : true,
+        "alias" : "CycleDataProg"
+      } ]
+    },
+    "converter" : {
+      "language" : "Python",
+      "moduleName" : "sps_ucap_hystcomp.buffer_builder",
+      "configuration" : {
+  "min_buffer_size" : 60000
+}
+    },
+    "publishedProperties" : [ "CycleBuffer", "EcoCycleBuffer" ]
+  }, {
+    "type" : "EventToMany",
+    "name" : "sps-ucap-hystcomp-correction",
+    "description" : "Calculate correction w.r.t prediction",
+    "event" : {
+      "type" : "CombiningLatestValues",
+      "bufferedSubscriptions" : [ {
+        "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.HYSTCOMP.MBI/CycleDataPrediction",
+        "selector" : "SPS.USER.ALL",
+        "ignoreFirstUpdates" : true,
+        "alias" : "Prediction"
+      }, {
+        "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.HYSTCOMP.MBI/ResetReference",
+        "selector" : "SPS.USER.ALL",
+        "ignoreFirstUpdates" : true,
+        "alias" : "ResetReference"
+      } ],
+      "bufferedBySelectorSubscriptions" : [ {
+        "parameter" : "SIX.MC-CTML/ControlValue",
+        "selector" : "SPS.USER.ALL",
+        "alias" : "BeamIn"
+      }, {
+        "parameter" : "SX.BEAM-OUT-CTML/ControlValue",
+        "selector" : "SPS.USER.ALL",
+        "alias" : "BeamOut"
+      } ]
+    },
+    "converter" : {
+      "language" : "Python",
+      "moduleName" : "sps_ucap_hystcomp.calculate_correction"
+    },
+    "publishedProperties" : [ "CycleDataCorrection", "Test", "Trim" ]
+  }, {
+    "type" : "EventToOne",
+    "name" : "sps-ucap-hystcomp-fcy",
+    "description" : "Create CycleData objects on CycleWarning with programmed current and field",
+    "event" : {
+      "type" : "SubscriptionTriggered",
+      "trigger" : {
+        "subscription" : {
+          "parameter" : "SX.CZERO-CTML/CycleWarning",
+          "selector" : "SPS.USER.ALL",
+          "ignoreFirstUpdates" : true,
+          "alias" : "CycleWarning"
+        }
+      },
+      "bufferedBySelectorSubscriptions" : [ {
+        "parameter" : "rmi://virtual_sps/SPSBEAM/B",
+        "selector" : "SPS.USER.ALL",
+        "alias" : "B"
+      }, {
+        "parameter" : "rmi://virtual_sps/MBI/IREF",
+        "selector" : "SPS.USER.ALL",
+        "alias" : "IREF"
+      }, {
+        "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPSBEAM.BHYS-CORRECTION/Acquisition",
+        "selector" : "SPS.USER.ALL",
+        "alias" : "BHYS-CORRECTION"
+      } ]
+    },
+    "converter" : {
+      "language" : "Python",
+      "moduleName" : "sps_ucap_hystcomp.create_cycle"
+    },
+    "publishedProperty" : "CycleDataFCY"
+  }, {
+    "type" : "EventToOne",
+    "name" : "sps-ucap-hystcomp-fcy-meas",
+    "description" : "UCAP device adding measured current and field to CycleData objects",
+    "event" : {
+      "type" : "SubscriptionTriggered",
+      "trigger" : {
+        "subscription" : {
+          "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.HYSTCOMP.MBI/CycleDataFCY",
+          "selector" : "SPS.USER.ALL",
+          "ignoreFirstUpdates" : true,
+          "alias" : "CycleData"
+        }
+      },
+      "bufferedBySelectorSubscriptions" : [ {
+        "parameter" : "SR.BMEAS-SP-B-SD/CycleSamples#samples",
+        "selector" : "SPS.USER.ALL",
+        "alias" : "BMEAS"
+      }, {
+        "parameter" : "MBI/LOG.I.MEAS",
+        "selector" : "SPS.USER.ALL",
+        "alias" : "IMEAS"
+      } ]
+    },
+    "converter" : {
+      "language" : "Python",
+      "moduleName" : "sps_ucap_hystcomp.add_measurements",
+      "configuration" : {
+  "check_cycle_stamp" : false
+}
+    },
+    "publishedProperty" : "CycleDataMeasInit"
+  }, {
+    "type" : "EventToOne",
+    "name" : "sps-ucap-hystcomp-meas",
+    "description" : "UCAP device adding measured current and field to predictions",
+    "event" : {
+      "type" : "GroupTriggeredCycleStampGrouped",
+      "triggerGroup" : {
+        "subscriptions" : [ {
+          "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.HYSTCOMP.MBI/CycleDataProg",
+          "selector" : "SPS.USER.ALL",
+          "ignoreFirstUpdates" : true,
+          "alias" : "CycleData"
+        }, {
+          "parameter" : "SR.BMEAS-SP-B-SD/CycleSamples#samples",
+          "selector" : "SPS.USER.ALL",
+          "ignoreFirstUpdates" : true,
+          "alias" : "BMEAS"
+        }, {
+          "parameter" : "MBI/LOG.I.MEAS",
+          "selector" : "SPS.USER.ALL",
+          "ignoreFirstUpdates" : true,
+          "alias" : "IMEAS"
+        } ],
+        "timeoutMs" : 30000
+      }
+    },
+    "converter" : {
+      "language" : "Python",
+      "moduleName" : "sps_ucap_hystcomp.add_measurements"
+    },
+    "publishedProperty" : "CycleDataMeas"
+  }, {
+    "type" : "EventToOne",
+    "name" : "sps-ucap-hystcomp-meas-ref",
+    "description" : "UCAP device adding measurement reference to predictions",
+    "event" : {
+      "type" : "ForwardedSubscriptions",
+      "forwardedSubscriptions" : [ {
+        "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.HYSTCOMP.MBI/CycleDataMeas",
+        "selector" : "SPS.USER.ALL",
+        "ignoreFirstUpdates" : true,
+        "alias" : "CycleData"
+      }, {
+        "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.HYSTCOMP.MBI/ResetReference",
+        "ignoreFirstUpdates" : true,
+        "alias" : "ResetReference"
+      } ]
+    },
+    "converter" : {
+      "language" : "Python",
+      "moduleName" : "sps_ucap_hystcomp.save_measurement_reference"
+    },
+    "publishedProperty" : "CycleDataMeasRef"
+  }, {
+    "type" : "EventToOne",
+    "name" : "sps-ucap-hystcomp-metrics",
+    "description" : "Calculate prediction evaluation metrics",
+    "event" : {
+      "type" : "SubscriptionTriggered",
+      "trigger" : {
+        "subscription" : {
+          "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.HYSTCOMP.MBI/CycleDataMeasRef",
+          "selector" : "SPS.USER.ALL",
+          "ignoreFirstUpdates" : true,
+          "alias" : "CycleData"
+        }
+      },
+      "bufferedBySelectorSubscriptions" : [ {
+        "parameter" : "SIX.MC-CTML/ControlValue",
+        "selector" : "SPS.USER.ALL",
+        "alias" : "BeamIn"
+      }, {
+        "parameter" : "SX.BEAM-OUT-CTML/ControlValue",
+        "selector" : "SPS.USER.ALL",
+        "alias" : "BeamOut"
+      }, {
+        "parameter" : "XTIM.SX.S-RAMP-CT/Acquisition",
+        "selector" : "SPS.USER.ALL",
+        "alias" : "InjectionEnd"
+      }, {
+        "parameter" : "XTIM.SX.SFLATTOP-CT/Acquisition",
+        "selector" : "SPS.USER.ALL",
+        "alias" : "FlattopStart"
+      } ]
+    },
+    "converter" : {
+      "language" : "Python",
+      "moduleName" : "sps_ucap_hystcomp.metrics"
+    },
+    "publishedProperty" : "Metrics"
+  }, {
+    "type" : "EventToOne",
+    "name" : "sps-ucap-hystcomp-predict-next-cycle",
+    "description" : "Prediction for SPS Hysteresis Compensation on Main Bending Magnet",
+    "event" : {
+      "type" : "ForwardedSubscriptions",
+      "forwardedSubscriptions" : [ {
+        "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.HYSTCOMP.MBI/CycleBuffer",
+        "selector" : "SPS.USER.ALL",
+        "ignoreFirstUpdates" : true,
+        "alias" : "CycleWarning"
+      }, {
+        "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.HYSTCOMP.MBI/EcoCycleBuffer",
+        "selector" : "SPS.USER.ALL",
+        "ignoreFirstUpdates" : true,
+        "alias" : "EcoCycleWarning"
+      } ]
+    },
+    "converter" : {
+      "language" : "Python",
+      "moduleName" : "sps_ucap_hystcomp.predict_next_cycle",
+      "configuration" : {
+  "autoregressive" : false,
+  "use_programmed_current" : true,
+  "architecture" : "TFT",
+  "device" : "cuda",
+  "parameters_name" : "TFTMBI.50",
+  "parameters_version" : "0.1"
+}
+    },
+    "publishedProperty" : "CycleDataPrediction"
+  }, {
+    "type" : "EventToOne",
+    "name" : "sps-ucap-hystcomp-prog",
+    "description" : "Add programmed current after cycle has started, but after DYNECO triggers",
+    "event" : {
+      "type" : "SubscriptionTriggered",
+      "trigger" : {
+        "subscription" : {
+          "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/XTIM.UCAP.SCY-CT-500/Acquisition",
+          "selector" : "SPS.USER.ALL",
+          "ignoreFirstUpdates" : true,
+          "alias" : "EndInjection"
+        }
+      },
+      "bufferedBySelectorSubscriptions" : [ {
+        "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.HYSTCOMP.MBI/CycleDataCorrection",
+        "selector" : "SPS.USER.ALL",
+        "alias" : "CycleData"
+      }, {
+        "parameter" : "rmi://virtual_sps/SPSBEAM/B",
+        "selector" : "SPS.USER.ALL",
+        "alias" : "B"
+      }, {
+        "parameter" : "rmi://virtual_sps/MBI/IREF",
+        "selector" : "SPS.USER.ALL",
+        "alias" : "IREF"
+      } ]
+    },
+    "converter" : {
+      "language" : "Python",
+      "moduleName" : "sps_ucap_hystcomp.update_programs"
+    },
+    "publishedProperty" : "CycleDataProg"
+  }, {
+    "type" : "EventToOne",
+    "name" : "sps-ucap-hystcomp-reset-reference",
+    "description" : "Publishes the cycle name to reset the reference in correction converter",
+    "event" : {
+      "type" : "SubscriptionTriggered",
+      "trigger" : {
+        "subscription" : {
+          "parameter" : "rmi://virtual_sps/SPSBEAM/B",
+          "selector" : "SPS.USER.ALL",
+          "ignoreFirstUpdates" : true,
+          "alias" : "Trigger"
+        }
+      },
+      "bufferedBySelectorSubscriptions" : [ {
+        "parameter" : "XTIM.SX.SCY-CT/Acquisition",
+        "selector" : "SPS.USER.ALL",
+        "alias" : "StartCycle"
+      } ]
+    },
+    "converter" : {
+      "language" : "Python",
+      "moduleName" : "sps_ucap_hystcomp.track_reference_changed"
+    },
+    "publishedProperty" : "ResetReference"
+  }, {
+    "type" : "EventToOne",
+    "name" : "sps-ucap-hystcomp-track-dyneco",
+    "description" : "UCAP device tracking machine mode and triggering when in DYNECO",
+    "event" : {
+      "type" : "SubscriptionTriggered",
+      "trigger" : {
+        "subscription" : {
+          "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.MBI.DYNECO/IREF",
+          "selector" : "SPS.USER.ALL",
+          "ignoreFirstUpdates" : true,
+          "alias" : "IREF"
+        }
+      },
+      "bufferedBySelectorSubscriptions" : [ {
+        "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.HYSTCOMP.MBI/CycleDataCorrection",
+        "selector" : "SPS.USER.ALL",
+        "ignoreFirstUpdates" : true,
+        "alias" : "CycleData"
+      } ]
+    },
+    "converter" : {
+      "language" : "Python",
+      "moduleName" : "sps_ucap_hystcomp.track_dyneco"
+    },
+    "publishedProperty" : "CycleDataDynEco"
+  }, {
+    "type" : "EventToOne",
+    "name" : "sps-ucap-hystcomp-track-fulleco",
+    "description" : "UCAP device tracking machine mode and triggering when in FULLECO",
+    "event" : {
+      "type" : "SubscriptionTriggered",
+      "trigger" : {
+        "subscription" : {
+          "parameter" : "XTIM.SX.FCY-MMODE-CT/Acquisition",
+          "selector" : "SPS.USER.ALL",
+          "ignoreFirstUpdates" : true,
+          "alias" : "MMODE"
+        }
+      },
+      "bufferedBySelectorSubscriptions" : [ {
+        "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.MBI.FULLECO/IREF",
+        "selector" : "SPS.USER.ALL",
+        "alias" : "IREF"
+      }, {
+        "parameter" : "rda3://UCAP-NODE-SPS-HYSTCOMP/SPS.HYSTCOMP.MBI/CycleDataCorrection",
+        "selector" : "SPS.USER.ALL",
+        "ignoreFirstUpdates" : true,
+        "alias" : "CycleData"
+      } ]
+    },
+    "converter" : {
+      "language" : "Python",
+      "moduleName" : "sps_ucap_hystcomp.track_fulleco"
+    },
+    "publishedProperty" : "CycleDataFullEco"
+  } ]
+}

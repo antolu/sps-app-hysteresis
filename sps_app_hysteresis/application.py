@@ -16,6 +16,8 @@ from .io.metrics import TensorboardWriter, TextWriter
 from .main_window import MainWindow
 from .pipeline import Pipeline, RemotePipeline, StandalonePipeline
 
+from getpass import getpass
+
 torch.set_float32_matmul_precision("high")
 
 
@@ -179,10 +181,12 @@ def setup_rbac_authentication() -> (
     from op_app_context import context  # noqa: PLC0415
 
     try:
-        token = pyrbac.AuthenticationClient().login_location()
+        username=input("Username:")
+        password=getpass()
+        token = pyrbac.AuthenticationClient().login_explicit(username, password, lambda roles: [r for r in roles])
         context.rbac_token = token
         listener = PyrbacAuthenticationListener()
-        service = pyrbac.LoginService.create_for_location(listener)
+        service = pyrbac.LoginService.create_for_explicit(username, password, listener)
 
         listener.register_token_obtained_callback(context.set_rbac_token)
 
@@ -190,11 +194,9 @@ def setup_rbac_authentication() -> (
         logging.getLogger(__name__).info(f"Created service: {service}")
     except:  # noqa: E722
         logging.getLogger(__name__).exception("Failed to login with RBAC.")
-        logging.getLogger(__name__).warning(
-            "No RBAC by location, you will have to login manually."
-        )
         return None, None
     else:
+        print(f"Successfully logged in as user {username}")
         return service, listener
 
 
