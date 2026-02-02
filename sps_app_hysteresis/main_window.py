@@ -70,7 +70,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
 
         # Initialize prediction mode state in trim widget
         if isinstance(self._data, StandalonePipeline):
-            current_mode = self._data._predict.prediction_mode  # noqa: SLF001
+            current_mode = self._data._prediction_mode  # noqa: SLF001
             is_eddy_current_only = current_mode == CorrectionMode.EDDY_CURRENT_ONLY
             self._trim_widget.onCorrectionModeChanged(is_eddy_current_only)
 
@@ -121,10 +121,6 @@ class MainWindow(Ui_main_window, ApplicationFrame):
                 "Model successfully loaded.\nPredictions will now start.",
             )
         )
-        if isinstance(self._data, StandalonePipeline):
-            self._data.onModelLoaded.connect(
-                lambda: self._data._predict.set_do_inference(True)  # noqa: SLF001
-            )
 
         assert self.rba_widget is not None
         self.rba_widget.model.login_succeeded.connect(context.set_rbac_token)
@@ -136,7 +132,7 @@ class MainWindow(Ui_main_window, ApplicationFrame):
         if not app_context().ONLINE and isinstance(self._data, StandalonePipeline):
             self.action_Load_Model.triggered.connect(self.on_load_model_triggered)
             self.actionProgrammed_current.triggered.connect(
-                lambda x: self._data._predict.set_use_programmed_current(  # noqa: SLF001
+                lambda x: self._data._predict.setUseProgrammedCurrent(  # noqa: SLF001
                     state=self.actionProgrammed_current.isChecked()
                 )
             )

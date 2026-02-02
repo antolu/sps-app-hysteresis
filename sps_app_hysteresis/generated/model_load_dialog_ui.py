@@ -29,7 +29,9 @@ class Ui_ModelLoadDialog(object):
         self.gridLayout = QtWidgets.QGridLayout(self.frame_2)
         self.gridLayout.setObjectName("gridLayout")
         self.buttonBrowse = QtWidgets.QPushButton(parent=self.frame_2)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.buttonBrowse.sizePolicy().hasHeightForWidth())
@@ -38,7 +40,9 @@ class Ui_ModelLoadDialog(object):
         self.buttonBrowse.setObjectName("buttonBrowse")
         self.gridLayout.addWidget(self.buttonBrowse, 1, 1, 1, 1)
         self.textCkptPath = QtWidgets.QLineEdit(parent=self.frame_2)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.textCkptPath.sizePolicy().hasHeightForWidth())
@@ -47,7 +51,10 @@ class Ui_ModelLoadDialog(object):
         self.textCkptPath.setObjectName("textCkptPath")
         self.gridLayout.addWidget(self.textCkptPath, 1, 0, 1, 1)
         self.label = QtWidgets.QLabel(parent=self.frame_2)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Preferred,
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.label.sizePolicy().hasHeightForWidth())
@@ -62,16 +69,24 @@ class Ui_ModelLoadDialog(object):
         self.formLayout.setObjectName("formLayout")
         self.labelModelName = QtWidgets.QLabel(parent=self.tabMLP)
         self.labelModelName.setObjectName("labelModelName")
-        self.formLayout.setWidget(0, QtWidgets.QFormLayout.ItemRole.LabelRole, self.labelModelName)
+        self.formLayout.setWidget(
+            0, QtWidgets.QFormLayout.ItemRole.LabelRole, self.labelModelName
+        )
         self.labelModelVersion = QtWidgets.QLabel(parent=self.tabMLP)
         self.labelModelVersion.setObjectName("labelModelVersion")
-        self.formLayout.setWidget(1, QtWidgets.QFormLayout.ItemRole.LabelRole, self.labelModelVersion)
+        self.formLayout.setWidget(
+            1, QtWidgets.QFormLayout.ItemRole.LabelRole, self.labelModelVersion
+        )
         self.lineModelVersion = QtWidgets.QLineEdit(parent=self.tabMLP)
         self.lineModelVersion.setObjectName("lineModelVersion")
-        self.formLayout.setWidget(1, QtWidgets.QFormLayout.ItemRole.FieldRole, self.lineModelVersion)
+        self.formLayout.setWidget(
+            1, QtWidgets.QFormLayout.ItemRole.FieldRole, self.lineModelVersion
+        )
         self.lineModelName = QtWidgets.QLineEdit(parent=self.tabMLP)
         self.lineModelName.setObjectName("lineModelName")
-        self.formLayout.setWidget(0, QtWidgets.QFormLayout.ItemRole.FieldRole, self.lineModelName)
+        self.formLayout.setWidget(
+            0, QtWidgets.QFormLayout.ItemRole.FieldRole, self.lineModelName
+        )
         self.tabWidget.addTab(self.tabMLP, "")
         self.verticalLayout.addWidget(self.tabWidget)
         self.frame_3 = QtWidgets.QFrame(parent=ModelLoadDialog)
@@ -80,19 +95,32 @@ class Ui_ModelLoadDialog(object):
         self.frame_3.setFrameShadow(QtWidgets.QFrame.Shadow.Raised)
         self.frame_3.setObjectName("frame_3")
         self.formLayout_3 = QtWidgets.QFormLayout(self.frame_3)
-        self.formLayout_3.setFieldGrowthPolicy(QtWidgets.QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-        self.formLayout_3.setFormAlignment(QtCore.Qt.AlignmentFlag.AlignLeading|QtCore.Qt.AlignmentFlag.AlignLeft|QtCore.Qt.AlignmentFlag.AlignTop)
+        self.formLayout_3.setFieldGrowthPolicy(
+            QtWidgets.QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
+        )
+        self.formLayout_3.setFormAlignment(
+            QtCore.Qt.AlignmentFlag.AlignLeading
+            | QtCore.Qt.AlignmentFlag.AlignLeft
+            | QtCore.Qt.AlignmentFlag.AlignTop
+        )
         self.formLayout_3.setObjectName("formLayout_3")
         self.labelDevice = QtWidgets.QLabel(parent=self.frame_3)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Preferred,
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.labelDevice.sizePolicy().hasHeightForWidth())
         self.labelDevice.setSizePolicy(sizePolicy)
         self.labelDevice.setObjectName("labelDevice")
-        self.formLayout_3.setWidget(1, QtWidgets.QFormLayout.ItemRole.LabelRole, self.labelDevice)
+        self.formLayout_3.setWidget(
+            1, QtWidgets.QFormLayout.ItemRole.LabelRole, self.labelDevice
+        )
         self.comboDevice = QtWidgets.QComboBox(parent=self.frame_3)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Fixed
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.comboDevice.sizePolicy().hasHeightForWidth())
@@ -102,10 +130,14 @@ class Ui_ModelLoadDialog(object):
         self.comboDevice.setObjectName("comboDevice")
         self.comboDevice.addItem("")
         self.comboDevice.addItem("")
-        self.formLayout_3.setWidget(1, QtWidgets.QFormLayout.ItemRole.FieldRole, self.comboDevice)
+        self.formLayout_3.setWidget(
+            1, QtWidgets.QFormLayout.ItemRole.FieldRole, self.comboDevice
+        )
         self.labelModel = QtWidgets.QLabel(parent=self.frame_3)
         self.labelModel.setObjectName("labelModel")
-        self.formLayout_3.setWidget(2, QtWidgets.QFormLayout.ItemRole.LabelRole, self.labelModel)
+        self.formLayout_3.setWidget(
+            2, QtWidgets.QFormLayout.ItemRole.LabelRole, self.labelModel
+        )
         self.comboBoxModel = QtWidgets.QComboBox(parent=self.frame_3)
         self.comboBoxModel.setMaximumSize(QtCore.QSize(100, 16777215))
         self.comboBoxModel.setObjectName("comboBoxModel")
@@ -122,18 +154,23 @@ class Ui_ModelLoadDialog(object):
         self.comboBoxModel.addItem("")
         self.comboBoxModel.addItem("")
         self.comboBoxModel.addItem("")
-        self.formLayout_3.setWidget(2, QtWidgets.QFormLayout.ItemRole.FieldRole, self.comboBoxModel)
+        self.formLayout_3.setWidget(
+            2, QtWidgets.QFormLayout.ItemRole.FieldRole, self.comboBoxModel
+        )
         self.verticalLayout.addWidget(self.frame_3)
         self.buttonBox = QtWidgets.QDialogButtonBox(parent=ModelLoadDialog)
         self.buttonBox.setOrientation(QtCore.Qt.Orientation.Horizontal)
-        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.StandardButton.Cancel|QtWidgets.QDialogButtonBox.StandardButton.Ok)
+        self.buttonBox.setStandardButtons(
+            QtWidgets.QDialogButtonBox.StandardButton.Cancel
+            | QtWidgets.QDialogButtonBox.StandardButton.Ok
+        )
         self.buttonBox.setObjectName("buttonBox")
         self.verticalLayout.addWidget(self.buttonBox)
 
         self.retranslateUi(ModelLoadDialog)
         self.tabWidget.setCurrentIndex(0)
-        self.buttonBox.accepted.connect(ModelLoadDialog.accept) # type: ignore
-        self.buttonBox.rejected.connect(ModelLoadDialog.reject) # type: ignore
+        self.buttonBox.accepted.connect(ModelLoadDialog.accept)  # type: ignore
+        self.buttonBox.rejected.connect(ModelLoadDialog.reject)  # type: ignore
         QtCore.QMetaObject.connectSlotsByName(ModelLoadDialog)
 
     def retranslateUi(self, ModelLoadDialog):
@@ -141,24 +178,49 @@ class Ui_ModelLoadDialog(object):
         ModelLoadDialog.setWindowTitle(_translate("ModelLoadDialog", "Dialog"))
         self.buttonBrowse.setText(_translate("ModelLoadDialog", "&Browse..."))
         self.label.setText(_translate("ModelLoadDialog", "Checkpoint Path"))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabLocal), _translate("ModelLoadDialog", "Local"))
+        self.tabWidget.setTabText(
+            self.tabWidget.indexOf(self.tabLocal),
+            _translate("ModelLoadDialog", "Local"),
+        )
         self.labelModelName.setText(_translate("ModelLoadDialog", "Model Name"))
         self.labelModelVersion.setText(_translate("ModelLoadDialog", "Model version"))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMLP), _translate("ModelLoadDialog", "MLP"))
+        self.tabWidget.setTabText(
+            self.tabWidget.indexOf(self.tabMLP), _translate("ModelLoadDialog", "MLP")
+        )
         self.labelDevice.setText(_translate("ModelLoadDialog", "Device"))
         self.comboDevice.setItemText(0, _translate("ModelLoadDialog", "CPU"))
         self.comboDevice.setItemText(1, _translate("ModelLoadDialog", "CUDA"))
         self.labelModel.setText(_translate("ModelLoadDialog", "Model Architecture"))
         self.comboBoxModel.setItemText(0, _translate("ModelLoadDialog", "PETE"))
-        self.comboBoxModel.setItemText(1, _translate("ModelLoadDialog", "TemporalFusionTransformer"))
+        self.comboBoxModel.setItemText(
+            1, _translate("ModelLoadDialog", "TemporalFusionTransformer")
+        )
         self.comboBoxModel.setItemText(2, _translate("ModelLoadDialog", "PFTFT"))
         self.comboBoxModel.setItemText(3, _translate("ModelLoadDialog", "TCT"))
-        self.comboBoxModel.setItemText(4, _translate("ModelLoadDialog", "AttentionLSTM"))
-        self.comboBoxModel.setItemText(5, _translate("ModelLoadDialog", "EncoderDecoderLSTM"))
-        self.comboBoxModel.setItemText(6, _translate("ModelLoadDialog", "InterpolatedTFT"))
-        self.comboBoxModel.setItemText(7, _translate("ModelLoadDialog", "InterpolatedPFTFT"))
-        self.comboBoxModel.setItemText(8, _translate("ModelLoadDialog", "InterpolatedTCT"))
-        self.comboBoxModel.setItemText(9, _translate("ModelLoadDialog", "InterpolatedAttentionLSTM"))
-        self.comboBoxModel.setItemText(10, _translate("ModelLoadDialog", "InterpolatedEncoderDecoderLSTM"))
-        self.comboBoxModel.setItemText(11, _translate("ModelLoadDialog", "TransformerLSTM"))
-        self.comboBoxModel.setItemText(12, _translate("ModelLoadDialog", "InterpolatedTransformerLSTM"))
+        self.comboBoxModel.setItemText(
+            4, _translate("ModelLoadDialog", "AttentionLSTM")
+        )
+        self.comboBoxModel.setItemText(
+            5, _translate("ModelLoadDialog", "EncoderDecoderLSTM")
+        )
+        self.comboBoxModel.setItemText(
+            6, _translate("ModelLoadDialog", "TransformerLSTM")
+        )
+        self.comboBoxModel.setItemText(
+            7, _translate("ModelLoadDialog", "InterpolatedTFT")
+        )
+        self.comboBoxModel.setItemText(
+            8, _translate("ModelLoadDialog", "InterpolatedPFTFT")
+        )
+        self.comboBoxModel.setItemText(
+            9, _translate("ModelLoadDialog", "InterpolatedTCT")
+        )
+        self.comboBoxModel.setItemText(
+            10, _translate("ModelLoadDialog", "InterpolatedAttentionLSTM")
+        )
+        self.comboBoxModel.setItemText(
+            11, _translate("ModelLoadDialog", "InterpolatedEncoderDecoderLSTM")
+        )
+        self.comboBoxModel.setItemText(
+            12, _translate("ModelLoadDialog", "InterpolatedTransformerLSTM")
+        )

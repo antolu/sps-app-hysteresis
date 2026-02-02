@@ -12,7 +12,7 @@ import dataclasses
 import datetime
 import typing
 
-from ..settings import TrimSettings
+from hystcomp_actions import TrimSettings
 
 
 @dataclasses.dataclass
@@ -36,6 +36,7 @@ class ParameterNames:
     B_MEAS: str | None = None
     BDOT_MEAS: str | None = None
     TRIM_SETTINGS: str | None = None
+    LSA_TRIM_PARAM: str | None = None
 
 
 @dataclasses.dataclass
@@ -43,6 +44,7 @@ class RemoteParameterNames:
     CYCLE_WARNING: str
     CYCLE_CORRECTION: str
     CYCLE_MEASURED: str
+    METRICS: str
     RESET_REFERENCE: str
     SET_GAIN: str
 

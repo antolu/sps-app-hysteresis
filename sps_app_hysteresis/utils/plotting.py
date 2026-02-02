@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import numpy as np
+from hystcomp_actions import TrimSettings
+from hystcomp_actions.utils import cycle_metadata
 from hystcomp_utils.cycle_data import CycleData
-
-from ..settings import TrimSettings
-from . import cycle_metadata
 
 
 def calculate_delta_for_plotting(

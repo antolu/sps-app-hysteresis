@@ -1,7 +1,12 @@
 import typing
 
+import pyda
+from hystcomp_actions import OnlineTrimSettings, QtTrimSettings
+from hystcomp_actions.utils import cycle_metadata
+from op_app_context import context as op_context
+from op_app_context import settings as app_settings
+
 from .._mod_replace import replace_modname
-from ..settings import OnlineTrimSettings, StandaloneTrimSettings
 from ._base_context import (
     ApplicationContext,
     EddyCurrentModel,
@@ -23,7 +28,7 @@ for _mod in [ApplicationContext, ParameterNames, MBI_PARAMS]:
 class ContextRecipe(typing.TypedDict):
     device: typing.Literal["MBI", "QF", "QD"]
     param_names: ParameterNames
-    trim_settings: type[StandaloneTrimSettings | OnlineTrimSettings]
+    trim_settings: type[QtTrimSettings | OnlineTrimSettings]
     remote_param_names: typing.NotRequired[RemoteParameterNames]
     eddy_current_model: EddyCurrentModel
     measurement_eddy_current_model: MeasurementEddyCurrentModel
@@ -33,7 +38,7 @@ _context_recipes: dict[str, ContextRecipe] = {
     "MBI_standalone": {
         "device": "MBI",
         "param_names": MBI_PARAMS,
-        "trim_settings": StandaloneTrimSettings,
+        "trim_settings": QtTrimSettings,
         "eddy_current_model": MBI_EDDY_CURRENT_MODEL,
         "measurement_eddy_current_model": MBI_MEASUREMENT_EDDY_CURRENT_MODEL,
     },
@@ -48,7 +53,7 @@ _context_recipes: dict[str, ContextRecipe] = {
     # "QF": {
     #     "device": "QF",
     #     "param_names": MBI_PARAMS,
-    #     "trim_settings": StandaloneTrimSettings,
+    #     "trim_settings": QtTrimSettings,
     # },
     # "QD": {
     #     "device": "QD",
@@ -73,20 +78,25 @@ def set_context(
             raise ValueError(msg)
         trim_settings_cls = typing.cast(type[OnlineTrimSettings], trim_settings_cls)
         trim_settings = trim_settings_cls(
-            device=recipe["param_names"].TRIM_SETTINGS or ""
+            device=recipe["param_names"].TRIM_SETTINGS or "",
+            da=pyda.SimpleClient(provider=op_context.japc_provider),
         )
         remote_params = recipe.get("remote_param_names")
         if remote_params is None:
             msg = "Online context requested, but no remote parameter names provided"
             raise ValueError(msg)
     else:
-        if trim_settings_cls != StandaloneTrimSettings:
+        if trim_settings_cls != QtTrimSettings:
             msg = (
                 "Standalone context requested, but recipe is not for standalone context"
             )
             raise ValueError(msg)
-        trim_settings_cls = typing.cast(type[StandaloneTrimSettings], trim_settings_cls)
-        trim_settings = trim_settings_cls(prefix=device)
+        trim_settings_cls = typing.cast(type[QtTrimSettings], trim_settings_cls)
+        trim_settings = trim_settings_cls(
+            prefix=device,
+            settings=app_settings.settings,
+            cycle_metadata=cycle_metadata,
+        )
 
         remote_params = None
 
@@ -94,9 +104,9 @@ def set_context(
         device=device,
         param_names=recipe["param_names"],
         trim_settings=trim_settings,
-        remote_params=remote_params,
         eddy_current_model=recipe["eddy_current_model"],
         measurement_eddy_current_model=recipe["measurement_eddy_current_model"],
+        remote_params=remote_params,
     )
     global _app_context  # noqa: PLW0603
     _app_context = context
