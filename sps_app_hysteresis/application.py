@@ -170,6 +170,7 @@ def configure_application_context(
     settings.configure_application(application)
 
     set_context(args.device, online=args.online)
+    print(f"Online: {args.online}")
     app_context().LOGDIR = args.logdir
 
 

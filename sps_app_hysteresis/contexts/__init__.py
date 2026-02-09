@@ -34,6 +34,7 @@ class ContextRecipe(typing.TypedDict):
     measurement_eddy_current_model: MeasurementEddyCurrentModel
 
 
+# TODO: This is insane 
 _context_recipes: dict[str, ContextRecipe] = {
     "MBI_standalone": {
         "device": "MBI",

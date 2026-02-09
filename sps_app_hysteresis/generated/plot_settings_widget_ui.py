@@ -91,6 +91,9 @@ class Ui_PlotSettingsWidget(object):
         self.buttonResetAxis = QtWidgets.QPushButton(parent=self.frame)
         self.buttonResetAxis.setObjectName("buttonResetAxis")
         self.formLayout.setWidget(2, QtWidgets.QFormLayout.ItemRole.SpanningRole, self.buttonResetAxis)
+        self.buttonTestTrim = QtWidgets.QPushButton(parent=self.frame)
+        self.buttonTestTrim.setObjectName("buttonTestTrim")
+        self.formLayout.setWidget(3, QtWidgets.QFormLayout.ItemRole.SpanningRole, self.buttonTestTrim)
         spacerItem = QtWidgets.QSpacerItem(20, 200, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding)
         self.formLayout.setItem(4, QtWidgets.QFormLayout.ItemRole.LabelRole, spacerItem)
         self.progressBar = QtWidgets.QProgressBar(parent=self.frame)
@@ -116,5 +119,6 @@ class Ui_PlotSettingsWidget(object):
         self.labelTimespan.setText(_translate("PlotSettingsWidget", "Time span [s]"))
         self.labelDownsample.setText(_translate("PlotSettingsWidget", "Downsample"))
         self.buttonResetAxis.setText(_translate("PlotSettingsWidget", "Reset Axis"))
+        self.buttonTestTrim.setText(_translate("PlotSettingsWidget", "Send Test Trim"))
         self.labelStatus.setText(_translate("PlotSettingsWidget", "No Status Message"))
 from accwidgets.led import Led

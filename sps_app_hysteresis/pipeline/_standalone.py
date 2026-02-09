@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import sys
 
 import numpy as np
 import pyda_japc
@@ -21,7 +22,7 @@ log = logging.getLogger(__name__)
 
 class StandalonePipeline(Pipeline):
     _resetState = QtCore.Signal()
-    _trimApplied = QtCore.Signal(CycleData, np.ndarray, datetime.datetime, str)
+    _trimApplied = QtCore.Signal(CycleData, datetime.datetime, str) # I don't think this ever emits
 
     def __init__(
         self,
@@ -75,14 +76,16 @@ class StandalonePipeline(Pipeline):
         self._correction_core = Correction(trim_settings=app_context().TRIM_SETTINGS)
         self._correction = QtCorrectionAdapter(self._correction_core, parent=parent)
 
-        # Trim
+        trim_type="flat"
+
         self._trim_core = Trim(
-            param_b_corr=param_names.LSA_TRIM_PARAM or "",
-            settings=app_context().TRIM_SETTINGS,
-            lsa_provider=context.lsa_provider,
-            trim_threshold=app_context().TRIM_MIN_THRESHOLD,
-            dry_run=False,
+                param_b_corr=param_names.LSA_TRIM_PARAM or "",
+                settings=app_context().TRIM_SETTINGS,
+                lsa_provider=context.lsa_provider,
+                trim_threshold=app_context().TRIM_MIN_THRESHOLD,
+                dry_run=False,
         )
+
         self._trim = QtTrimAdapter(self._trim_core, parent=parent)
 
         # 3. Instantiate Orchestrator

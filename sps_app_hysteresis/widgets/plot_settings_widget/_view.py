@@ -17,6 +17,8 @@ FMT = "%Y-%m-%d %H:%M:%S.%f"
 
 
 class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
+
+    testTrimSignal = Signal()
     timespan_changed = Signal(int, int)  # min, max
     downsample_changed = Signal(int)
 
@@ -28,6 +30,10 @@ class PlotSettingsWidget(Ui_PlotSettingsWidget, QWidget):
         self.spinBoxTimespan.valueChanged.connect(self._timespan_changed)
         self.spinBoxDownsample.valueChanged.connect(self.downsample_changed)
         self.buttonResetAxis.clicked.connect(self._timespan_changed)
+        # self.buttonTestTrim.clicked.connect()
+
+    def _test_trim(self) -> None:
+        self.testTrimSignal.emit(self)
 
     def _timespan_changed(self, *_: Any) -> None:
         self.timespan_changed.emit(self.spinBoxTimespan.value(), 0)

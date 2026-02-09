@@ -138,14 +138,14 @@ class PlotWidget(QWidget):
             data_source=model.field_ref_diff_source,
             pen=pg.mkPen(color="#BFBFBF", width=2),
             layer="dpp_fixed",
-            name="dB w.r.t. Ref.",
+            name="B_ref - B_pred",
             unit="E-4 T",
         )
         field_meas_discr = self.plotDiscr.addCurve(
             data_source=model.field_meas_diff_source,
             pen=pg.mkPen(color="#1F5673", width=2),
             layer="dpp_fixed",
-            name="dB w.r.t. Meas.",
+            name="B_meas - B_pred",
             unit="E-4 T",
         )
         # field_ref_disc = self.plotDiscr.addCurve(

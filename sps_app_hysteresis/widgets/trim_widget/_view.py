@@ -76,6 +76,7 @@ class TrimInfoWidget(QtWidgets.QWidget):
 
 class TrimSettingsWidget(QtWidgets.QWidget):
     flatteningRequested = QtCore.Signal(str, float)  # cycle, constant_field
+    testTrim = QtCore.Signal(str, float)  # cycle, constant_field
 
     def __init__(self, model: TrimModel, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent=parent)
@@ -106,6 +107,10 @@ class TrimSettingsWidget(QtWidgets.QWidget):
             initial_state=ToggleButton.State.STATE2,
         )
 
+        self.testTrimButton = QtWidgets.QPushButton(
+            "Test Trim", parent=self
+        )
+
         self.ResetReferenceButton = QtWidgets.QPushButton(
             "Reset Reference", parent=self
         )
@@ -114,15 +119,16 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         self.FlatteningButton.setEnabled(False)
 
         layout = QtWidgets.QGridLayout(self)
-        layout.addWidget(self.GainLabel, 0, 0)
-        layout.addWidget(self.GainSpinBox, 0, 1)
-        layout.addWidget(self.TrimTMinLabel, 1, 0)
-        layout.addWidget(self.TrimTMinSpinBox, 1, 1)
-        layout.addWidget(self.TrimTMaxLabel, 2, 0)
-        layout.addWidget(self.TrimTMaxSpinBox, 2, 1)
-        layout.addWidget(self.ToggleButton, 3, 0, 1, 2)
-        layout.addWidget(self.ResetReferenceButton, 4, 0, 1, 2)
-        layout.addWidget(self.FlatteningButton, 5, 0, 1, 2)
+        layout.addWidget(self.testTrimButton, 0, 0)
+        layout.addWidget(self.GainLabel, 1, 0)
+        layout.addWidget(self.GainSpinBox, 1, 1)
+        layout.addWidget(self.TrimTMinLabel, 2, 0)
+        layout.addWidget(self.TrimTMinSpinBox, 2, 1)
+        layout.addWidget(self.TrimTMaxLabel, 3, 0)
+        layout.addWidget(self.TrimTMaxSpinBox, 4, 1)
+        layout.addWidget(self.ToggleButton, 4, 0, 1, 2)
+        layout.addWidget(self.ResetReferenceButton, 5, 0, 1, 2)
+        layout.addWidget(self.FlatteningButton, 6, 0, 1, 2)
         self.setLayout(layout)
 
         self.GainSpinBox.valueChanged.connect(self.onGainChanged)
@@ -130,6 +136,7 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         self.TrimTMaxSpinBox.valueChanged.connect(self.onMaxValueChanged)
         self.ToggleButton.stateChanged.connect(self.onEnableTrim)
         self.FlatteningButton.clicked.connect(self.onFlatteningRequested)
+        self.testTrimButton.clicked.connect(self.onTestTrimClicked)
 
         # disable the trim settings until a context has been set
         self.GainSpinBox.setEnabled(False)
@@ -138,6 +145,7 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         self.ToggleButton.setEnabled(False)
         self.ResetReferenceButton.setEnabled(False)
         self.FlatteningButton.setEnabled(False)
+        self.testTrimButton.setEnabled(False)
 
         self.model.contextChanged.connect(self.onContextChanged)
         self._cycle: str | None = None
@@ -150,6 +158,7 @@ class TrimSettingsWidget(QtWidgets.QWidget):
         self.TrimTMaxSpinBox.setEnabled(True)
         self.ToggleButton.setEnabled(True)
         self.ResetReferenceButton.setEnabled(True)
+        self.testTrimButton.setEnabled(True)
         self._update_flattening_button_state()
 
         with mute_signals(self.GainSpinBox, self.TrimTMinSpinBox, self.TrimTMaxSpinBox):
@@ -224,6 +233,20 @@ class TrimSettingsWidget(QtWidgets.QWidget):
     @QtCore.Slot()
     def onFlatteningRequested(self) -> None:
         """Handle flattening button click."""
+        if self._cycle is None:
+            log.error("No cycle selected for flattening correction.")
+            return
+
+        # Use constant field of 0.0 as requested
+        constant_field = 0.0
+        log.info(
+            f"Requesting flattening correction for cycle {self._cycle} with constant field {constant_field}"
+        )
+        self.flatteningRequested.emit(self._cycle, constant_field)
+
+    @QtCore.Slot()
+    def onTestTrimClicked(self) -> None:
+        """Handle test button click."""
         if self._cycle is None:
             log.error("No cycle selected for flattening correction.")
             return
